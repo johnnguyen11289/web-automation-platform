@@ -13,7 +13,7 @@ import {
   ErrorHandlingStrategy 
 } from '../types/node.types';
 
-class WorkflowController {
+export class WorkflowController {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
 
@@ -280,6 +280,13 @@ class WorkflowController {
   async wait(req: Request, res: Response) {
     try {
       const nodeProps: WaitNodeProperties = req.body;
+      
+      if (!nodeProps.waitType) {
+        return res.status(400).json({
+          success: false,
+          error: 'Wait type is required'
+        });
+      }
 
       const page = await this.initBrowser();
 
@@ -316,7 +323,7 @@ class WorkflowController {
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Wait condition failed',
+        error: error instanceof Error ? error.message : 'Failed to wait',
       });
     }
   }
@@ -389,7 +396,7 @@ class WorkflowController {
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Condition check failed',
+        error: error instanceof Error ? error.message : 'Failed to evaluate condition',
       });
     }
   }
@@ -502,7 +509,7 @@ class WorkflowController {
     } catch (error) {
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Loop execution failed',
+        error: error instanceof Error ? error.message : 'Failed to execute loop',
       });
     }
   }
