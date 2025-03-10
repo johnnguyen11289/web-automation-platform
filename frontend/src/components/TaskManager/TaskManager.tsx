@@ -151,7 +151,11 @@ const TaskManager: React.FC<TaskManagerProps> = ({
         workflowId: task.workflowId,
         profileId: task.profileId,
         priority: task.priority,
-        schedule: task.schedule,
+        schedule: {
+          ...task.schedule,
+          startDate: new Date(task.schedule.startDate),
+          endDate: task.schedule.endDate ? new Date(task.schedule.endDate) : undefined,
+        },
         maxRetries: task.maxRetries,
         timeout: task.timeout,
         parallelExecution: task.parallelExecution,
@@ -186,9 +190,33 @@ const TaskManager: React.FC<TaskManagerProps> = ({
 
   const handleSubmit = () => {
     if (selectedTask) {
-      onEdit(selectedTask._id, formData);
+      const submissionData: TaskFormData = {
+        ...formData,
+        schedule: {
+          ...formData.schedule,
+          startDate: formData.schedule.startDate instanceof Date 
+            ? formData.schedule.startDate.toISOString() 
+            : formData.schedule.startDate,
+          endDate: formData.schedule.endDate instanceof Date 
+            ? formData.schedule.endDate.toISOString() 
+            : formData.schedule.endDate,
+        },
+      };
+      onEdit(selectedTask._id, submissionData);
     } else {
-      onAdd(formData);
+      const submissionData: TaskFormData = {
+        ...formData,
+        schedule: {
+          ...formData.schedule,
+          startDate: formData.schedule.startDate instanceof Date 
+            ? formData.schedule.startDate.toISOString() 
+            : formData.schedule.startDate,
+          endDate: formData.schedule.endDate instanceof Date 
+            ? formData.schedule.endDate.toISOString() 
+            : formData.schedule.endDate,
+        },
+      };
+      onAdd(submissionData);
     }
     handleCloseDialog();
   };
@@ -223,6 +251,18 @@ const TaskManager: React.FC<TaskManagerProps> = ({
         schedule: {
           ...prev.schedule,
           startDate: newValue,
+        },
+      }));
+    }
+  };
+
+  const handleEndDateChange = (newValue: Date | null) => {
+    if (newValue) {
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          endDate: newValue,
         },
       }));
     }
@@ -557,8 +597,24 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                   <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <DateTimePicker
                       label="Start Date"
-                      value={formData.schedule.startDate}
+                      value={formData.schedule.startDate instanceof Date 
+                        ? formData.schedule.startDate 
+                        : new Date(formData.schedule.startDate)}
                       onChange={handleStartDateChange}
+                      slotProps={{ textField: { fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DateTimePicker
+                      label="End Date (Optional)"
+                      value={formData.schedule.endDate 
+                        ? (formData.schedule.endDate instanceof Date 
+                          ? formData.schedule.endDate 
+                          : new Date(formData.schedule.endDate))
+                        : null}
+                      onChange={handleEndDateChange}
                       slotProps={{ textField: { fullWidth: true } }}
                     />
                   </LocalizationProvider>

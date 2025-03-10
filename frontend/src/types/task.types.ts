@@ -7,8 +7,8 @@ export type TaskScheduleType = 'once' | 'daily' | 'weekly' | 'monthly';
 
 export interface TaskSchedule {
   type: TaskScheduleType;
-  startDate: Date;
-  endDate?: Date;
+  startDate: Date | string;  // Allow both Date and string for API compatibility
+  endDate?: Date | string;   // Allow both Date and string for API compatibility
   time?: string; // HH:mm format
   daysOfWeek?: number[]; // 0-6 for Sunday-Saturday
   daysOfMonth?: number[]; // 1-31

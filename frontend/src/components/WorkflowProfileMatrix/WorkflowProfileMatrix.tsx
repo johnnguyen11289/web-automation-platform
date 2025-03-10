@@ -83,7 +83,9 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
       ...prev,
       schedule: {
         type,
-        startDate: prev.schedule.startDate,
+        startDate: prev.schedule.startDate instanceof Date 
+          ? prev.schedule.startDate 
+          : new Date(prev.schedule.startDate),
         time: prev.schedule.time,
         daysOfWeek: type === 'weekly' ? [1] : undefined,
         daysOfMonth: type === 'monthly' ? [1] : undefined,
@@ -98,6 +100,18 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
         schedule: {
           ...prev.schedule,
           startDate: newValue,
+        },
+      }));
+    }
+  };
+
+  const handleEndDateChange = (newValue: Date | null) => {
+    if (newValue) {
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          endDate: newValue,
         },
       }));
     }
@@ -134,7 +148,19 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
   };
 
   const handleSubmit = () => {
-    onSubmit(formData);
+    const submissionData: TaskFormData = {
+      ...formData,
+      schedule: {
+        ...formData.schedule,
+        startDate: formData.schedule.startDate instanceof Date 
+          ? formData.schedule.startDate.toISOString() 
+          : formData.schedule.startDate,
+        endDate: formData.schedule.endDate instanceof Date 
+          ? formData.schedule.endDate.toISOString() 
+          : formData.schedule.endDate,
+      },
+    };
+    onSubmit(submissionData);
     onClose();
   };
 
@@ -233,8 +259,24 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label="Start Date"
-                    value={formData.schedule.startDate}
+                    value={formData.schedule.startDate instanceof Date 
+                      ? formData.schedule.startDate 
+                      : new Date(formData.schedule.startDate)}
                     onChange={handleStartDateChange}
+                    slotProps={{ textField: { fullWidth: true } }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    label="End Date (Optional)"
+                    value={formData.schedule.endDate 
+                      ? (formData.schedule.endDate instanceof Date 
+                        ? formData.schedule.endDate 
+                        : new Date(formData.schedule.endDate))
+                      : null}
+                    onChange={handleEndDateChange}
                     slotProps={{ textField: { fullWidth: true } }}
                   />
                 </LocalizationProvider>
