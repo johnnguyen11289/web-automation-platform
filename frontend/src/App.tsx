@@ -19,6 +19,7 @@ import NodePalette from './components/NodePalette';
 import { api, Workflow } from './services/api';
 import './App.css';
 import { BrowserProfile } from './types/browser.types';
+import { Execution, ExecutionStats } from './types/execution.types';
 
 const theme = createTheme({
   palette: {
@@ -61,7 +62,14 @@ function TabPanel(props: TabPanelProps) {
 function App() {
   const [currentTab, setCurrentTab] = useState(0);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [activeExecutions, setActiveExecutions] = useState([]);
+  const [executions, setExecutions] = useState<Execution[]>([]);
+  const [executionStats, setExecutionStats] = useState<ExecutionStats>({
+    totalExecutions: 0,
+    runningExecutions: 0,
+    completedExecutions: 0,
+    failedExecutions: 0,
+    averageDuration: 0,
+  });
   const [taskHistory, setTaskHistory] = useState([]);
   const [browserProfiles, setBrowserProfiles] = useState<BrowserProfile[]>([]);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
@@ -69,6 +77,7 @@ function App() {
   useEffect(() => {
     loadWorkflows();
     loadBrowserProfiles();
+    loadExecutions();
   }, []);
 
   const loadWorkflows = async () => {
@@ -89,6 +98,39 @@ function App() {
     } catch (error) {
       console.error('Failed to load browser profiles:', error);
     }
+  };
+
+  const loadExecutions = async () => {
+    try {
+      const data = await api.getExecutions();
+      setExecutions(data);
+      updateExecutionStats(data);
+    } catch (error) {
+      console.error('Failed to load executions:', error);
+    }
+  };
+
+  const updateExecutionStats = (executions: Execution[]) => {
+    const stats: ExecutionStats = {
+      totalExecutions: executions.length,
+      runningExecutions: executions.filter(e => e.status === 'running').length,
+      completedExecutions: executions.filter(e => e.status === 'completed').length,
+      failedExecutions: executions.filter(e => e.status === 'failed').length,
+      averageDuration: calculateAverageDuration(executions),
+    };
+    setExecutionStats(stats);
+  };
+
+  const calculateAverageDuration = (executions: Execution[]): number => {
+    const completedExecutions = executions.filter(e => e.endTime);
+    if (completedExecutions.length === 0) return 0;
+
+    const totalDuration = completedExecutions.reduce((sum, e) => {
+      const duration = new Date(e.endTime!).getTime() - new Date(e.startTime).getTime();
+      return sum + duration;
+    }, 0);
+
+    return totalDuration / completedExecutions.length;
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -195,6 +237,49 @@ function App() {
     }
   };
 
+  const handleExecutionStart = async (workflowId: string, profileId: string, parallel: boolean) => {
+    try {
+      const newExecution = await api.startExecution(workflowId, profileId, parallel);
+      setExecutions(prev => [...prev, newExecution]);
+      updateExecutionStats([...executions, newExecution]);
+    } catch (error) {
+      console.error('Failed to start execution:', error);
+    }
+  };
+
+  const handleExecutionPause = async (executionId: string) => {
+    try {
+      await api.pauseExecution(executionId);
+      setExecutions(prev => prev.map(e => 
+        e._id === executionId ? { ...e, status: 'paused' } : e
+      ));
+    } catch (error) {
+      console.error('Failed to pause execution:', error);
+    }
+  };
+
+  const handleExecutionResume = async (executionId: string) => {
+    try {
+      await api.resumeExecution(executionId);
+      setExecutions(prev => prev.map(e => 
+        e._id === executionId ? { ...e, status: 'running' } : e
+      ));
+    } catch (error) {
+      console.error('Failed to resume execution:', error);
+    }
+  };
+
+  const handleExecutionStop = async (executionId: string) => {
+    try {
+      await api.stopExecution(executionId);
+      setExecutions(prev => prev.map(e => 
+        e._id === executionId ? { ...e, status: 'stopped' } : e
+      ));
+    } catch (error) {
+      console.error('Failed to stop execution:', error);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -244,10 +329,13 @@ function App() {
 
           <TabPanel value={currentTab} index={1}>
             <ExecutionPanel
-              activeExecutions={activeExecutions}
-              onStart={() => {}}
-              onStop={() => {}}
-              onRefresh={() => {}}
+              executions={executions}
+              stats={executionStats}
+              onStart={handleExecutionStart}
+              onPause={handleExecutionPause}
+              onResume={handleExecutionResume}
+              onStop={handleExecutionStop}
+              onRefresh={loadExecutions}
             />
           </TabPanel>
 

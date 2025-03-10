@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { BrowserProfile } from '../types/browser.types';
+import { Execution } from '../types/execution.types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -118,6 +119,58 @@ export const api = {
     } catch (error) {
       console.error('API: Error deleting browser profile:', error);
       throw new Error('Failed to delete browser profile');
+    }
+  },
+
+  // Execution methods
+  getExecutions: async (): Promise<Execution[]> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/executions`);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error fetching executions:', error);
+      throw new Error('Failed to fetch executions');
+    }
+  },
+
+  startExecution: async (workflowId: string, profileId: string, parallel: boolean): Promise<Execution> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/executions`, {
+        workflowId,
+        profileId,
+        parallel,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('API: Error starting execution:', error);
+      throw new Error('Failed to start execution');
+    }
+  },
+
+  pauseExecution: async (executionId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/pause`);
+    } catch (error) {
+      console.error('API: Error pausing execution:', error);
+      throw new Error('Failed to pause execution');
+    }
+  },
+
+  resumeExecution: async (executionId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/resume`);
+    } catch (error) {
+      console.error('API: Error resuming execution:', error);
+      throw new Error('Failed to resume execution');
+    }
+  },
+
+  stopExecution: async (executionId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/stop`);
+    } catch (error) {
+      console.error('API: Error stopping execution:', error);
+      throw new Error('Failed to stop execution');
     }
   },
 }; 
