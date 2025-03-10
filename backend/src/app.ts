@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import mongoose from 'mongoose';
 import workflowRoutes from './routes/workflow.routes';
-import browserProfilesRouter from './routes/browserProfiles';
+import browserProfileRoutes from './routes/browserProfiles';
 import executionRoutes from './routes/executions';
+import taskRoutes from './routes/tasks';
 
 const app = express();
 
@@ -12,8 +14,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api/workflow', workflowRoutes);
-app.use('/api/profile', browserProfilesRouter);
+app.use('/api/profile', browserProfileRoutes);
 app.use('/api/executions', executionRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

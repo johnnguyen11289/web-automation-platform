@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { Queue, Worker } from 'bullmq';
 import { AutomationService, AutomationAction } from './services/automation.service';
+import { connectDB } from './config/database';
 import app from './app';
 
 // Load environment variables
@@ -16,70 +17,73 @@ const automationService = new AutomationService();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection (optional)
-if (process.env.MONGODB_URI) {
-  mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
-      console.log('Connected to MongoDB');
-    })
-    .catch((error: Error) => {
-      console.warn('MongoDB connection error:', error.message);
-      console.warn('Running without MongoDB - some features may be limited');
-    });
-} else {
-  console.warn('MONGODB_URI not provided - running without MongoDB');
-}
-
 // Initialize BullMQ queue and worker (optional)
 let taskQueue: Queue | null = null;
 let worker: Worker | null = null;
 
-if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
+// Start the server
+const startServer = async () => {
   try {
-    taskQueue = new Queue('tasks', {
-      connection: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT),
-        retryStrategy: (times: number) => {
-          if (times > 3) {
-            console.warn('Redis connection failed - running without task queue');
-            return null;
-          }
-          return Math.min(times * 1000, 3000);
-        },
-      },
-    });
-
-    worker = new Worker('tasks', async (job) => {
-      console.log(`Processing automation job ${job.id}`);
-      const { url, actions } = job.data;
-      
+    // Connect to MongoDB first
+    await connectDB();
+    
+    // Initialize task queue if Redis is available
+    if (process.env.REDIS_HOST && process.env.REDIS_PORT) {
       try {
-        const result = await automationService.performWebAutomation(url, actions);
-        return result;
-      } catch (error) {
-        console.error(`Job ${job.id} failed:`, error);
-        throw error;
-      }
-    }, {
-      connection: {
-        host: process.env.REDIS_HOST,
-        port: parseInt(process.env.REDIS_PORT),
-        retryStrategy: (times: number) => {
-          if (times > 3) return null;
-          return Math.min(times * 1000, 3000);
-        },
-      },
-    });
+        taskQueue = new Queue('tasks', {
+          connection: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT),
+            retryStrategy: (times: number) => {
+              if (times > 3) {
+                console.warn('Redis connection failed - running without task queue');
+                return null;
+              }
+              return Math.min(times * 1000, 3000);
+            },
+          },
+        });
 
-    console.log('Task queue initialized');
+        worker = new Worker('tasks', async (job) => {
+          console.log(`Processing automation job ${job.id}`);
+          const { url, actions } = job.data;
+          
+          try {
+            const result = await automationService.performWebAutomation(url, actions);
+            return result;
+          } catch (error) {
+            console.error(`Job ${job.id} failed:`, error);
+            throw error;
+          }
+        }, {
+          connection: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT),
+            retryStrategy: (times: number) => {
+              if (times > 3) return null;
+              return Math.min(times * 1000, 3000);
+            },
+          },
+        });
+
+        console.log('Task queue initialized');
+      } catch (error) {
+        console.warn('Failed to initialize task queue:', error);
+        console.warn('Running without task queue - some features may be limited');
+      }
+    } else {
+      console.warn('REDIS_HOST or REDIS_PORT not provided - running without task queue');
+    }
+
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
   } catch (error) {
-    console.warn('Failed to initialize task queue:', error);
-    console.warn('Running without task queue - some features may be limited');
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-} else {
-  console.warn('REDIS_HOST or REDIS_PORT not provided - running without task queue');
-}
+};
 
 // API Routes
 app.get('/', (_req: Request, res: Response) => {
@@ -164,7 +168,5 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-}); 
+// Start the server
+startServer(); 
