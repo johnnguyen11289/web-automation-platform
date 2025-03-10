@@ -1,0 +1,51 @@
+# Dependencies
+/node_modules
+
+# Build output
+/dist
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# IDE
+.idea/
+.vscode/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.swp
+*.swo
+*~
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+screenshots/
+videos/ 
