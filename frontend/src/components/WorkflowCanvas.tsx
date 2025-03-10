@@ -196,15 +196,6 @@ const WorkflowCanvas: React.FC = () => {
     };
 
     switch (nodeType) {
-      case 'openUrl':
-        return {
-          ...baseProps,
-          nodeType: 'openUrl' as const,
-          url: '',
-          openInNewTab: false,
-          waitForPageLoad: true,
-          returnPageData: false,
-        };
       case 'click':
         return {
           ...baseProps,
@@ -212,6 +203,55 @@ const WorkflowCanvas: React.FC = () => {
           selector: '',
           clickType: 'single',
           waitForElement: true,
+        };
+      case 'input':
+        return {
+          ...baseProps,
+          nodeType: 'input' as const,
+          selector: '',
+          inputType: 'text',
+          value: '',
+          clearBeforeInput: true,
+        };
+      case 'submit':
+        return {
+          ...baseProps,
+          nodeType: 'submit' as const,
+          selector: '',
+          waitForNavigation: true,
+        };
+      case 'wait':
+        return {
+          ...baseProps,
+          nodeType: 'wait' as const,
+          waitType: 'fixed',
+          timeout: 1000,
+        };
+      case 'condition':
+        return {
+          ...baseProps,
+          nodeType: 'condition' as const,
+          conditionType: 'equals',
+          target: '',
+          value: '',
+          truePath: '',
+          falsePath: '',
+        };
+      case 'loop':
+        return {
+          ...baseProps,
+          nodeType: 'loop' as const,
+          loopType: 'fixed',
+          maxIterations: 5,
+          breakCondition: '',
+        };
+      case 'extract':
+        return {
+          ...baseProps,
+          nodeType: 'extract' as const,
+          selector: '',
+          attribute: 'text',
+          variableName: '',
         };
       case 'profile':
         return {
@@ -221,15 +261,7 @@ const WorkflowCanvas: React.FC = () => {
           incognitoMode: false,
         };
       default:
-        // Default to OpenUrl node type if unknown
-        return {
-          ...baseProps,
-          nodeType: 'openUrl' as const,
-          url: '',
-          openInNewTab: false,
-          waitForPageLoad: true,
-          returnPageData: false,
-        };
+        throw new Error(`Unknown node type: ${nodeType}`);
     }
   };
 

@@ -2,10 +2,9 @@ export type ErrorHandlingStrategy = 'retry' | 'skip' | 'stop';
 
 export interface BaseNodeProperties {
   nodeName: string;
-  nodeType: string;
   timeout: number;
   enabled: boolean;
-  errorHandling: ErrorHandlingStrategy;
+  errorHandling: 'retry' | 'skip' | 'stop';
 }
 
 export interface OpenUrlNodeProperties extends BaseNodeProperties {
@@ -46,8 +45,8 @@ export interface WaitNodeProperties extends BaseNodeProperties {
 export interface ConditionNodeProperties extends BaseNodeProperties {
   nodeType: 'condition';
   conditionType: 'equals' | 'contains' | 'exists';
-  targetVariable: string;
-  selector?: string;
+  target: string;
+  value: string;
   truePath: string;
   falsePath: string;
 }
@@ -62,7 +61,7 @@ export interface LoopNodeProperties extends BaseNodeProperties {
 export interface ExtractNodeProperties extends BaseNodeProperties {
   nodeType: 'extract';
   selector: string;
-  attribute: string;
+  attribute: 'text' | 'html' | 'value' | 'class' | 'id' | 'href' | 'src';
   variableName: string;
 }
 
