@@ -42,6 +42,8 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
   onDuplicate,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [profileToDelete, setProfileToDelete] = useState<BrowserProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState<BrowserProfile | null>(null);
   const [formData, setFormData] = useState<Partial<BrowserProfile>>({
     name: '',
@@ -80,6 +82,16 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
     setFormData({});
   };
 
+  const handleOpenDeleteDialog = (profile: BrowserProfile) => {
+    setProfileToDelete(profile);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setProfileToDelete(null);
+  };
+
   const handleSubmit = () => {
     if (editingProfile) {
       onEdit(editingProfile._id, formData);
@@ -89,9 +101,10 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
     handleCloseDialog();
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this profile?')) {
-      onDelete(id);
+  const handleDelete = () => {
+    if (profileToDelete) {
+      onDelete(profileToDelete._id);
+      handleCloseDeleteDialog();
     }
   };
 
@@ -143,7 +156,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => handleDelete(profile._id)}
+                    onClick={() => handleOpenDeleteDialog(profile)}
                   >
                     <Delete />
                   </IconButton>
@@ -323,6 +336,23 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
           <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button onClick={handleSubmit} variant="contained">
             {editingProfile ? 'Save Changes' : 'Create Profile'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>
+          Delete Profile
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the profile "<Box component="span" sx={{ color: 'error.main', fontWeight: 'bold' }}>{profileToDelete?.name}</Box>"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
