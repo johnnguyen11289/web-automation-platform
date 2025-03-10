@@ -14,12 +14,15 @@ import WorkflowList from './components/WorkflowManager/WorkflowList';
 import ExecutionPanel from './components/ExecutionPanel/ExecutionPanel';
 import TaskHistory from './components/TaskHistory/TaskHistory';
 import BrowserProfileManager from './components/BrowserProfile/BrowserProfileManager';
+import TaskManager from './components/TaskManager/TaskManager';
 import WorkflowCanvas from './components/WorkflowCanvas';
 import NodePalette from './components/NodePalette';
 import { api, Workflow } from './services/api';
 import './App.css';
 import { BrowserProfile } from './types/browser.types';
 import { Execution, ExecutionStats } from './types/execution.types';
+import { Task, TaskFormData } from './types/task.types';
+import WorkflowProfileMatrix from './components/WorkflowProfileMatrix/WorkflowProfileMatrix';
 
 const theme = createTheme({
   palette: {
@@ -63,6 +66,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState(0);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [executionStats, setExecutionStats] = useState<ExecutionStats>({
     totalExecutions: 0,
     runningExecutions: 0,
@@ -78,6 +82,7 @@ function App() {
     loadWorkflows();
     loadBrowserProfiles();
     loadExecutions();
+    loadTasks();
   }, []);
 
   const loadWorkflows = async () => {
@@ -280,6 +285,113 @@ function App() {
     }
   };
 
+  // Task management handlers
+  const handleTaskAdd = async (task: TaskFormData) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(task),
+      });
+      if (response.ok) {
+        const newTask = await response.json();
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+  };
+
+  const handleTaskEdit = async (id: string, task: TaskFormData) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(task),
+      });
+      if (response.ok) {
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  };
+
+  const handleTaskDelete = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const handleTaskStart = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${id}/start`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error starting task:', error);
+    }
+  };
+
+  const handleTaskPause = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${id}/pause`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error pausing task:', error);
+    }
+  };
+
+  const handleTaskStop = async (id: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tasks/${id}/stop`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        // Refresh tasks list
+        loadTasks();
+      }
+    } catch (error) {
+      console.error('Error stopping task:', error);
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/tasks');
+      if (response.ok) {
+        const tasks = await response.json();
+        // Update tasks state
+        setTasks(tasks);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -295,6 +407,7 @@ function App() {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={currentTab} onChange={handleTabChange}>
             <Tab label="Workflows" />
+            <Tab label="Tasks" />
             <Tab label="Execution" />
             <Tab label="History" />
             <Tab label="Profiles" />
@@ -328,6 +441,28 @@ function App() {
           </TabPanel>
 
           <TabPanel value={currentTab} index={1}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <WorkflowProfileMatrix
+                workflows={workflows}
+                profiles={browserProfiles}
+                onTaskCreate={handleTaskAdd}
+                onTaskExecute={(workflowId, profileId) => handleExecutionStart(workflowId, profileId, false)}
+              />
+              <TaskManager
+                workflows={workflows}
+                profiles={browserProfiles}
+                onAdd={handleTaskAdd}
+                onEdit={handleTaskEdit}
+                onDelete={handleTaskDelete}
+                onStart={handleTaskStart}
+                onPause={handleTaskPause}
+                onStop={handleTaskStop}
+                onRefresh={loadTasks}
+              />
+            </Box>
+          </TabPanel>
+
+          <TabPanel value={currentTab} index={2}>
             <ExecutionPanel
               executions={executions}
               stats={executionStats}
@@ -339,7 +474,7 @@ function App() {
             />
           </TabPanel>
 
-          <TabPanel value={currentTab} index={2}>
+          <TabPanel value={currentTab} index={3}>
             <TaskHistory
               executions={taskHistory}
               onRefresh={() => {}}
@@ -347,7 +482,7 @@ function App() {
             />
           </TabPanel>
 
-          <TabPanel value={currentTab} index={3}>
+          <TabPanel value={currentTab} index={4}>
             <BrowserProfileManager
               profiles={browserProfiles}
               onAdd={handleProfileAdd}
