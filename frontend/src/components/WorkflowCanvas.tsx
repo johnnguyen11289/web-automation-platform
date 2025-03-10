@@ -317,12 +317,12 @@ const WorkflowCanvas: React.FC = () => {
             <path
               d={`M ${startX} ${startY} C ${startX + 50} ${startY}, ${endX - 50} ${endY}, ${endX} ${endY}`}
               stroke={isHovered ? "#2196f3" : "#666"}
-              strokeWidth={isHovered ? 3 : 2}
+              strokeWidth={isHovered ? 2 : 1.5}
               fill="none"
               markerEnd="url(#arrowhead)"
             />
             <g 
-              transform={`translate(${midX - 10}, ${midY - 10})`}
+              transform={`translate(${midX - 8}, ${midY - 8})`}
               style={{ cursor: 'pointer', pointerEvents: 'all' }}
               onMouseEnter={() => setHoveredConnection({ sourceId: node.id, targetId })}
               onMouseLeave={() => setHoveredConnection(null)}
@@ -332,20 +332,13 @@ const WorkflowCanvas: React.FC = () => {
                 handleRemoveConnection(node.id, targetId);
               }}
             >
-              <circle
-                cx="10"
-                cy="10"
-                r="10"
-                fill="white"
-                stroke={isHovered ? "#2196f3" : "#666"}
-                strokeWidth="2"
-              />
               <text
-                x="10"
-                y="14"
+                x="8"
+                y="10"
                 textAnchor="middle"
-                fill={isHovered ? "#2196f3" : "#666"}
-                style={{ userSelect: 'none' }}
+                dominantBaseline="middle"
+                fill={isHovered ? "#f44336" : "#666"}
+                style={{ userSelect: 'none', fontSize: '16px' }}
               >
                 ×
               </text>
@@ -395,13 +388,13 @@ const WorkflowCanvas: React.FC = () => {
           <defs>
             <marker
               id="arrowhead"
-              markerWidth="10"
-              markerHeight="7"
-              refX="9"
-              refY="3.5"
+              markerWidth="6"
+              markerHeight="4"
+              refX="5"
+              refY="2"
               orient="auto"
             >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+              <polygon points="0 0, 6 2, 0 4" fill="#666" />
             </marker>
           </defs>
         </svg>

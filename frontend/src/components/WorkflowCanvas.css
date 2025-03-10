@@ -83,11 +83,6 @@
   cursor: pointer;
 }
 
-.connection-line g:hover circle {
-  stroke: #f44336;
-  transition: stroke 0.2s;
-}
-
 .connection-line g:hover text {
   fill: #f44336;
   transition: fill 0.2s;
@@ -95,7 +90,11 @@
 
 .connection-line g:hover + path {
   stroke: #2196f3;
-  stroke-width: 3;
+  stroke-width: 2;
+}
+
+.connection-line text {
+  transition: fill 0.2s;
 }
 
 .node-header {
