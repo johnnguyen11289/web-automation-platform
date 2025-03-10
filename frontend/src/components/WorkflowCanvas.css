@@ -140,15 +140,60 @@
   color: #f44336;
 }
 
+.workflow-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+}
+
+.workflow-info {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.workflow-name-input {
+  font-size: 1.2rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 200px;
+}
+
+.workflow-description-input {
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.workflow-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .zoom-controls {
   position: absolute;
-  top: 16px;
+  top: 80px;
   right: 16px;
-  z-index: 1000;
-  background: white;
+  background-color: white;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  padding: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Node type specific styles */

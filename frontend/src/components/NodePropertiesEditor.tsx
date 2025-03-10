@@ -78,6 +78,46 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
 
   const renderNodeSpecificProperties = () => {
     switch (properties.nodeType) {
+      case 'openUrl':
+        return (
+          <div className="node-specific-properties">
+            <h3>OpenURL Properties</h3>
+            <div className="form-group">
+              <label>URL:</label>
+              <input
+                type="text"
+                value={properties.url}
+                onChange={(e) => handleNodeSpecificChange('url', e.target.value)}
+                placeholder="https://example.com"
+              />
+            </div>
+            <div className="form-group">
+              <label>Open in New Tab:</label>
+              <input
+                type="checkbox"
+                checked={properties.openInNewTab}
+                onChange={(e) => handleNodeSpecificChange('openInNewTab', e.target.checked)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Wait for Page Load:</label>
+              <input
+                type="checkbox"
+                checked={properties.waitForPageLoad}
+                onChange={(e) => handleNodeSpecificChange('waitForPageLoad', e.target.checked)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Return Page Data:</label>
+              <input
+                type="checkbox"
+                checked={properties.returnPageData}
+                onChange={(e) => handleNodeSpecificChange('returnPageData', e.target.checked)}
+              />
+            </div>
+          </div>
+        );
+
       case 'click':
         return (
           <div className="node-specific-properties">

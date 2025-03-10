@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { NodeProperties, OpenUrlNodeProperties, ClickNodeProperties, ProfileNodeProperties } from '../types/node.types';
 import NodePropertiesEditor from './NodePropertiesEditor';
-import { ZoomIn, ZoomOut } from '@mui/icons-material';
-import { IconButton } from '@mui/material';
+import { ZoomIn, ZoomOut, Save } from '@mui/icons-material';
+import { IconButton, Button, Snackbar, Alert } from '@mui/material';
 import './WorkflowCanvas.css';
 
 interface WorkflowNode {
@@ -13,7 +13,15 @@ interface WorkflowNode {
   connections: string[]; // Array of node IDs this node connects to
 }
 
-const WorkflowCanvas: React.FC = () => {
+interface WorkflowCanvasProps {
+  onSave?: (workflow: {
+    nodes: WorkflowNode[];
+    name: string;
+    description?: string;
+  }) => void;
+}
+
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +35,10 @@ const WorkflowCanvas: React.FC = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [connectingNode, setConnectingNode] = useState<WorkflowNode | null>(null);
   const [hoveredConnection, setHoveredConnection] = useState<{ sourceId: string; targetId: string } | null>(null);
+  const [workflowName, setWorkflowName] = useState('New Workflow');
+  const [workflowDescription, setWorkflowDescription] = useState('');
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [showSaveError, setShowSaveError] = useState(false);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(prev + 0.1, 2));
@@ -196,6 +208,15 @@ const WorkflowCanvas: React.FC = () => {
     };
 
     switch (nodeType) {
+      case 'openUrl':
+        return {
+          ...baseProps,
+          nodeType: 'openUrl' as const,
+          url: '',
+          openInNewTab: false,
+          waitForPageLoad: true,
+          returnPageData: false,
+        };
       case 'click':
         return {
           ...baseProps,
@@ -388,8 +409,53 @@ const WorkflowCanvas: React.FC = () => {
     );
   };
 
+  const handleSave = () => {
+    try {
+      if (onSave) {
+        onSave({
+          nodes,
+          name: workflowName,
+          description: workflowDescription,
+        });
+        setShowSaveSuccess(true);
+      }
+    } catch (error) {
+      setShowSaveError(true);
+      console.error('Error saving workflow:', error);
+    }
+  };
+
   return (
     <div className="workflow-canvas">
+      <div className="workflow-header">
+        <div className="workflow-info">
+          <input
+            type="text"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            className="workflow-name-input"
+            placeholder="Workflow Name"
+          />
+          <input
+            type="text"
+            value={workflowDescription}
+            onChange={(e) => setWorkflowDescription(e.target.value)}
+            className="workflow-description-input"
+            placeholder="Workflow Description (optional)"
+          />
+        </div>
+        <div className="workflow-actions">
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<Save />}
+            onClick={handleSave}
+            disabled={nodes.length === 0}
+          >
+            Save Workflow
+          </Button>
+        </div>
+      </div>
       <div className="zoom-controls">
         <IconButton onClick={handleZoomIn} size="small">
           <ZoomIn />
@@ -482,6 +548,28 @@ const WorkflowCanvas: React.FC = () => {
           }}
         />
       )}
+
+      <Snackbar
+        open={showSaveSuccess}
+        autoHideDuration={3000}
+        onClose={() => setShowSaveSuccess(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setShowSaveSuccess(false)}>
+          Workflow saved successfully!
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={showSaveError}
+        autoHideDuration={3000}
+        onClose={() => setShowSaveError(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setShowSaveError(false)}>
+          Error saving workflow. Please try again.
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

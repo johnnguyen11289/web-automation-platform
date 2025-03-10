@@ -43,48 +43,80 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
     </div>
   );
 }
 
+interface Workflow {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  status: 'active' | 'inactive';
+  nodes: any[];
+}
+
 function App() {
   const [currentTab, setCurrentTab] = useState(0);
-  const [workflows] = useState([]);
-  const [activeExecutions] = useState([]);
-  const [taskHistory] = useState([]);
-  const [browserProfiles] = useState([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [activeExecutions, setActiveExecutions] = useState([]);
+  const [taskHistory, setTaskHistory] = useState([]);
+  const [browserProfiles, setBrowserProfiles] = useState([]);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
+  };
+
+  const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
+    try {
+      // Here you would typically make an API call to save the workflow
+      // For now, we'll just update the local state
+      const newWorkflow: Workflow = {
+        id: `workflow-${Date.now()}`,
+        name: workflow.name,
+        description: workflow.description || '',
+        createdAt: new Date().toISOString(),
+        status: 'active',
+        nodes: workflow.nodes,
+      };
+
+      setWorkflows(prev => [...prev, newWorkflow]);
+      return true;
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+      return false;
+    }
   };
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ flexGrow: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <CssBaseline />
         <AppBar position="static">
           <Toolbar>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Typography variant="h6" component="div">
               Web Automation Platform
             </Typography>
           </Toolbar>
-          <Tabs
-            value={currentTab}
-            onChange={handleTabChange}
-            aria-label="navigation tabs"
-            sx={{ bgcolor: 'background.paper' }}
-          >
+        </AppBar>
+
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={currentTab} onChange={handleTabChange}>
             <Tab label="Workflows" />
             <Tab label="Execution" />
             <Tab label="History" />
-            <Tab label="Browser Profiles" />
+            <Tab label="Profiles" />
           </Tabs>
-        </AppBar>
+        </Box>
 
         <Container maxWidth="xl">
           <TabPanel value={currentTab} index={0}>
@@ -100,7 +132,7 @@ function App() {
               <Box flex={2}>
                 <div className="editor-container">
                   <NodePalette />
-                  <WorkflowCanvas />
+                  <WorkflowCanvas onSave={handleWorkflowSave} />
                 </div>
               </Box>
             </Box>

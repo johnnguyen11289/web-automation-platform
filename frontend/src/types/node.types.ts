@@ -4,7 +4,7 @@ export interface BaseNodeProperties {
   nodeName: string;
   timeout: number;
   enabled: boolean;
-  errorHandling: 'retry' | 'skip' | 'stop';
+  errorHandling: ErrorHandlingStrategy;
 }
 
 export interface OpenUrlNodeProperties extends BaseNodeProperties {
