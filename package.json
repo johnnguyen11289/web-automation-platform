@@ -15,5 +15,9 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@mui/x-date-pickers": "^6.19.6",
+    "date-fns": "^2.30.0"
   }
-} 
+}

@@ -17,12 +17,12 @@ export interface TaskSchedule {
 export interface Task {
   _id: string;
   name: string;
-  description?: string;
+  description: string;
   workflowId: string;
   profileId: string;
   status: TaskStatus;
   priority: TaskPriority;
-  schedule?: TaskSchedule;
+  schedule: TaskSchedule;
   maxRetries: number;
   timeout: number;
   parallelExecution: boolean;
@@ -45,11 +45,11 @@ export interface TaskStats {
 
 export interface TaskFormData {
   name: string;
-  description?: string;
+  description: string;
   workflowId: string;
   profileId: string;
   priority: TaskPriority;
-  schedule?: TaskSchedule;
+  schedule: TaskSchedule;
   maxRetries: number;
   timeout: number;
   parallelExecution: boolean;
