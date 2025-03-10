@@ -98,8 +98,10 @@ const WorkflowCanvas: React.FC = () => {
     const currentTime = new Date().getTime();
     if (currentTime - lastClickTime < 300) { // If double click detected
       e.preventDefault();
+      e.stopPropagation();
       setSelectedNode(node);
       setIsEditing(true);
+      setLastClickTime(0); // Reset last click time
       return;
     }
 
@@ -112,6 +114,7 @@ const WorkflowCanvas: React.FC = () => {
     
     setIsDraggingNode(true);
     setDraggedNode(node);
+    setLastClickTime(currentTime); // Update last click time
     
     const rect = e.currentTarget.getBoundingClientRect();
     setDragOffset({
@@ -168,6 +171,10 @@ const WorkflowCanvas: React.FC = () => {
     if ((e.target as HTMLElement).closest('.delete-node-button')) {
       return;
     }
+    
+    // Update last click time for double-click detection
+    const currentTime = new Date().getTime();
+    setLastClickTime(currentTime);
   };
 
   const handleNodeDelete = (e: React.MouseEvent, nodeId: string) => {
