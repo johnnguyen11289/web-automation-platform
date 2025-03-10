@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { BrowserProfile } from '../types/browser.types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/workflow';
 
@@ -75,5 +76,56 @@ export const api = {
       console.error('API: Error deleting workflow:', error);
       throw error;
     }
-  }
+  },
+
+  // Browser Profile methods
+  createBrowserProfile: async (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
+    const response = await fetch(`${API_BASE_URL}/browser-profiles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profile),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create browser profile');
+    }
+
+    return response.json();
+  },
+
+  getBrowserProfiles: async (): Promise<BrowserProfile[]> => {
+    const response = await fetch(`${API_BASE_URL}/browser-profiles`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch browser profiles');
+    }
+    return response.json();
+  },
+
+  updateBrowserProfile: async (id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
+    const response = await fetch(`${API_BASE_URL}/browser-profiles/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profile),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update browser profile');
+    }
+
+    return response.json();
+  },
+
+  deleteBrowserProfile: async (id: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/browser-profiles/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete browser profile');
+    }
+  },
 }; 

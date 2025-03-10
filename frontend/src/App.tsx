@@ -18,6 +18,7 @@ import WorkflowCanvas from './components/WorkflowCanvas';
 import NodePalette from './components/NodePalette';
 import { api, Workflow } from './services/api';
 import './App.css';
+import { BrowserProfile } from './types/browser.types';
 
 const theme = createTheme({
   palette: {
@@ -62,11 +63,12 @@ function App() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activeExecutions, setActiveExecutions] = useState([]);
   const [taskHistory, setTaskHistory] = useState([]);
-  const [browserProfiles, setBrowserProfiles] = useState([]);
+  const [browserProfiles, setBrowserProfiles] = useState<BrowserProfile[]>([]);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
 
   useEffect(() => {
     loadWorkflows();
+    loadBrowserProfiles();
   }, []);
 
   const loadWorkflows = async () => {
@@ -77,6 +79,15 @@ function App() {
       setWorkflows(data);
     } catch (error) {
       console.error('App: Failed to load workflows:', error);
+    }
+  };
+
+  const loadBrowserProfiles = async () => {
+    try {
+      const profiles = await api.getBrowserProfiles();
+      setBrowserProfiles(profiles);
+    } catch (error) {
+      console.error('Failed to load browser profiles:', error);
     }
   };
 
@@ -139,6 +150,49 @@ function App() {
   const handleCreateNew = () => {
     setEditingWorkflow(null);
     // This will trigger the useEffect in WorkflowCanvas to reset the state
+  };
+
+  const handleProfileAdd = async (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const newProfile = await api.createBrowserProfile(profile);
+      setBrowserProfiles(prev => [...prev, newProfile]);
+    } catch (error) {
+      console.error('Error creating browser profile:', error);
+    }
+  };
+
+  const handleProfileEdit = async (id: string, profile: Partial<BrowserProfile>) => {
+    try {
+      const updatedProfile = await api.updateBrowserProfile(id, profile);
+      setBrowserProfiles(prev => prev.map(p => p.id === id ? updatedProfile : p));
+    } catch (error) {
+      console.error('Error updating browser profile:', error);
+    }
+  };
+
+  const handleProfileDelete = async (id: string) => {
+    try {
+      await api.deleteBrowserProfile(id);
+      setBrowserProfiles(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      console.error('Error deleting browser profile:', error);
+    }
+  };
+
+  const handleProfileDuplicate = async (id: string) => {
+    try {
+      const profile = browserProfiles.find(p => p.id === id);
+      if (profile) {
+        const { id: _, createdAt, updatedAt, ...profileData } = profile;
+        const newProfile = await api.createBrowserProfile({
+          ...profileData,
+          name: `${profileData.name} (Copy)`,
+        });
+        setBrowserProfiles(prev => [...prev, newProfile]);
+      }
+    } catch (error) {
+      console.error('Error duplicating browser profile:', error);
+    }
   };
 
   return (
@@ -208,10 +262,10 @@ function App() {
           <TabPanel value={currentTab} index={3}>
             <BrowserProfileManager
               profiles={browserProfiles}
-              onAdd={() => {}}
-              onEdit={() => {}}
-              onDelete={() => {}}
-              onDuplicate={() => {}}
+              onAdd={handleProfileAdd}
+              onEdit={handleProfileEdit}
+              onDelete={handleProfileDelete}
+              onDuplicate={handleProfileDuplicate}
             />
           </TabPanel>
         </Box>

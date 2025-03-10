@@ -1,0 +1,33 @@
+import mongoose, { Schema, Document } from 'mongoose';
+import { BrowserProfile } from '../types/browser.types';
+
+const BrowserProfileSchema = new Schema({
+  name: { type: String, required: true },
+  browserType: { type: String, required: true, enum: ['chromium', 'firefox', 'webkit'] },
+  userAgent: { type: String },
+  isHeadless: { type: Boolean, default: false },
+  proxy: {
+    host: { type: String },
+    port: { type: Number },
+    username: { type: String },
+    password: { type: String }
+  },
+  viewport: {
+    width: { type: Number, required: true },
+    height: { type: Number, required: true }
+  },
+  cookies: [{ type: Schema.Types.Mixed }],
+  localStorage: { type: Schema.Types.Mixed },
+  sessionStorage: { type: Schema.Types.Mixed },
+  startupScript: { type: String },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+// Update the updatedAt timestamp before saving
+BrowserProfileSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
+
+export const BrowserProfileModel = mongoose.model<BrowserProfile & Document>('BrowserProfile', BrowserProfileSchema); 
