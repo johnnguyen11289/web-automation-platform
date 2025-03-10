@@ -18,7 +18,7 @@ interface WorkflowCanvasProps {
     nodes: WorkflowNode[];
     name: string;
     description?: string;
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave }) => {
@@ -409,19 +409,33 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave }) => {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    console.log('Canvas: Starting save process');
     try {
       if (onSave) {
-        onSave({
+        console.log('Canvas: Calling onSave with data:', {
           nodes,
           name: workflowName,
           description: workflowDescription,
         });
-        setShowSaveSuccess(true);
+        const success = await onSave({
+          nodes,
+          name: workflowName,
+          description: workflowDescription,
+        });
+        console.log('Canvas: Save result:', success);
+        if (success) {
+          setShowSaveSuccess(true);
+        } else {
+          setShowSaveError(true);
+        }
+      } else {
+        console.error('Canvas: onSave prop is not provided');
+        setShowSaveError(true);
       }
     } catch (error) {
+      console.error('Canvas: Error saving workflow:', error);
       setShowSaveError(true);
-      console.error('Error saving workflow:', error);
     }
   };
 

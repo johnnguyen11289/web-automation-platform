@@ -4,11 +4,11 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { Queue, Worker } from 'bullmq';
 import { AutomationService, AutomationAction } from './services/automation.service';
+import app from './app';
 
 // Load environment variables
 dotenv.config();
 
-const app = express();
 const PORT = process.env.PORT || 5000;
 const automationService = new AutomationService();
 

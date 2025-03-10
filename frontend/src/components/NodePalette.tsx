@@ -1,17 +1,28 @@
 import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
+import {
+  Language as OpenUrlIcon,
+  TouchApp as ClickIcon,
+  Keyboard as InputIcon,
+  Send as SubmitIcon,
+  Timer as WaitIcon,
+  CompareArrows as ConditionIcon,
+  Loop as LoopIcon,
+  Download as ExtractIcon,
+  Person as ProfileIcon,
+} from '@mui/icons-material';
 import './NodePalette.css';
 
 const nodeTypes = [
-  { type: 'openUrl', label: 'Open URL', color: '#e3f2fd' },
-  { type: 'click', label: 'Click', color: '#f3e5f5' },
-  { type: 'input', label: 'Input', color: '#e8f5e9' },
-  { type: 'submit', label: 'Submit', color: '#fff3e0' },
-  { type: 'wait', label: 'Wait', color: '#fce4ec' },
-  { type: 'condition', label: 'Condition', color: '#e8eaf6' },
-  { type: 'loop', label: 'Loop', color: '#f1f8e9' },
-  { type: 'extract', label: 'Extract', color: '#e0f2f1' },
-  { type: 'profile', label: 'Profile', color: '#f3e5f5' },
+  { type: 'openUrl', label: 'Open URL', color: '#e3f2fd', icon: OpenUrlIcon },
+  { type: 'click', label: 'Click', color: '#f3e5f5', icon: ClickIcon },
+  { type: 'input', label: 'Input', color: '#e8f5e9', icon: InputIcon },
+  { type: 'submit', label: 'Submit', color: '#fff3e0', icon: SubmitIcon },
+  { type: 'wait', label: 'Wait', color: '#fce4ec', icon: WaitIcon },
+  { type: 'condition', label: 'Condition', color: '#e8eaf6', icon: ConditionIcon },
+  { type: 'loop', label: 'Loop', color: '#f1f8e9', icon: LoopIcon },
+  { type: 'extract', label: 'Extract', color: '#e0f2f1', icon: ExtractIcon },
+  { type: 'profile', label: 'Profile', color: '#f3e5f5', icon: ProfileIcon },
 ];
 
 const NodePalette: React.FC = () => {
@@ -50,19 +61,25 @@ const NodePalette: React.FC = () => {
           borderRadius: '3px',
         },
       }}>
-        {nodeTypes.map((node) => (
-          <div
-            key={node.type}
-            className="node-palette-item"
-            draggable
-            onDragStart={(e) => handleDragStart(e, node.type)}
-            style={{ backgroundColor: node.color }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {node.label}
-            </Typography>
-          </div>
-        ))}
+        {nodeTypes.map((node) => {
+          const Icon = node.icon;
+          return (
+            <div
+              key={node.type}
+              className="node-palette-item"
+              draggable
+              onDragStart={(e) => handleDragStart(e, node.type)}
+              style={{ backgroundColor: node.color }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Icon sx={{ fontSize: 18, color: 'rgba(0, 0, 0, 0.54)' }} />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {node.label}
+                </Typography>
+              </Box>
+            </div>
+          );
+        })}
       </Box>
     </Paper>
   );

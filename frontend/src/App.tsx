@@ -69,11 +69,13 @@ function App() {
   }, []);
 
   const loadWorkflows = async () => {
+    console.log('App: Loading workflows');
     try {
       const data = await api.getWorkflows();
+      console.log('App: Workflows loaded:', data);
       setWorkflows(data);
     } catch (error) {
-      console.error('Failed to load workflows:', error);
+      console.error('App: Failed to load workflows:', error);
     }
   };
 
@@ -82,6 +84,7 @@ function App() {
   };
 
   const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
+    console.log('App: Saving workflow:', workflow);
     try {
       const newWorkflow = await api.createWorkflow({
         name: workflow.name,
@@ -90,29 +93,35 @@ function App() {
         nodes: workflow.nodes,
       });
       
-      setWorkflows(prev => [...prev, newWorkflow]);
+      console.log('App: Workflow saved successfully:', newWorkflow);
+      // Reload all workflows to ensure we have the latest data
+      await loadWorkflows();
       return true;
     } catch (error) {
-      console.error('Error saving workflow:', error);
+      console.error('App: Error saving workflow:', error);
       return false;
     }
   };
 
   const handleWorkflowDelete = async (id: string) => {
+    console.log('App: Deleting workflow:', id);
     try {
       await api.deleteWorkflow(id);
+      console.log('App: Workflow deleted successfully');
       setWorkflows(prev => prev.filter(w => w._id !== id));
     } catch (error) {
-      console.error('Error deleting workflow:', error);
+      console.error('App: Error deleting workflow:', error);
     }
   };
 
   const handleWorkflowEdit = async (workflow: Workflow) => {
+    console.log('App: Editing workflow:', workflow);
     try {
       const updatedWorkflow = await api.updateWorkflow(workflow._id, workflow);
+      console.log('App: Workflow updated successfully:', updatedWorkflow);
       setWorkflows(prev => prev.map(w => w._id === workflow._id ? updatedWorkflow : w));
     } catch (error) {
-      console.error('Error updating workflow:', error);
+      console.error('App: Error updating workflow:', error);
     }
   };
 

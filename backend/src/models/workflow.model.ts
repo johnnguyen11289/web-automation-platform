@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IWorkflow extends Document {
+export interface IWorkflow {
+  _id: string;
   name: string;
   description?: string;
   createdAt: Date;
