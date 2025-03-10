@@ -10,6 +10,7 @@ interface WorkflowNode {
   type: string;
   position: { x: number; y: number };
   properties: NodeProperties;
+  connections: string[]; // Array of node IDs this node connects to
 }
 
 const WorkflowCanvas: React.FC = () => {
@@ -24,6 +25,8 @@ const WorkflowCanvas: React.FC = () => {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [connectingNode, setConnectingNode] = useState<WorkflowNode | null>(null);
+  const [hoveredConnection, setHoveredConnection] = useState<{ sourceId: string; targetId: string } | null>(null);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(prev + 0.1, 2));
@@ -71,10 +74,20 @@ const WorkflowCanvas: React.FC = () => {
         y: e.clientY - dragStart.y
       });
     }
+    // Only handle node movement if not connecting
+    if (isDraggingNode && draggedNode && !connectingNode) {
+      handleNodeMouseMove(e);
+    }
   };
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasMouseUp = (e: React.MouseEvent) => {
     setIsDraggingCanvas(false);
+    // If we're dragging a node and mouse up happens on canvas, stop dragging
+    if (isDraggingNode && draggedNode) {
+      setIsDraggingNode(false);
+      setDraggedNode(null);
+      setConnectingNode(null);
+    }
   };
 
   const handleNodeMouseDown = (e: React.MouseEvent, node: WorkflowNode) => {
@@ -87,6 +100,13 @@ const WorkflowCanvas: React.FC = () => {
       e.preventDefault();
       setSelectedNode(node);
       setIsEditing(true);
+      return;
+    }
+
+    if (e.shiftKey) {
+      // Start connection mode
+      setConnectingNode(node);
+      setLastClickTime(currentTime); // Update last click time
       return;
     }
     
@@ -112,22 +132,35 @@ const WorkflowCanvas: React.FC = () => {
       y: canvasY,
     });
 
-    setNodes(prev =>
-      prev.map(node =>
-        node.id === draggedNode.id
-          ? { ...node, position }
-          : node
-      )
-    );
+    // Only update if the position has actually changed
+    if (position.x !== draggedNode.position.x || position.y !== draggedNode.position.y) {
+      setNodes(prev =>
+        prev.map(node =>
+          node.id === draggedNode.id
+            ? { ...node, position }
+            : node
+        )
+      );
+    }
   };
 
-  const handleNodeMouseUp = (e: React.MouseEvent) => {
-    if (isDraggingNode) {
-      const currentTime = new Date().getTime();
-      setLastClickTime(currentTime);
+  const handleNodeMouseUp = (e: React.MouseEvent, targetNode: WorkflowNode) => {
+    if (connectingNode && connectingNode.id !== targetNode.id) {
+      // Create connection
+      setNodes(prev => prev.map(node => {
+        if (node.id === connectingNode.id) {
+          return {
+            ...node,
+            connections: [...node.connections, targetNode.id]
+          };
+        }
+        return node;
+      }));
     }
+    setConnectingNode(null);
     setIsDraggingNode(false);
     setDraggedNode(null);
+    setLastClickTime(0); // Reset last click time
   };
 
   const handleNodeClick = (e: React.MouseEvent, node: WorkflowNode) => {
@@ -230,11 +263,97 @@ const WorkflowCanvas: React.FC = () => {
       type: nodeType,
       position,
       properties: createDefaultProperties(nodeType),
+      connections: [],
     };
 
     setNodes(prev => [...prev, newNode]);
     setSelectedNode(newNode);
     setIsEditing(true);
+  };
+
+  const handleRemoveConnection = (sourceId: string, targetId: string) => {
+    setNodes(prev => prev.map(node => {
+      if (node.id === sourceId) {
+        return {
+          ...node,
+          connections: node.connections.filter(id => id !== targetId)
+        };
+      }
+      return node;
+    }));
+  };
+
+  const drawConnections = () => {
+    return nodes.map(node => 
+      node.connections.map(targetId => {
+        const targetNode = nodes.find(n => n.id === targetId);
+        if (!targetNode) return null;
+
+        const startX = node.position.x + 200; // Right edge of source node
+        const startY = node.position.y + 40; // Middle of source node
+        const endX = targetNode.position.x; // Left edge of target node
+        const endY = targetNode.position.y + 40; // Middle of target node
+
+        // Calculate the middle point of the connection
+        const midX = (startX + endX) / 2;
+        const midY = (startY + endY) / 2;
+
+        const isHovered = hoveredConnection?.sourceId === node.id && hoveredConnection?.targetId === targetId;
+
+        return (
+          <svg
+            key={`${node.id}-${targetId}`}
+            className="connection-line"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              zIndex: isHovered ? 2 : 0,
+            }}
+          >
+            <path
+              d={`M ${startX} ${startY} C ${startX + 50} ${startY}, ${endX - 50} ${endY}, ${endX} ${endY}`}
+              stroke={isHovered ? "#2196f3" : "#666"}
+              strokeWidth={isHovered ? 3 : 2}
+              fill="none"
+              markerEnd="url(#arrowhead)"
+            />
+            <g 
+              transform={`translate(${midX - 10}, ${midY - 10})`}
+              style={{ cursor: 'pointer', pointerEvents: 'all' }}
+              onMouseEnter={() => setHoveredConnection({ sourceId: node.id, targetId })}
+              onMouseLeave={() => setHoveredConnection(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleRemoveConnection(node.id, targetId);
+              }}
+            >
+              <circle
+                cx="10"
+                cy="10"
+                r="10"
+                fill="white"
+                stroke={isHovered ? "#2196f3" : "#666"}
+                strokeWidth="2"
+              />
+              <text
+                x="10"
+                y="14"
+                textAnchor="middle"
+                fill={isHovered ? "#2196f3" : "#666"}
+                style={{ userSelect: 'none' }}
+              >
+                ×
+              </text>
+            </g>
+          </svg>
+        );
+      })
+    );
   };
 
   return (
@@ -253,27 +372,44 @@ const WorkflowCanvas: React.FC = () => {
         onDrop={handleDrop}
         onWheel={handleWheel}
         onMouseDown={handleCanvasMouseDown}
-        onMouseMove={(e) => {
-          handleCanvasMouseMove(e);
-          handleNodeMouseMove(e);
-        }}
+        onMouseMove={handleCanvasMouseMove}
         onMouseUp={(e) => {
-          handleCanvasMouseUp();
-          handleNodeMouseUp(e);
+          handleCanvasMouseUp(e);
+          if (connectingNode) {
+            handleNodeMouseUp(e, connectingNode);
+          }
         }}
         onMouseLeave={(e) => {
-          handleCanvasMouseUp();
-          handleNodeMouseUp(e);
+          handleCanvasMouseUp(e);
+          if (connectingNode) {
+            handleNodeMouseUp(e, connectingNode);
+          }
+          setHoveredConnection(null);
         }}
         style={{
           transform: `scale(${scale}) translate(${offset.x}px, ${offset.y}px)`,
           transformOrigin: '0 0',
         }}
       >
+        <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' }}>
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+            </marker>
+          </defs>
+        </svg>
+        {drawConnections()}
         {nodes.map(node => (
           <div
             key={node.id}
-            className={`workflow-node ${draggedNode?.id === node.id ? 'dragging' : ''}`}
+            className={`workflow-node ${draggedNode?.id === node.id ? 'dragging' : ''} ${connectingNode?.id === node.id ? 'connecting' : ''}`}
             data-type={node.type}
             style={{
               left: node.position.x,
@@ -282,7 +418,7 @@ const WorkflowCanvas: React.FC = () => {
             }}
             onClick={(e) => handleNodeClick(e, node)}
             onMouseDown={(e) => handleNodeMouseDown(e, node)}
-            onMouseUp={(e) => handleNodeMouseUp(e)}
+            onMouseUp={(e) => handleNodeMouseUp(e, node)}
           >
             <div className="node-header">
               {node.properties.nodeName}

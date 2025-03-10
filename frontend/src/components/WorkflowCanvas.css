@@ -2,127 +2,154 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background: #f5f5f5;
+  background-color: #f5f5f5;
   overflow: hidden;
-  user-select: none;
-}
-
-.zoom-controls {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-  background: white;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  gap: 4px;
-  padding: 4px;
 }
 
 .canvas-area {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 500px;
-  padding: 20px;
-  transform-origin: 0 0;
-  transition: transform 0.1s ease-out;
-  touch-action: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   cursor: grab;
-  background-image: 
-    linear-gradient(to right, #e0e0e0 1px, transparent 1px),
-    linear-gradient(to bottom, #e0e0e0 1px, transparent 1px);
+  background-image: linear-gradient(#e0e0e0 1px, transparent 1px),
+                    linear-gradient(90deg, #e0e0e0 1px, transparent 1px);
   background-size: 20px 20px;
-  background-color: #ffffff;
+  transform-origin: 0 0;
+  will-change: transform;
+  touch-action: none;
 }
 
 .canvas-area:active {
   cursor: grabbing;
 }
 
+.canvas-area.connecting {
+  cursor: crosshair;
+}
+
 .workflow-node {
   position: absolute;
   width: 200px;
   background: white;
-  border: 1px solid #ddd;
+  border: 1px solid #ccc;
   border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   cursor: move;
   user-select: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s;
-  will-change: transform;
-  touch-action: none;
   z-index: 1;
+  transform-origin: center;
+  will-change: transform;
 }
 
 .workflow-node:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   z-index: 2;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .workflow-node.dragging {
   opacity: 0.8;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
   transform: scale(1.02);
   pointer-events: none;
   z-index: 1000;
 }
 
-.workflow-node.dragging .delete-node-button {
+.workflow-node.connecting {
+  border: 2px dashed #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+.workflow-node.connecting:hover {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.3);
+}
+
+.connection-line {
+  pointer-events: none;
+  z-index: 0;
+}
+
+.connection-line path {
+  transition: stroke 0.2s, stroke-width 0.2s;
   pointer-events: none;
 }
 
+.connection-line g {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.connection-line g:hover circle {
+  stroke: #f44336;
+  transition: stroke 0.2s;
+}
+
+.connection-line g:hover text {
+  fill: #f44336;
+  transition: fill 0.2s;
+}
+
+.connection-line g:hover + path {
+  stroke: #2196f3;
+  stroke-width: 3;
+}
+
 .node-header {
-  padding: 8px 12px;
+  padding: 8px;
   background: #f8f9fa;
-  border-bottom: 1px solid #ddd;
-  border-radius: 4px 4px 0 0;
+  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 500;
-  cursor: move;
-  user-select: none;
-  touch-action: none;
+  font-weight: bold;
+}
+
+.node-content {
+  padding: 8px;
+}
+
+.node-type {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.node-selector {
+  margin-top: 4px;
+  color: #888;
+  font-size: 0.8em;
+  word-break: break-all;
 }
 
 .delete-node-button {
   background: none;
   border: none;
-  color: #dc3545;
-  font-size: 20px;
+  color: #999;
+  font-size: 18px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  position: relative;
   z-index: 3;
   pointer-events: auto;
-  position: relative;
 }
 
 .delete-node-button:hover {
-  opacity: 1;
+  color: #f44336;
 }
 
-.node-content {
-  padding: 12px;
-  cursor: move;
-  user-select: none;
-  touch-action: none;
-}
-
-.node-type {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.node-selector {
-  font-size: 12px;
-  color: #999;
-  word-break: break-all;
+.zoom-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 4px;
 }
 
 /* Node type specific styles */
