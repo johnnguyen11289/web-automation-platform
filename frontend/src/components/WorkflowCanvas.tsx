@@ -21,9 +21,10 @@ interface WorkflowCanvasProps {
     description?: string;
   }) => Promise<boolean>;
   initialWorkflow?: Workflow | null;
+  onCreateNew?: () => void;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow }) => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -476,6 +477,14 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow
           />
         </div>
         <div className="workflow-actions">
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={onCreateNew}
+            sx={{ mr: 1 }}
+          >
+            Create New
+          </Button>
           <Button
             variant="contained"
             color="primary"

@@ -136,6 +136,11 @@ function App() {
     setEditingWorkflow(workflow);
   };
 
+  const handleCreateNew = () => {
+    setEditingWorkflow(null);
+    // This will trigger the useEffect in WorkflowCanvas to reset the state
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
@@ -176,6 +181,7 @@ function App() {
                   <WorkflowCanvas 
                     onSave={handleWorkflowSave}
                     initialWorkflow={editingWorkflow}
+                    onCreateNew={handleCreateNew}
                   />
                 </Box>
               </Box>
