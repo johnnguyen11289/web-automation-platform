@@ -22,21 +22,24 @@
   gap: 10px;
 }
 
-.node-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  background: #f8f9fa;
-  border: 1px solid #ddd;
+.node-palette-item {
+  padding: 8px 12px;
+  margin: 4px;
   border-radius: 4px;
   cursor: move;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.node-item:hover {
-  background: #f0f0f0;
+.node-palette-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.node-palette-item:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .node-icon {

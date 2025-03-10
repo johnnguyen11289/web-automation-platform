@@ -1,68 +1,17 @@
 import React from 'react';
+import { Box, Typography, Paper } from '@mui/material';
 import './NodePalette.css';
 
-interface NodeType {
-  type: string;
-  label: string;
-  icon: string;
-  description: string;
-}
-
-const nodeTypes: NodeType[] = [
-  {
-    type: 'openUrl',
-    label: 'Open URL',
-    icon: '🌐',
-    description: 'Open a web page',
-  },
-  {
-    type: 'click',
-    label: 'Click',
-    icon: '👆',
-    description: 'Click on an element',
-  },
-  {
-    type: 'input',
-    label: 'Input',
-    icon: '⌨️',
-    description: 'Enter text or data',
-  },
-  {
-    type: 'submit',
-    label: 'Submit',
-    icon: '📤',
-    description: 'Submit a form',
-  },
-  {
-    type: 'wait',
-    label: 'Wait',
-    icon: '⏳',
-    description: 'Wait for a condition',
-  },
-  {
-    type: 'condition',
-    label: 'Condition',
-    icon: '⚖️',
-    description: 'Check a condition',
-  },
-  {
-    type: 'loop',
-    label: 'Loop',
-    icon: '🔄',
-    description: 'Repeat actions',
-  },
-  {
-    type: 'extract',
-    label: 'Extract',
-    icon: '📥',
-    description: 'Extract data',
-  },
-  {
-    type: 'profile',
-    label: 'Profile',
-    icon: '👤',
-    description: 'Browser profile settings',
-  },
+const nodeTypes = [
+  { type: 'openUrl', label: 'Open URL', color: '#e3f2fd' },
+  { type: 'click', label: 'Click', color: '#f3e5f5' },
+  { type: 'input', label: 'Input', color: '#e8f5e9' },
+  { type: 'submit', label: 'Submit', color: '#fff3e0' },
+  { type: 'wait', label: 'Wait', color: '#fce4ec' },
+  { type: 'condition', label: 'Condition', color: '#e8eaf6' },
+  { type: 'loop', label: 'Loop', color: '#f1f8e9' },
+  { type: 'extract', label: 'Extract', color: '#e0f2f1' },
+  { type: 'profile', label: 'Profile', color: '#f3e5f5' },
 ];
 
 const NodePalette: React.FC = () => {
@@ -72,25 +21,50 @@ const NodePalette: React.FC = () => {
   };
 
   return (
-    <div className="node-palette">
-      <h2>Nodes</h2>
-      <div className="node-list">
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: '#fafafa'
+      }}
+    >
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="subtitle1" fontWeight="medium">
+          Nodes
+        </Typography>
+      </Box>
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto',
+        p: 1,
+        '&::-webkit-scrollbar': {
+          width: '6px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: '#f1f1f1',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: '#888',
+          borderRadius: '3px',
+        },
+      }}>
         {nodeTypes.map((node) => (
           <div
             key={node.type}
-            className="node-item"
+            className="node-palette-item"
             draggable
             onDragStart={(e) => handleDragStart(e, node.type)}
+            style={{ backgroundColor: node.color }}
           >
-            <div className="node-icon">{node.icon}</div>
-            <div className="node-info">
-              <div className="node-label">{node.label}</div>
-              <div className="node-description">{node.description}</div>
-            </div>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {node.label}
+            </Typography>
           </div>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Paper>
   );
 };
 

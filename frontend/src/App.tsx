@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   CssBaseline,
@@ -16,6 +16,7 @@ import TaskHistory from './components/TaskHistory/TaskHistory';
 import BrowserProfileManager from './components/BrowserProfile/BrowserProfileManager';
 import WorkflowCanvas from './components/WorkflowCanvas';
 import NodePalette from './components/NodePalette';
+import { api, Workflow } from './services/api';
 import './App.css';
 
 const theme = createTheme({
@@ -48,21 +49,12 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, height: 'calc(100vh - 120px)' }}>
           {children}
         </Box>
       )}
     </div>
   );
-}
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  status: 'active' | 'inactive';
-  nodes: any[];
 }
 
 function App() {
@@ -72,23 +64,32 @@ function App() {
   const [taskHistory, setTaskHistory] = useState([]);
   const [browserProfiles, setBrowserProfiles] = useState([]);
 
+  useEffect(() => {
+    loadWorkflows();
+  }, []);
+
+  const loadWorkflows = async () => {
+    try {
+      const data = await api.getWorkflows();
+      setWorkflows(data);
+    } catch (error) {
+      console.error('Failed to load workflows:', error);
+    }
+  };
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
   };
 
   const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
     try {
-      // Here you would typically make an API call to save the workflow
-      // For now, we'll just update the local state
-      const newWorkflow: Workflow = {
-        id: `workflow-${Date.now()}`,
+      const newWorkflow = await api.createWorkflow({
         name: workflow.name,
         description: workflow.description || '',
-        createdAt: new Date().toISOString(),
         status: 'active',
         nodes: workflow.nodes,
-      };
-
+      });
+      
       setWorkflows(prev => [...prev, newWorkflow]);
       return true;
     } catch (error) {
@@ -97,9 +98,27 @@ function App() {
     }
   };
 
+  const handleWorkflowDelete = async (id: string) => {
+    try {
+      await api.deleteWorkflow(id);
+      setWorkflows(prev => prev.filter(w => w._id !== id));
+    } catch (error) {
+      console.error('Error deleting workflow:', error);
+    }
+  };
+
+  const handleWorkflowEdit = async (workflow: Workflow) => {
+    try {
+      const updatedWorkflow = await api.updateWorkflow(workflow._id, workflow);
+      setWorkflows(prev => prev.map(w => w._id === workflow._id ? updatedWorkflow : w));
+    } catch (error) {
+      console.error('Error updating workflow:', error);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <CssBaseline />
         <AppBar position="static">
           <Toolbar>
@@ -118,22 +137,24 @@ function App() {
           </Tabs>
         </Box>
 
-        <Container maxWidth="xl">
+        <Box sx={{ flex: 1, overflow: 'hidden' }}>
           <TabPanel value={currentTab} index={0}>
-            <Box display="flex" gap={2}>
-              <Box flex={1}>
+            <Box sx={{ display: 'flex', gap: 2, height: '100%' }}>
+              <Box sx={{ width: '300px', overflow: 'auto' }}>
                 <WorkflowList
                   workflows={workflows}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
+                  onEdit={handleWorkflowEdit}
+                  onDelete={handleWorkflowDelete}
                   onExecute={() => {}}
                 />
               </Box>
-              <Box flex={2}>
-                <div className="editor-container">
+              <Box sx={{ flex: 1, height: '100%', display: 'flex' }}>
+                <Box sx={{ width: '200px', borderRight: 1, borderColor: 'divider' }}>
                   <NodePalette />
+                </Box>
+                <Box sx={{ flex: 1 }}>
                   <WorkflowCanvas onSave={handleWorkflowSave} />
-                </div>
+                </Box>
               </Box>
             </Box>
           </TabPanel>
@@ -164,7 +185,7 @@ function App() {
               onDuplicate={() => {}}
             />
           </TabPanel>
-        </Container>
+        </Box>
       </Box>
     </ThemeProvider>
   );

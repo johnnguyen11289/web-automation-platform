@@ -1,19 +1,12 @@
 import React from 'react';
 import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper } from '@mui/material';
 import { PlayArrow, Edit, Delete } from '@mui/icons-material';
-
-interface Workflow {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  status: 'active' | 'inactive';
-}
+import { Workflow } from '../../services/api';
 
 interface WorkflowListProps {
   workflows: Workflow[];
   onEdit: (workflow: Workflow) => void;
-  onDelete: (workflowId: string) => void;
+  onDelete: (id: string) => void;
   onExecute: (workflow: Workflow) => void;
 }
 
@@ -32,7 +25,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
         <List>
           {workflows.map((workflow) => (
             <ListItem
-              key={workflow.id}
+              key={workflow._id}
               secondaryAction={
                 <Box>
                   <IconButton
@@ -53,7 +46,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => onDelete(workflow.id)}
+                    onClick={() => onDelete(workflow._id)}
                     color="error"
                   >
                     <Delete />
