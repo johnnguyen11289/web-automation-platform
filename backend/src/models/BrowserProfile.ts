@@ -7,8 +7,8 @@ const ViewportSchema = new Schema({
 });
 
 const ProxySchema = new Schema({
-  host: { type: String, required: true },
-  port: { type: Number, required: true },
+  host: { type: String },
+  port: { type: Number },
   username: { type: String },
   password: { type: String }
 });
@@ -18,7 +18,7 @@ const BrowserProfileSchema = new Schema({
   browserType: { type: String, required: true, enum: ['chromium', 'firefox', 'webkit'] },
   userAgent: { type: String },
   isHeadless: { type: Boolean, default: false },
-  proxy: { type: ProxySchema },
+  proxy: { type: ProxySchema, required: false },
   viewport: { type: ViewportSchema, required: true },
   cookies: [{ type: Schema.Types.Mixed }],
   localStorage: { type: Schema.Types.Mixed },
