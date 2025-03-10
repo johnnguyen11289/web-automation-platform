@@ -18,30 +18,32 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
 }) => {
   return (
     <Paper elevation={2}>
-      <Box p={2}>
+      <Box p={1}>
         <Typography variant="h6" gutterBottom>
           Workflows
         </Typography>
-        <List sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <List sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
           {workflows.map((workflow) => (
             <ListItem
               key={workflow._id}
               secondaryAction={
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
                   <Tooltip title="Execute Workflow">
                     <IconButton
                       edge="end"
                       aria-label="execute"
                       onClick={() => onExecute(workflow)}
+                      size="small"
                       sx={{
                         color: 'success.main',
                         '&:hover': {
                           backgroundColor: 'success.light',
                           color: 'white',
                         },
+                        padding: 0.25,
                       }}
                     >
-                      <PlayArrow />
+                      <PlayArrow fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Edit Workflow">
@@ -49,15 +51,17 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                       edge="end"
                       aria-label="edit"
                       onClick={() => onEdit(workflow)}
+                      size="small"
                       sx={{
                         color: 'primary.main',
                         '&:hover': {
                           backgroundColor: 'primary.light',
                           color: 'white',
                         },
+                        padding: 0.25,
                       }}
                     >
-                      <Edit />
+                      <Edit fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete Workflow">
@@ -65,15 +69,17 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                       edge="end"
                       aria-label="delete"
                       onClick={() => onDelete(workflow._id)}
+                      size="small"
                       sx={{
                         color: 'error.main',
                         '&:hover': {
                           backgroundColor: 'error.light',
                           color: 'white',
                         },
+                        padding: 0.25,
                       }}
                     >
-                      <Delete />
+                      <Delete fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Box>
@@ -82,32 +88,81 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                 backgroundColor: 'background.paper',
                 border: '1px solid',
                 borderColor: 'divider',
-                borderRadius: 2,
+                borderRadius: 1,
                 '&:hover': {
                   backgroundColor: 'action.hover',
                   borderColor: 'primary.main',
                   boxShadow: 1,
                 },
                 transition: 'all 0.2s ease-in-out',
-                p: 2,
+                py: 0.5,
+                px: 1,
+                minHeight: '36px',
+                width: '100%',
               }}
             >
               <ListItemText
                 primary={
-                  <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>
-                    {workflow.name}
-                  </Typography>
+                  <Tooltip title={workflow.name} placement="top">
+                    <Typography 
+                      variant="subtitle2" 
+                      sx={{ 
+                        fontWeight: 600, 
+                        lineHeight: 1.2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: 'calc(100% - 120px)',
+                        mb: 0.5
+                      }}
+                    >
+                      {workflow.name}
+                    </Typography>
+                  </Tooltip>
                 }
                 secondary={
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography component="span" variant="body2" color="text.primary">
-                      {workflow.description}
-                    </Typography>
-                    <Typography component="span" variant="caption" color="text.secondary">
-                      Created: {new Date(workflow.createdAt).toLocaleDateString()}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, lineHeight: 1 }}>
+                    <Tooltip title={workflow.description} placement="top">
+                      <Typography 
+                        component="span" 
+                        variant="caption" 
+                        color="text.primary" 
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: 'calc(100% - 160px)',
+                          display: 'block'
+                        }}
+                      >
+                        {workflow.description}
+                      </Typography>
+                    </Tooltip>
+                    <Typography 
+                      component="span" 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ 
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        minWidth: 'fit-content'
+                      }}
+                    >
+                      {new Date(workflow.createdAt).toLocaleDateString()}
                     </Typography>
                   </Box>
                 }
+                sx={{ 
+                  m: 0, 
+                  minWidth: 0, 
+                  py: 0,
+                  '& .MuiListItemText-primary': {
+                    pr: 0
+                  },
+                  '& .MuiListItemText-secondary': {
+                    pr: 0
+                  }
+                }}
               />
             </ListItem>
           ))}
