@@ -16,17 +16,17 @@ export interface ViewportSettings {
 }
 
 export interface BrowserProfile {
-  id: string;
+  _id: string;
   name: string;
   browserType: BrowserType;
-  userAgent: string;
-  cookies: any[];
-  localStorage: Record<string, string>;
-  sessionStorage: Record<string, string>;
-  proxy?: ProxySettings;
-  startupScript?: string;
-  viewport: ViewportSettings;
+  userAgent?: string;
   isHeadless: boolean;
+  proxy?: ProxySettings;
+  viewport: ViewportSettings;
+  cookies: any[];
+  localStorage: Record<string, any>;
+  sessionStorage: Record<string, any>;
+  startupScript?: string;
   createdAt: Date;
   updatedAt: Date;
 }

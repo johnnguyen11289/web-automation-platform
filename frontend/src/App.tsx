@@ -152,7 +152,7 @@ function App() {
     // This will trigger the useEffect in WorkflowCanvas to reset the state
   };
 
-  const handleProfileAdd = async (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleProfileAdd = async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const newProfile = await api.createBrowserProfile(profile);
       setBrowserProfiles(prev => [...prev, newProfile]);
@@ -161,29 +161,29 @@ function App() {
     }
   };
 
-  const handleProfileEdit = async (id: string, profile: Partial<BrowserProfile>) => {
+  const handleProfileEdit = async (_id: string, profile: Partial<BrowserProfile>) => {
     try {
-      const updatedProfile = await api.updateBrowserProfile(id, profile);
-      setBrowserProfiles(prev => prev.map(p => p.id === id ? updatedProfile : p));
+      const updatedProfile = await api.updateBrowserProfile(_id, profile);
+      setBrowserProfiles(prev => prev.map(p => p._id === _id ? updatedProfile : p));
     } catch (error) {
       console.error('Error updating browser profile:', error);
     }
   };
 
-  const handleProfileDelete = async (id: string) => {
+  const handleProfileDelete = async (_id: string) => {
     try {
-      await api.deleteBrowserProfile(id);
-      setBrowserProfiles(prev => prev.filter(p => p.id !== id));
+      await api.deleteBrowserProfile(_id);
+      setBrowserProfiles(prev => prev.filter(p => p._id !== _id));
     } catch (error) {
       console.error('Error deleting browser profile:', error);
     }
   };
 
-  const handleProfileDuplicate = async (id: string) => {
+  const handleProfileDuplicate = async (_id: string) => {
     try {
-      const profile = browserProfiles.find(p => p.id === id);
+      const profile = browserProfiles.find(p => p._id === _id);
       if (profile) {
-        const { id: _, createdAt, updatedAt, ...profileData } = profile;
+        const { _id, createdAt, updatedAt, ...profileData } = profile;
         const newProfile = await api.createBrowserProfile({
           ...profileData,
           name: `${profileData.name} (Copy)`,

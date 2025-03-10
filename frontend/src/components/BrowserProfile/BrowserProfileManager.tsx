@@ -28,10 +28,10 @@ import { BrowserProfile, BrowserType, BROWSER_TYPES, DEFAULT_VIEWPORT } from '..
 
 interface BrowserProfileManagerProps {
   profiles: BrowserProfile[];
-  onAdd: (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  onEdit: (id: string, profile: Partial<BrowserProfile>) => void;
-  onDelete: (id: string) => void;
-  onDuplicate: (id: string) => void;
+  onAdd: (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>) => void;
+  onEdit: (_id: string, profile: Partial<BrowserProfile>) => void;
+  onDelete: (_id: string) => void;
+  onDuplicate: (_id: string) => void;
 }
 
 const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
@@ -82,9 +82,9 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
 
   const handleSubmit = () => {
     if (editingProfile) {
-      onEdit(editingProfile.id, formData);
+      onEdit(editingProfile._id, formData);
     } else {
-      onAdd(formData as Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>);
+      onAdd(formData as Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>);
     }
     handleCloseDialog();
   };
@@ -111,7 +111,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
       <Paper elevation={2}>
         <List>
           {profiles.map((profile) => (
-            <React.Fragment key={profile.id}>
+            <React.Fragment key={profile._id}>
               <ListItem>
                 <ListItemText
                   primary={profile.name}
@@ -127,7 +127,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                   <IconButton
                     edge="end"
                     aria-label="duplicate"
-                    onClick={() => onDuplicate(profile.id)}
+                    onClick={() => onDuplicate(profile._id)}
                     sx={{ mr: 1 }}
                   >
                     <ContentCopy />
@@ -143,7 +143,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => handleDelete(profile.id)}
+                    onClick={() => handleDelete(profile._id)}
                   >
                     <Delete />
                   </IconButton>

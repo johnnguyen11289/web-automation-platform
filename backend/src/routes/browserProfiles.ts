@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 // Create a new browser profile
 router.post('/', async (req, res) => {
   try {
-    const profileData = req.body as Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>;
+    const profileData = req.body as Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>;
     const profile = new BrowserProfileModel(profileData);
     await profile.save();
     res.status(201).json(profile);

@@ -82,7 +82,7 @@ export const api = {
   },
 
   // Browser Profile methods
-  createBrowserProfile: async (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
+  createBrowserProfile: async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
     try {
       const response = await axios.post(`${API_BASE_URL}/profile`, profile);
       return response.data;
@@ -102,9 +102,9 @@ export const api = {
     }
   },
 
-  updateBrowserProfile: async (id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
+  updateBrowserProfile: async (_id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/profile/${id}`, profile);
+      const response = await axios.put(`${API_BASE_URL}/profile/${_id}`, profile);
       return response.data;
     } catch (error) {
       console.error('API: Error updating browser profile:', error);
@@ -112,9 +112,9 @@ export const api = {
     }
   },
 
-  deleteBrowserProfile: async (id: string): Promise<void> => {
+  deleteBrowserProfile: async (_id: string): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/profile/${id}`);
+      await axios.delete(`${API_BASE_URL}/profile/${_id}`);
     } catch (error) {
       console.error('API: Error deleting browser profile:', error);
       throw new Error('Failed to delete browser profile');
