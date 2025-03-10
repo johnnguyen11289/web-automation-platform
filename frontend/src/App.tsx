@@ -11,10 +11,12 @@ import {
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import WorkflowList from './components/WorkflowManager/WorkflowList';
-import WorkflowEditor from './components/WorkflowEditor/WorkflowEditor';
 import ExecutionPanel from './components/ExecutionPanel/ExecutionPanel';
 import TaskHistory from './components/TaskHistory/TaskHistory';
 import BrowserProfileManager from './components/BrowserProfile/BrowserProfileManager';
+import WorkflowCanvas from './components/WorkflowCanvas';
+import NodePalette from './components/NodePalette';
+import './App.css';
 
 const theme = createTheme({
   palette: {
@@ -96,15 +98,10 @@ function App() {
                 />
               </Box>
               <Box flex={2}>
-                <WorkflowEditor
-                  workflow={{
-                    id: '1',
-                    name: 'New Workflow',
-                    nodes: [],
-                    edges: [],
-                  }}
-                  onSave={() => {}}
-                />
+                <div className="editor-container">
+                  <NodePalette />
+                  <WorkflowCanvas />
+                </div>
               </Box>
             </Box>
           </TabPanel>

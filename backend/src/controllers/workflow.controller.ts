@@ -1,6 +1,17 @@
 import { Request, Response } from 'express';
-import { Browser, chromium } from 'playwright';
+import { Browser, chromium, Page } from 'playwright';
 import { BrowserContext } from 'playwright';
+import { 
+  OpenUrlNodeProperties, 
+  ClickNodeProperties,
+  InputNodeProperties,
+  SubmitNodeProperties,
+  WaitNodeProperties,
+  ConditionNodeProperties,
+  ExtractNodeProperties,
+  LoopNodeProperties,
+  ErrorHandlingStrategy 
+} from '../types/node.types';
 
 class WorkflowController {
   private browser: Browser | null = null;
@@ -23,22 +34,71 @@ class WorkflowController {
 
   async openUrl(req: Request, res: Response) {
     try {
-      const { url, waitForLoad = true, timeout = 30000 } = req.body;
-      const page = await this.initBrowser();
+      const nodeProps: OpenUrlNodeProperties = req.body;
+      
+      // Validate required properties
+      if (!nodeProps.url) {
+        return res.status(400).json({
+          success: false,
+          error: 'URL is required'
+        });
+      }
 
-      await page.goto(url, {
-        waitUntil: waitForLoad ? 'networkidle' : 'commit',
-        timeout,
-      });
+      let page: Page = await this.initBrowser();
+      let response;
 
-      const pageTitle = await page.title();
-      const pageUrl = page.url();
+      try {
+        if (nodeProps.openInNewTab) {
+          // Create a new page in a new tab
+          const newPage = await this.context!.newPage();
+          response = await newPage.goto(nodeProps.url, {
+            waitUntil: nodeProps.waitForPageLoad ? 'networkidle' : 'commit',
+            timeout: nodeProps.timeout,
+          });
+          page = newPage;
+        } else {
+          // Navigate in current page
+          response = await page.goto(nodeProps.url, {
+            waitUntil: nodeProps.waitForPageLoad ? 'networkidle' : 'commit',
+            timeout: nodeProps.timeout,
+          });
+        }
 
-      res.json({
-        success: true,
-        pageTitle,
-        pageUrl,
-      });
+        const result: any = {
+          success: true,
+          nodeName: nodeProps.nodeName,
+        };
+
+        if (nodeProps.returnPageData) {
+          result.pageData = {
+            title: await page.title(),
+            url: page.url(),
+            status: response?.status(),
+            headers: response?.headers(),
+          };
+        }
+
+        res.json(result);
+      } catch (error) {
+        // Handle error based on error handling strategy
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            // Implement retry logic here
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -49,13 +109,53 @@ class WorkflowController {
 
   async click(req: Request, res: Response) {
     try {
-      const { selector, button = 'left', clickCount = 1, timeout = 5000 } = req.body;
+      const nodeProps: ClickNodeProperties = req.body;
+      
+      if (!nodeProps.selector) {
+        return res.status(400).json({
+          success: false,
+          error: 'Selector is required'
+        });
+      }
+
       const page = await this.initBrowser();
 
-      await page.waitForSelector(selector, { timeout });
-      await page.click(selector, { button, clickCount });
+      try {
+        if (nodeProps.waitForElement) {
+          await page.waitForSelector(nodeProps.selector, { timeout: nodeProps.timeout });
+        }
 
-      res.json({ success: true });
+        // Map our click types to Playwright's button types
+        const buttonType = nodeProps.clickType === 'right' ? 'right' : 'left';
+        const clickCount = nodeProps.clickType === 'double' ? 2 : 1;
+
+        await page.click(nodeProps.selector, {
+          button: buttonType,
+          clickCount
+        });
+
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -66,18 +166,54 @@ class WorkflowController {
 
   async input(req: Request, res: Response) {
     try {
-      const { selector, value, clearFirst = true, timeout = 5000 } = req.body;
+      const nodeProps: InputNodeProperties = req.body;
+      
+      if (!nodeProps.selector || !nodeProps.value) {
+        return res.status(400).json({
+          success: false,
+          error: 'Selector and value are required'
+        });
+      }
+
       const page = await this.initBrowser();
 
-      await page.waitForSelector(selector, { timeout });
-      
-      if (clearFirst) {
-        await page.fill(selector, '');
-      }
-      
-      await page.type(selector, value);
+      try {
+        await page.waitForSelector(nodeProps.selector, { timeout: nodeProps.timeout });
+        
+        if (nodeProps.clearBeforeInput) {
+          await page.fill(nodeProps.selector, '');
+        }
+        
+        if (nodeProps.inputType === 'password') {
+          await page.type(nodeProps.selector, nodeProps.value, { delay: 100 });
+        } else if (nodeProps.inputType === 'file') {
+          await page.setInputFiles(nodeProps.selector, nodeProps.value);
+        } else {
+          await page.type(nodeProps.selector, nodeProps.value);
+        }
 
-      res.json({ success: true });
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -88,21 +224,51 @@ class WorkflowController {
 
   async submit(req: Request, res: Response) {
     try {
-      const { selector, waitForNavigation = true, timeout = 5000 } = req.body;
-      const page = await this.initBrowser();
-
-      await page.waitForSelector(selector, { timeout });
-
-      if (waitForNavigation) {
-        await Promise.all([
-          page.waitForNavigation({ timeout }),
-          page.click(selector),
-        ]);
-      } else {
-        await page.click(selector);
+      const nodeProps: SubmitNodeProperties = req.body;
+      
+      if (!nodeProps.selector) {
+        return res.status(400).json({
+          success: false,
+          error: 'Selector is required'
+        });
       }
 
-      res.json({ success: true });
+      const page = await this.initBrowser();
+
+      try {
+        await page.waitForSelector(nodeProps.selector, { timeout: nodeProps.timeout });
+
+        if (nodeProps.waitForNavigation) {
+          await Promise.all([
+            page.waitForNavigation({ timeout: nodeProps.timeout }),
+            page.click(nodeProps.selector),
+          ]);
+        } else {
+          await page.click(nodeProps.selector);
+        }
+
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -113,22 +279,40 @@ class WorkflowController {
 
   async wait(req: Request, res: Response) {
     try {
-      const { condition, selector, delay = 1000, timeout = 5000 } = req.body;
+      const nodeProps: WaitNodeProperties = req.body;
+
       const page = await this.initBrowser();
 
-      switch (condition) {
-        case 'delay':
-          await page.waitForTimeout(delay);
-          break;
-        case 'element':
-          await page.waitForSelector(selector!, { timeout });
-          break;
-        case 'networkIdle':
-          await page.waitForLoadState('networkidle', { timeout });
-          break;
-      }
+      try {
+        if (nodeProps.waitType === 'fixed') {
+          await page.waitForTimeout(nodeProps.timeout);
+        } else {
+          // For dynamic wait, we'll wait for network idle
+          await page.waitForLoadState('networkidle', { timeout: nodeProps.timeout });
+        }
 
-      res.json({ success: true });
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -139,33 +323,69 @@ class WorkflowController {
 
   async condition(req: Request, res: Response) {
     try {
-      const { selector, condition, value, attribute, timeout = 5000 } = req.body;
-      const page = await this.initBrowser();
-
-      await page.waitForSelector(selector, { timeout });
-      let conditionMet = false;
-
-      switch (condition) {
-        case 'exists':
-          conditionMet = await page.isVisible(selector);
-          break;
-        case 'visible':
-          conditionMet = await page.isVisible(selector);
-          break;
-        case 'text':
-          const text = await page.textContent(selector);
-          conditionMet = text?.includes(value) ?? false;
-          break;
-        case 'attribute':
-          const attrValue = await page.getAttribute(selector, attribute!);
-          conditionMet = attrValue === value;
-          break;
+      const nodeProps: ConditionNodeProperties = req.body;
+      
+      if (!nodeProps.targetVariable && !nodeProps.selector) {
+        return res.status(400).json({
+          success: false,
+          error: 'Either targetVariable or selector is required'
+        });
       }
 
-      res.json({
-        success: true,
-        conditionMet,
-      });
+      const page = await this.initBrowser();
+      let conditionMet = false;
+
+      try {
+        if (nodeProps.selector) {
+          await page.waitForSelector(nodeProps.selector, { timeout: nodeProps.timeout });
+        }
+
+        switch (nodeProps.conditionType) {
+          case 'exists':
+            conditionMet = nodeProps.selector ? await page.isVisible(nodeProps.selector) : false;
+            break;
+          case 'equals':
+            if (nodeProps.selector) {
+              const text = await page.textContent(nodeProps.selector);
+              conditionMet = text === nodeProps.targetVariable;
+            } else {
+              conditionMet = nodeProps.targetVariable === 'true';
+            }
+            break;
+          case 'contains':
+            if (nodeProps.selector) {
+              const text = await page.textContent(nodeProps.selector);
+              conditionMet = text?.includes(nodeProps.targetVariable) ?? false;
+            } else {
+              conditionMet = nodeProps.targetVariable.includes('true');
+            }
+            break;
+        }
+
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName,
+          conditionMet,
+          nextPath: conditionMet ? nodeProps.truePath : nodeProps.falsePath
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -176,33 +396,45 @@ class WorkflowController {
 
   async extract(req: Request, res: Response) {
     try {
-      const { selector, extractType, attribute, timeout = 5000 } = req.body;
-      const page = await this.initBrowser();
-
-      await page.waitForSelector(selector, { timeout });
-      let value: string | string[] | null = null;
-
-      switch (extractType) {
-        case 'text':
-          value = await page.textContent(selector);
-          break;
-        case 'attribute':
-          value = await page.getAttribute(selector, attribute!);
-          break;
-        case 'innerHTML':
-          value = await page.innerHTML(selector);
-          break;
-        case 'list':
-          value = await page.$$eval(selector, elements =>
-            elements.map(el => el.textContent?.trim() || '')
-          );
-          break;
+      const nodeProps: ExtractNodeProperties = req.body;
+      
+      if (!nodeProps.selector || !nodeProps.attribute || !nodeProps.variableName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Selector, attribute, and variableName are required'
+        });
       }
 
-      res.json({
-        success: true,
-        value,
-      });
+      const page = await this.initBrowser();
+
+      try {
+        await page.waitForSelector(nodeProps.selector, { timeout: nodeProps.timeout });
+        const value = await page.getAttribute(nodeProps.selector, nodeProps.attribute);
+
+        res.json({
+          success: true,
+          nodeName: nodeProps.nodeName,
+          variableName: nodeProps.variableName,
+          value
+        });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -213,44 +445,59 @@ class WorkflowController {
 
   async loop(req: Request, res: Response) {
     try {
-      const { condition, selector, maxIterations = 10, timeout = 5000, items = [] } = req.body;
+      const nodeProps: LoopNodeProperties = req.body;
+      
+      if (!nodeProps.breakCondition && nodeProps.loopType === 'fixed') {
+        return res.status(400).json({
+          success: false,
+          error: 'breakCondition is required for fixed loop type'
+        });
+      }
+
       const page = await this.initBrowser();
+      let iterations = 0;
 
-      if (condition === 'forEach') {
-        // Process array items
-        for (let i = 0; i < items.length && i < maxIterations; i++) {
-          res.json({
-            success: true,
-            currentItem: items[i],
-            index: i,
-            completed: i === items.length - 1,
-          });
-          await page.waitForTimeout(100); // Small delay between iterations
-        }
-      } else {
-        // While condition
-        let iterations = 0;
-        while (iterations < maxIterations) {
-          const exists = await page.isVisible(selector);
-          if (!exists) break;
+      try {
+        while (iterations < nodeProps.maxIterations) {
+          if (nodeProps.breakCondition) {
+            const shouldBreak = await page.evaluate(nodeProps.breakCondition);
+            if (shouldBreak) break;
+          }
 
           res.json({
             success: true,
-            currentItem: null,
-            index: iterations,
-            completed: false,
+            nodeName: nodeProps.nodeName,
+            currentIteration: iterations + 1,
+            maxIterations: nodeProps.maxIterations
           });
 
           iterations++;
-          await page.waitForTimeout(100);
+          await page.waitForTimeout(100); // Small delay between iterations
         }
 
         res.json({
           success: true,
-          currentItem: null,
-          index: iterations,
+          nodeName: nodeProps.nodeName,
           completed: true,
+          totalIterations: iterations
         });
+      } catch (error) {
+        switch (nodeProps.errorHandling) {
+          case 'retry':
+            throw error;
+          case 'skip':
+            res.json({
+              success: true,
+              nodeName: nodeProps.nodeName,
+              skipped: true,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return;
+          case 'stop':
+            throw error;
+          default:
+            throw error;
+        }
       }
     } catch (error) {
       res.status(500).json({
