@@ -49,7 +49,7 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3, height: 'calc(100vh - 120px)' }}>
+        <Box sx={{ p: 3, height: 'calc(100vh - 112px)', overflow: 'auto' }}>
           {children}
         </Box>
       )}
@@ -63,6 +63,7 @@ function App() {
   const [activeExecutions, setActiveExecutions] = useState([]);
   const [taskHistory, setTaskHistory] = useState([]);
   const [browserProfiles, setBrowserProfiles] = useState([]);
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -86,16 +87,29 @@ function App() {
   const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
     console.log('App: Saving workflow:', workflow);
     try {
-      const newWorkflow = await api.createWorkflow({
-        name: workflow.name,
-        description: workflow.description || '',
-        status: 'active',
-        nodes: workflow.nodes,
-      });
+      let newWorkflow;
+      if (editingWorkflow) {
+        // Update existing workflow
+        newWorkflow = await api.updateWorkflow(editingWorkflow._id, {
+          name: workflow.name,
+          description: workflow.description || '',
+          status: 'active',
+          nodes: workflow.nodes,
+        });
+      } else {
+        // Create new workflow
+        newWorkflow = await api.createWorkflow({
+          name: workflow.name,
+          description: workflow.description || '',
+          status: 'active',
+          nodes: workflow.nodes,
+        });
+      }
       
       console.log('App: Workflow saved successfully:', newWorkflow);
       // Reload all workflows to ensure we have the latest data
       await loadWorkflows();
+      setEditingWorkflow(null); // Reset editing state
       return true;
     } catch (error) {
       console.error('App: Error saving workflow:', error);
@@ -109,20 +123,17 @@ function App() {
       await api.deleteWorkflow(id);
       console.log('App: Workflow deleted successfully');
       setWorkflows(prev => prev.filter(w => w._id !== id));
+      if (editingWorkflow?._id === id) {
+        setEditingWorkflow(null); // Reset editing state if the deleted workflow was being edited
+      }
     } catch (error) {
       console.error('App: Error deleting workflow:', error);
     }
   };
 
-  const handleWorkflowEdit = async (workflow: Workflow) => {
-    console.log('App: Editing workflow:', workflow);
-    try {
-      const updatedWorkflow = await api.updateWorkflow(workflow._id, workflow);
-      console.log('App: Workflow updated successfully:', updatedWorkflow);
-      setWorkflows(prev => prev.map(w => w._id === workflow._id ? updatedWorkflow : w));
-    } catch (error) {
-      console.error('App: Error updating workflow:', error);
-    }
+  const handleWorkflowEdit = (workflow: Workflow) => {
+    console.log('App: Loading workflow for editing:', workflow);
+    setEditingWorkflow(workflow);
   };
 
   return (
@@ -162,7 +173,10 @@ function App() {
                   <NodePalette />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <WorkflowCanvas onSave={handleWorkflowSave} />
+                  <WorkflowCanvas 
+                    onSave={handleWorkflowSave}
+                    initialWorkflow={editingWorkflow}
+                  />
                 </Box>
               </Box>
             </Box>

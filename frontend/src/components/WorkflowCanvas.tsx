@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NodeProperties, OpenUrlNodeProperties, ClickNodeProperties, ProfileNodeProperties } from '../types/node.types';
 import NodePropertiesEditor from './NodePropertiesEditor';
 import { ZoomIn, ZoomOut, Save } from '@mui/icons-material';
 import { IconButton, Button, Snackbar, Alert } from '@mui/material';
+import { Workflow } from '../services/api';
 import './WorkflowCanvas.css';
 
 interface WorkflowNode {
@@ -19,9 +20,10 @@ interface WorkflowCanvasProps {
     name: string;
     description?: string;
   }) => Promise<boolean>;
+  initialWorkflow?: Workflow | null;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave }) => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -39,6 +41,21 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave }) => {
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
+
+  // Load initial workflow data when it changes
+  useEffect(() => {
+    if (initialWorkflow) {
+      console.log('Loading initial workflow:', initialWorkflow);
+      setNodes(initialWorkflow.nodes);
+      setWorkflowName(initialWorkflow.name);
+      setWorkflowDescription(initialWorkflow.description || '');
+    } else {
+      // Reset to empty state when no workflow is selected
+      setNodes([]);
+      setWorkflowName('New Workflow');
+      setWorkflowDescription('');
+    }
+  }, [initialWorkflow]);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(prev + 0.1, 2));
