@@ -26,7 +26,7 @@ export const api = {
   async createWorkflow(workflow: Omit<Workflow, '_id' | 'createdAt' | 'updatedAt'>): Promise<Workflow> {
     console.log('API: Creating workflow:', workflow);
     try {
-      const response = await axios.post(`${API_BASE_URL}/workflow`, workflow);
+      const response = await axios.post(`${API_BASE_URL}/workflows`, workflow);
       console.log('API: Workflow created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -38,7 +38,7 @@ export const api = {
   async getWorkflows(): Promise<Workflow[]> {
     console.log('API: Fetching workflows');
     try {
-      const response = await axios.get(`${API_BASE_URL}/workflow`);
+      const response = await axios.get(`${API_BASE_URL}/workflows`);
       console.log('API: Workflows fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -50,7 +50,7 @@ export const api = {
   async getWorkflow(id: string): Promise<Workflow> {
     console.log('API: Fetching workflow:', id);
     try {
-      const response = await axios.get(`${API_BASE_URL}/workflow/${id}`);
+      const response = await axios.get(`${API_BASE_URL}/workflows/${id}`);
       console.log('API: Workflow fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -62,7 +62,7 @@ export const api = {
   async updateWorkflow(id: string, workflow: Partial<Workflow>): Promise<Workflow> {
     console.log('API: Updating workflow:', id, workflow);
     try {
-      const response = await axios.put(`${API_BASE_URL}/workflow/${id}`, workflow);
+      const response = await axios.put(`${API_BASE_URL}/workflows/${id}`, workflow);
       console.log('API: Workflow updated successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -74,7 +74,7 @@ export const api = {
   async deleteWorkflow(id: string): Promise<void> {
     console.log('API: Deleting workflow:', id);
     try {
-      await axios.delete(`${API_BASE_URL}/workflow/${id}`);
+      await axios.delete(`${API_BASE_URL}/workflows/${id}`);
       console.log('API: Workflow deleted successfully');
     } catch (error) {
       console.error('API: Error deleting workflow:', error);
@@ -85,7 +85,7 @@ export const api = {
   // Browser Profile methods
   createBrowserProfile: async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/profile`, profile);
+      const response = await axios.post(`${API_BASE_URL}/browser-profiles`, profile);
       return response.data;
     } catch (error) {
       console.error('API: Error creating browser profile:', error);
@@ -95,7 +95,7 @@ export const api = {
 
   getBrowserProfiles: async (): Promise<BrowserProfile[]> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/profile`);
+      const response = await axios.get(`${API_BASE_URL}/browser-profiles`);
       return response.data;
     } catch (error) {
       console.error('API: Error fetching browser profiles:', error);
@@ -105,7 +105,7 @@ export const api = {
 
   updateBrowserProfile: async (_id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/profile/${_id}`, profile);
+      const response = await axios.put(`${API_BASE_URL}/browser-profiles/${_id}`, profile);
       return response.data;
     } catch (error) {
       console.error('API: Error updating browser profile:', error);
@@ -115,7 +115,7 @@ export const api = {
 
   deleteBrowserProfile: async (_id: string): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/profile/${_id}`);
+      await axios.delete(`${API_BASE_URL}/browser-profiles/${_id}`);
     } catch (error) {
       console.error('API: Error deleting browser profile:', error);
       throw new Error('Failed to delete browser profile');

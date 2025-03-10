@@ -13,8 +13,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/api/workflow', workflowRoutes);
-app.use('/api/profile', browserProfileRoutes);
+app.use('/api/workflows', workflowRoutes);
+app.use('/api/browser-profiles', browserProfileRoutes);
 app.use('/api/executions', executionRoutes);
 app.use('/api/tasks', taskRoutes);
 
