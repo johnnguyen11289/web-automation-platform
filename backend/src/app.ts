@@ -10,6 +10,6 @@ app.use(express.json());
 
 // API routes
 app.use('/api/workflow', workflowRoutes);
-app.use('/api/workflow/browser-profiles', browserProfilesRouter);
+app.use('/api/profile', browserProfilesRouter);
 
 export default app; 

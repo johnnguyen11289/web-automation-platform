@@ -7,7 +7,7 @@ const router = express.Router();
 // Get all browser profiles
 router.get('/', async (req, res) => {
   try {
-    const profiles = await BrowserProfileModel.find();
+    const profiles = await BrowserProfileModel.find().sort({ createdAt: -1 });
     res.json(profiles);
   } catch (error) {
     console.error('Error fetching browser profiles:', error);

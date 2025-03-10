@@ -1,28 +1,31 @@
 import axios from 'axios';
 import { BrowserProfile } from '../types/browser.types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/workflow';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+export interface WorkflowNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  properties: any;
+  connections: string[];
+}
 
 export interface Workflow {
   _id: string;
   name: string;
   description?: string;
-  createdAt: string;
   status: 'active' | 'inactive';
-  nodes: Array<{
-    id: string;
-    type: string;
-    position: { x: number; y: number };
-    properties: any;
-    connections: string[];
-  }>;
+  nodes: WorkflowNode[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const api = {
-  async createWorkflow(workflow: Omit<Workflow, '_id' | 'createdAt'>): Promise<Workflow> {
+  async createWorkflow(workflow: Omit<Workflow, '_id' | 'createdAt' | 'updatedAt'>): Promise<Workflow> {
     console.log('API: Creating workflow:', workflow);
     try {
-      const response = await axios.post(`${API_BASE_URL}`, workflow);
+      const response = await axios.post(`${API_BASE_URL}/workflow`, workflow);
       console.log('API: Workflow created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -34,7 +37,7 @@ export const api = {
   async getWorkflows(): Promise<Workflow[]> {
     console.log('API: Fetching workflows');
     try {
-      const response = await axios.get(`${API_BASE_URL}`);
+      const response = await axios.get(`${API_BASE_URL}/workflow`);
       console.log('API: Workflows fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -46,7 +49,7 @@ export const api = {
   async getWorkflow(id: string): Promise<Workflow> {
     console.log('API: Fetching workflow:', id);
     try {
-      const response = await axios.get(`${API_BASE_URL}/${id}`);
+      const response = await axios.get(`${API_BASE_URL}/workflow/${id}`);
       console.log('API: Workflow fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -58,7 +61,7 @@ export const api = {
   async updateWorkflow(id: string, workflow: Partial<Workflow>): Promise<Workflow> {
     console.log('API: Updating workflow:', id, workflow);
     try {
-      const response = await axios.put(`${API_BASE_URL}/${id}`, workflow);
+      const response = await axios.put(`${API_BASE_URL}/workflow/${id}`, workflow);
       console.log('API: Workflow updated successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -70,7 +73,7 @@ export const api = {
   async deleteWorkflow(id: string): Promise<void> {
     console.log('API: Deleting workflow:', id);
     try {
-      await axios.delete(`${API_BASE_URL}/${id}`);
+      await axios.delete(`${API_BASE_URL}/workflow/${id}`);
       console.log('API: Workflow deleted successfully');
     } catch (error) {
       console.error('API: Error deleting workflow:', error);
@@ -80,51 +83,40 @@ export const api = {
 
   // Browser Profile methods
   createBrowserProfile: async (profile: Omit<BrowserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
-    const response = await fetch(`${API_BASE_URL}/browser-profiles`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(profile),
-    });
-
-    if (!response.ok) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/profile`, profile);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error creating browser profile:', error);
       throw new Error('Failed to create browser profile');
     }
-
-    return response.json();
   },
 
   getBrowserProfiles: async (): Promise<BrowserProfile[]> => {
-    const response = await fetch(`${API_BASE_URL}/browser-profiles`);
-    if (!response.ok) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/profile`);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error fetching browser profiles:', error);
       throw new Error('Failed to fetch browser profiles');
     }
-    return response.json();
   },
 
   updateBrowserProfile: async (id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
-    const response = await fetch(`${API_BASE_URL}/browser-profiles/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(profile),
-    });
-
-    if (!response.ok) {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/profile/${id}`, profile);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error updating browser profile:', error);
       throw new Error('Failed to update browser profile');
     }
-
-    return response.json();
   },
 
   deleteBrowserProfile: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/browser-profiles/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
+    try {
+      await axios.delete(`${API_BASE_URL}/profile/${id}`);
+    } catch (error) {
+      console.error('API: Error deleting browser profile:', error);
       throw new Error('Failed to delete browser profile');
     }
   },
