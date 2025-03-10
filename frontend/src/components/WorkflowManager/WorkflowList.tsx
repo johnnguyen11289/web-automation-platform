@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper, Tooltip } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, List, ListItem, ListItemText, IconButton, Typography, Paper, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
 import { PlayArrow, Edit, Delete } from '@mui/icons-material';
 import { Workflow } from '../../services/api';
 
@@ -16,6 +16,27 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
   onDelete,
   onExecute,
 }) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
+
+  const handleDeleteClick = (workflow: Workflow) => {
+    setWorkflowToDelete(workflow);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (workflowToDelete) {
+      onDelete(workflowToDelete._id);
+      setDeleteDialogOpen(false);
+      setWorkflowToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setWorkflowToDelete(null);
+  };
+
   return (
     <Paper elevation={2}>
       <Box p={1}>
@@ -68,7 +89,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
                     <IconButton
                       edge="end"
                       aria-label="delete"
-                      onClick={() => onDelete(workflow._id)}
+                      onClick={() => handleDeleteClick(workflow)}
                       size="small"
                       sx={{
                         color: 'error.main',
@@ -168,6 +189,39 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
           ))}
         </List>
       </Box>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+      >
+        <DialogTitle id="delete-dialog-title" sx={{ fontWeight: 600 }}>
+          Delete Workflow
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the workflow{' '}
+            <Typography
+              component="span"
+              sx={{
+                fontWeight: 600,
+                color: 'error.main',
+              }}
+            >
+              "{workflowToDelete?.name}"
+            </Typography>
+            ? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
