@@ -19,6 +19,8 @@
   transform-origin: 0 0;
   will-change: transform;
   touch-action: none;
+  width: 5000px;
+  height: 5000px;
 }
 
 .canvas-area:active {
