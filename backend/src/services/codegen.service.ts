@@ -2,10 +2,10 @@ import { BrowserProfile } from '../types/browser.types';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 
 export class CodegenService {
     private static instance: CodegenService | null = null;
-    private outputPath: string;
     private currentProcess: any = null;
 
     public static getInstance(): CodegenService {
@@ -15,20 +15,16 @@ export class CodegenService {
         return CodegenService.instance;
     }
 
-    private constructor() {
-        this.outputPath = path.join(process.cwd(), 'recordings');
-        if (!fs.existsSync(this.outputPath)) {
-            fs.mkdirSync(this.outputPath, { recursive: true });
-        }
-    }
+    private constructor() {}
 
     async startRecording(profile: BrowserProfile): Promise<string> {
         try {
             console.log('Starting codegen recording session for profile:', profile.name);
             
-            // Set up paths
-            const userDataDir = path.join(this.outputPath, `profile-${profile._id}`);
-            const outputFile = path.join(this.outputPath, `recording-${Date.now()}.ts`);
+            // Create a temporary file for recording output
+            const tempDir = os.tmpdir();
+            const outputFile = path.join(tempDir, `recording-${Date.now()}.ts`);
+            const userDataDir = path.join(tempDir, `profile-${profile._id}`);
             
             // Ensure the directory exists
             if (!fs.existsSync(userDataDir)) {
@@ -39,7 +35,7 @@ export class CodegenService {
             const isWindows = process.platform === 'win32';
             const command = isWindows ? 'npx.cmd' : 'npx';
             
-            // Launch playwright CLI for recording
+            // Launch playwright CLI for recording with selector preference
             const args = [
                 'playwright',
                 'codegen',
@@ -59,7 +55,9 @@ export class CodegenService {
                     shell: true,
                     env: {
                         ...process.env,
-                        PATH: `${process.env.PATH};${process.cwd()}\\node_modules\\.bin`
+                        PATH: `${process.env.PATH};${process.cwd()}\\node_modules\\.bin`,
+                        PWTEST_PREFER_SELECTORS: '1',
+                        PWTEST_PREFER_CSS_SELECTOR: '1'
                     }
                 });
 
@@ -77,6 +75,7 @@ export class CodegenService {
 
                 this.currentProcess.on('error', (error: Error) => {
                     console.error('Failed to start codegen process:', error);
+                    this.cleanup(outputFile, userDataDir);
                     reject(error);
                 });
 
@@ -85,16 +84,23 @@ export class CodegenService {
                     if (code === 0) {
                         try {
                             if (fs.existsSync(outputFile)) {
-                                const generatedCode = fs.readFileSync(outputFile, 'utf8');
+                                let generatedCode = fs.readFileSync(outputFile, 'utf8');
+                                // Convert role-based selectors to CSS selectors
+                                generatedCode = this.convertToSelectors(generatedCode);
+                                // Clean up temporary files
+                                this.cleanup(outputFile, userDataDir);
                                 resolve(generatedCode);
                             } else {
+                                this.cleanup(outputFile, userDataDir);
                                 reject(new Error('Output file not found'));
                             }
                         } catch (error) {
                             console.error('Failed to read generated code:', error);
+                            this.cleanup(outputFile, userDataDir);
                             reject(new Error('Failed to read generated code'));
                         }
                     } else {
+                        this.cleanup(outputFile, userDataDir);
                         reject(new Error(`Codegen process exited with code ${code}`));
                     }
                 });
@@ -103,6 +109,61 @@ export class CodegenService {
         } catch (error) {
             console.error('Failed to start codegen recording:', error);
             throw error;
+        }
+    }
+
+    private convertToSelectors(code: string): string {
+        // Convert getByRole to locator with appropriate selectors
+        return code.replace(
+            /getByRole\(['"]([^'"]+)['"](?:,\s*{\s*name:\s*['"]([^'"]+)['"]\s*})?\)/g,
+            (match, role, name) => {
+                // For specific roles, include the element type
+                if (role === 'combobox' || role === 'textbox') {
+                    return name ? 
+                        `locator('textarea[name="${name}"][role="${role}"]')` :
+                        `locator('textarea[role="${role}"]')`;
+                }
+                if (role === 'button') {
+                    return name ? 
+                        `locator('button[name="${name}"]')` :
+                        `locator('button')`;
+                }
+                if (name) {
+                    return `locator('[role="${role}"][name="${name}"]')`;
+                }
+                return `locator('[role="${role}"]')`;
+            }
+        ).replace(
+            // Convert getByText to locator with text selector
+            /getByText\(['"]([^'"]+)['"]\)/g,
+            (match, text) => `locator(':text("${text}")')`
+        ).replace(
+            // Convert getByLabel to locator with aria-label selector
+            /getByLabel\(['"]([^'"]+)['"]\)/g,
+            (match, label) => `locator('[aria-label="${label}"]')`
+        ).replace(
+            // Convert getByPlaceholder to locator with placeholder selector
+            /getByPlaceholder\(['"]([^'"]+)['"]\)/g,
+            (match, placeholder) => `locator('input[placeholder="${placeholder}"], textarea[placeholder="${placeholder}"]')`
+        ).replace(
+            // Convert getByTestId to data-testid selector
+            /getByTestId\(['"]([^'"]+)['"]\)/g,
+            (match, testId) => `locator('[data-testid="${testId}"]')`
+        );
+    }
+
+    private cleanup(outputFile: string, userDataDir: string): void {
+        try {
+            // Delete the temporary recording file if it exists
+            if (fs.existsSync(outputFile)) {
+                fs.unlinkSync(outputFile);
+            }
+            // Delete the temporary user data directory if it exists
+            if (fs.existsSync(userDataDir)) {
+                fs.rmSync(userDataDir, { recursive: true, force: true });
+            }
+        } catch (error) {
+            console.error('Error cleaning up temporary files:', error);
         }
     }
 

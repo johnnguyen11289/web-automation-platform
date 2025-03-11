@@ -44,14 +44,15 @@ function convertCodeToNodes(code: string) {
             });
             currentId++;
         } else if (line.includes('click')) {
-            // Handle clicks
-            const selector = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
+            // Handle clicks - extract full selector between locator() call
+            const selectorMatch = line.match(/locator\((.*?)\)\.click/);
+            const selector = selectorMatch ? selectorMatch[1].trim() : '';
             nodes.push({
                 id: `node-${currentId}`,
                 type: 'click',
                 position: { x: xPos, y: yPos },
                 properties: {
-                    nodeName: `Click ${selector}`,
+                    nodeName: `Click element`,
                     nodeType: 'click',
                     selector,
                     waitForElement: true
@@ -59,43 +60,51 @@ function convertCodeToNodes(code: string) {
                 connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
             });
             currentId++;
-        } else if (line.includes('fill') || line.includes('type')) {
-            // Handle input
-            const matches = line.match(/['"]([^'"]+)['"]/g) || [];
-            const selector = matches[0]?.replace(/['"]/g, '') || '';
-            const value = matches[1]?.replace(/['"]/g, '') || '';
-            nodes.push({
-                id: `node-${currentId}`,
-                type: 'input',
-                position: { x: xPos, y: yPos },
-                properties: {
-                    nodeName: `Input "${value}"`,
-                    nodeType: 'input',
-                    selector,
-                    value,
-                    clearBeforeInput: true
-                },
-                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
-            });
-            currentId++;
+        } else if (line.includes('fill')) {
+            // Handle input - extract full selector and value
+            const selectorMatch = line.match(/locator\((.*?)\)\.fill/);
+            const valueMatch = line.match(/fill\((.*?)\)/);
+            
+            if (selectorMatch && valueMatch) {
+                const selector = selectorMatch[1].trim();
+                const value = valueMatch[1].trim().replace(/^['"]|['"]$/g, ''); // Remove only outer quotes from value
+                nodes.push({
+                    id: `node-${currentId}`,
+                    type: 'input',
+                    position: { x: xPos, y: yPos },
+                    properties: {
+                        nodeName: `Input "${value}"`,
+                        nodeType: 'input',
+                        selector,
+                        value,
+                        clearBeforeInput: true
+                    },
+                    connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+                });
+                currentId++;
+            }
         } else if (line.includes('select')) {
-            // Handle dropdowns
-            const matches = line.match(/['"]([^'"]+)['"]/g) || [];
-            const selector = matches[0]?.replace(/['"]/g, '') || '';
-            const value = matches[1]?.replace(/['"]/g, '') || '';
-            nodes.push({
-                id: `node-${currentId}`,
-                type: 'select',
-                position: { x: xPos, y: yPos },
-                properties: {
-                    nodeName: `Select "${value}"`,
-                    nodeType: 'select',
-                    selector,
-                    value
-                },
-                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
-            });
-            currentId++;
+            // Handle dropdowns - extract full selector and value
+            const selectorMatch = line.match(/locator\((.*?)\)\.selectOption/);
+            const valueMatch = line.match(/selectOption\((.*?)\)/);
+            
+            if (selectorMatch && valueMatch) {
+                const selector = selectorMatch[1].trim();
+                const value = valueMatch[1].trim().replace(/^['"]|['"]$/g, ''); // Remove only outer quotes from value
+                nodes.push({
+                    id: `node-${currentId}`,
+                    type: 'select',
+                    position: { x: xPos, y: yPos },
+                    properties: {
+                        nodeName: `Select "${value}"`,
+                        nodeType: 'select',
+                        selector,
+                        value
+                    },
+                    connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+                });
+                currentId++;
+            }
         }
     });
 
