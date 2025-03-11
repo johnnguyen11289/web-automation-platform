@@ -5,6 +5,108 @@ import { WorkflowModel } from '../models/Workflow';
 
 const router = Router();
 
+// Helper function to convert Playwright code to workflow nodes with auto-positioning
+function convertCodeToNodes(code: string) {
+    const nodes: any[] = [];
+    let currentId = 1;
+
+    // Initialize position variables
+    let x = 100; // Starting X position
+    const startY = 100; // Starting Y position
+    const xOffset = 250; // Horizontal spacing between nodes
+    const yOffset = 150; // Vertical spacing between nodes
+    let maxNodesPerRow = 3; // Maximum nodes per row
+    
+    // Split code into lines and process each action
+    const lines = code.split('\n');
+    
+    lines.forEach((line, index) => {
+        // Calculate position
+        const row = Math.floor(index / maxNodesPerRow);
+        const col = index % maxNodesPerRow;
+        const xPos = x + (col * xOffset);
+        const yPos = startY + (row * yOffset);
+
+        if (line.includes('goto')) {
+            // Handle navigation
+            const url = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
+            nodes.push({
+                id: `node-${currentId}`,
+                type: 'openUrl',
+                position: { x: xPos, y: yPos },
+                properties: {
+                    nodeName: `Navigate to ${url}`,
+                    nodeType: 'openUrl',
+                    url,
+                    waitForPageLoad: true
+                },
+                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+            });
+            currentId++;
+        } else if (line.includes('click')) {
+            // Handle clicks
+            const selector = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
+            nodes.push({
+                id: `node-${currentId}`,
+                type: 'click',
+                position: { x: xPos, y: yPos },
+                properties: {
+                    nodeName: `Click ${selector}`,
+                    nodeType: 'click',
+                    selector,
+                    waitForElement: true
+                },
+                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+            });
+            currentId++;
+        } else if (line.includes('fill') || line.includes('type')) {
+            // Handle input
+            const matches = line.match(/['"]([^'"]+)['"]/g) || [];
+            const selector = matches[0]?.replace(/['"]/g, '') || '';
+            const value = matches[1]?.replace(/['"]/g, '') || '';
+            nodes.push({
+                id: `node-${currentId}`,
+                type: 'input',
+                position: { x: xPos, y: yPos },
+                properties: {
+                    nodeName: `Input "${value}"`,
+                    nodeType: 'input',
+                    selector,
+                    value,
+                    clearBeforeInput: true
+                },
+                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+            });
+            currentId++;
+        } else if (line.includes('select')) {
+            // Handle dropdowns
+            const matches = line.match(/['"]([^'"]+)['"]/g) || [];
+            const selector = matches[0]?.replace(/['"]/g, '') || '';
+            const value = matches[1]?.replace(/['"]/g, '') || '';
+            nodes.push({
+                id: `node-${currentId}`,
+                type: 'select',
+                position: { x: xPos, y: yPos },
+                properties: {
+                    nodeName: `Select "${value}"`,
+                    nodeType: 'select',
+                    selector,
+                    value
+                },
+                connections: currentId < lines.length ? [`node-${currentId + 1}`] : []
+            });
+            currentId++;
+        }
+    });
+
+    // Remove the last connection from the final node
+    if (nodes.length > 0) {
+        nodes[nodes.length - 1].connections = [];
+    }
+
+    return nodes;
+}
+
 // Start a codegen recording session
 router.post('/codegen/:profileId', async (req, res) => {
     try {
@@ -52,77 +154,5 @@ router.post('/stop', async (req, res) => {
         res.status(500).json({ error: 'Failed to stop recording' });
     }
 });
-
-// Helper function to convert Playwright code to workflow nodes
-function convertCodeToNodes(code: string) {
-    const nodes: any[] = [];
-    let currentId = 1;
-
-    // Split code into lines and process each action
-    const lines = code.split('\n');
-    let x = 100;
-    let y = 100;
-
-    for (const line of lines) {
-        if (line.includes('goto')) {
-            // Handle navigation
-            const url = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
-            nodes.push({
-                id: `node-${currentId++}`,
-                type: 'openUrl',
-                position: { x, y },
-                properties: {
-                    nodeName: `Navigate to ${url}`,
-                    nodeType: 'openUrl',
-                    url,
-                    waitForPageLoad: true
-                },
-                connections: [`node-${currentId}`]
-            });
-        } else if (line.includes('click')) {
-            // Handle clicks
-            const selector = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
-            nodes.push({
-                id: `node-${currentId++}`,
-                type: 'click',
-                position: { x, y },
-                properties: {
-                    nodeName: `Click ${selector}`,
-                    nodeType: 'click',
-                    selector,
-                    waitForElement: true
-                },
-                connections: [`node-${currentId}`]
-            });
-        } else if (line.includes('fill') || line.includes('type')) {
-            // Handle input
-            const selector = line.match(/['"]([^'"]+)['"]/)?.[1] || '';
-            const value = line.match(/['"]([^'"]+)['"]/)?.[2] || '';
-            nodes.push({
-                id: `node-${currentId++}`,
-                type: 'input',
-                position: { x, y },
-                properties: {
-                    nodeName: `Input ${value}`,
-                    nodeType: 'input',
-                    selector,
-                    value,
-                    clearBeforeInput: true
-                },
-                connections: [`node-${currentId}`]
-            });
-        }
-
-        // Update position for next node
-        y += 150;
-    }
-
-    // Remove the last connection from the final node
-    if (nodes.length > 0) {
-        nodes[nodes.length - 1].connections = [];
-    }
-
-    return nodes;
-}
 
 export default router; 

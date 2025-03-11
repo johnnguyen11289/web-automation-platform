@@ -8,6 +8,8 @@ import {
   Tabs,
   Tab,
   Container,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import WorkflowList from './components/WorkflowManager/WorkflowList';
@@ -80,6 +82,15 @@ function App() {
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   useEffect(() => {
     loadWorkflows();
@@ -227,12 +238,20 @@ function App() {
         const newWorkflow = await api.getWorkflow(response.workflowId);
         setEditingWorkflow(newWorkflow);
         
-        // Show success message
-        alert('Recording completed successfully! The workflow has been created and loaded.');
+        // Show success message with Snackbar
+        setSnackbar({
+          open: true,
+          message: 'Recording completed successfully! Your workflow has been created and is ready to edit.',
+          severity: 'success'
+        });
       }
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Failed to start recording. Please try again.');
+      setSnackbar({
+        open: true,
+        message: 'Failed to start recording. Please try again.',
+        severity: 'error'
+      });
       setIsRecording(false);
     }
   };
@@ -532,13 +551,30 @@ function App() {
             />
           </TabPanel>
         </Box>
+
+        <ProfileSelectionDialog
+          open={isProfileDialogOpen}
+          onClose={() => setIsProfileDialogOpen(false)}
+          profiles={browserProfiles}
+          onSelect={handleProfileSelect}
+        />
+
+        <Snackbar 
+          open={snackbar.open} 
+          autoHideDuration={6000} 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+            severity={snackbar.severity}
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
-      <ProfileSelectionDialog
-        open={isProfileDialogOpen}
-        onClose={() => setIsProfileDialogOpen(false)}
-        profiles={browserProfiles}
-        onSelect={handleProfileSelect}
-      />
     </ThemeProvider>
   );
 }
