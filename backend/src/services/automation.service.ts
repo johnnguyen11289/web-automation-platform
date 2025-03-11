@@ -77,17 +77,30 @@ export class AutomationService {
   }
 
   async close() {
-    if (this.currentPage) {
-      await this.currentPage.close();
+    try {
+      if (this.currentPage && !this.currentPage.isClosed()) {
+        await this.currentPage.close().catch(() => {});
+      }
       this.currentPage = null;
-    }
-    if (this.context) {
-      await this.context.close();
+
+      if (this.context) {
+        // Safely close all pages first
+        const pages = this.context.pages();
+        for (const page of pages) {
+          if (!page.isClosed()) {
+            await page.close().catch(() => {});
+          }
+        }
+        await this.context.close().catch(() => {});
+      }
       this.context = null;
-    }
-    if (this.browser) {
-      await this.browser.close();
+
+      if (this.browser) {
+        await this.browser.close().catch(() => {});
+      }
       this.browser = null;
+    } catch (error) {
+      console.log('Error during cleanup, but continuing:', error);
     }
     this.currentProfile = null;
   }
@@ -453,10 +466,16 @@ export class AutomationService {
       // Launch persistent context with modified options
       this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
       
-      // Close all existing pages/tabs
-      const pages = this.context.pages();
-      for (let i = 0; i < pages.length; i++) {
-        await pages[i].close();
+      // Safely close any existing pages/tabs
+      try {
+        const pages = this.context.pages();
+        for (const page of pages) {
+          if (!page.isClosed()) {
+            await page.close().catch(() => {});
+          }
+        }
+      } catch (error) {
+        console.log('Error closing existing pages, but continuing:', error);
       }
       
       // Open a new page with common login URLs based on profile name
