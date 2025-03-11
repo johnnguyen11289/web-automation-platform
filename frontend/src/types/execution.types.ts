@@ -7,6 +7,7 @@ export interface ExecutionStep {
   startTime?: Date;
   endTime?: Date;
   error?: string;
+  context?: Record<string, any>;
 }
 
 export interface Execution {
@@ -21,6 +22,7 @@ export interface Execution {
   queuePosition?: number;
   parallelExecution: boolean;
   steps: ExecutionStep[];
+  data?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
