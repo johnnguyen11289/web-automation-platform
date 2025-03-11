@@ -1,41 +1,8 @@
 import axios from 'axios';
 import { BrowserProfile } from '../types/browser.types';
 import { Execution } from '../types/execution.types';
-import { config } from '../config/config';
 
-const api = axios.create({
-    baseURL: config.api.baseURL,
-    headers: {
-        'Content-Type': 'application/json'
-    }
-});
-
-// Add request interceptor for authentication
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
-
-// Add response interceptor for error handling
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            // Handle unauthorized access
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
-    }
-);
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export interface WorkflowNode {
   id: string;
@@ -55,11 +22,11 @@ export interface Workflow {
   updatedAt: Date;
 }
 
-export const apiService = {
+export const api = {
   async createWorkflow(workflow: Omit<Workflow, '_id' | 'createdAt' | 'updatedAt'>): Promise<Workflow> {
     console.log('API: Creating workflow:', workflow);
     try {
-      const response = await api.post('/workflows', workflow);
+      const response = await axios.post(`${API_BASE_URL}/workflows`, workflow);
       console.log('API: Workflow created successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -71,7 +38,7 @@ export const apiService = {
   async getWorkflows(): Promise<Workflow[]> {
     console.log('API: Fetching workflows');
     try {
-      const response = await api.get('/workflows');
+      const response = await axios.get(`${API_BASE_URL}/workflows`);
       console.log('API: Workflows fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -83,7 +50,7 @@ export const apiService = {
   async getWorkflow(id: string): Promise<Workflow> {
     console.log('API: Fetching workflow:', id);
     try {
-      const response = await api.get(`/workflows/${id}`);
+      const response = await axios.get(`${API_BASE_URL}/workflows/${id}`);
       console.log('API: Workflow fetched successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -95,7 +62,7 @@ export const apiService = {
   async updateWorkflow(id: string, workflow: Partial<Workflow>): Promise<Workflow> {
     console.log('API: Updating workflow:', id, workflow);
     try {
-      const response = await api.put(`/workflows/${id}`, workflow);
+      const response = await axios.put(`${API_BASE_URL}/workflows/${id}`, workflow);
       console.log('API: Workflow updated successfully:', response.data);
       return response.data;
     } catch (error) {
@@ -107,7 +74,7 @@ export const apiService = {
   async deleteWorkflow(id: string): Promise<void> {
     console.log('API: Deleting workflow:', id);
     try {
-      await api.delete(`/workflows/${id}`);
+      await axios.delete(`${API_BASE_URL}/workflows/${id}`);
       console.log('API: Workflow deleted successfully');
     } catch (error) {
       console.error('API: Error deleting workflow:', error);
@@ -118,7 +85,7 @@ export const apiService = {
   // Browser Profile methods
   createBrowserProfile: async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
     try {
-      const response = await api.post('/browser-profiles', profile);
+      const response = await axios.post(`${API_BASE_URL}/browser-profiles`, profile);
       return response.data;
     } catch (error) {
       console.error('API: Error creating browser profile:', error);
@@ -128,7 +95,7 @@ export const apiService = {
 
   getBrowserProfiles: async (): Promise<BrowserProfile[]> => {
     try {
-      const response = await api.get('/browser-profiles');
+      const response = await axios.get(`${API_BASE_URL}/browser-profiles`);
       return response.data;
     } catch (error) {
       console.error('API: Error fetching browser profiles:', error);
@@ -138,7 +105,7 @@ export const apiService = {
 
   updateBrowserProfile: async (_id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
     try {
-      const response = await api.put(`/browser-profiles/${_id}`, profile);
+      const response = await axios.put(`${API_BASE_URL}/browser-profiles/${_id}`, profile);
       return response.data;
     } catch (error) {
       console.error('API: Error updating browser profile:', error);
@@ -148,7 +115,7 @@ export const apiService = {
 
   deleteBrowserProfile: async (_id: string): Promise<void> => {
     try {
-      await api.delete(`/browser-profiles/${_id}`);
+      await axios.delete(`${API_BASE_URL}/browser-profiles/${_id}`);
     } catch (error) {
       console.error('API: Error deleting browser profile:', error);
       throw new Error('Failed to delete browser profile');
@@ -156,16 +123,16 @@ export const apiService = {
   },
 
   openBrowserProfile: async (_id: string): Promise<void> => {
-    const url = `/browser-profiles/${_id}/open`;
+    const url = `${API_BASE_URL}/browser-profiles/${_id}/open`;
     console.log('API: Opening browser profile:', { _id, url });
     try {
-      await api.post(url);
+      await axios.post(url);
       console.log('API: Browser profile opened successfully');
     } catch (error: any) {
       console.error('API: Error opening browser profile:', {
         message: error?.message,
         url,
-        baseUrl: config.api.baseURL,
+        baseUrl: API_BASE_URL,
         status: error?.response?.status,
         data: error?.response?.data
       });
@@ -176,7 +143,7 @@ export const apiService = {
   // Execution methods
   getExecutions: async (): Promise<Execution[]> => {
     try {
-      const response = await api.get('/executions');
+      const response = await axios.get(`${API_BASE_URL}/executions`);
       return response.data;
     } catch (error) {
       console.error('API: Error fetching executions:', error);
@@ -186,7 +153,7 @@ export const apiService = {
 
   startExecution: async (workflowId: string, profileId: string, parallel: boolean): Promise<Execution> => {
     try {
-      const response = await api.post('/executions', {
+      const response = await axios.post(`${API_BASE_URL}/executions`, {
         workflowId,
         profileId,
         parallel,
@@ -200,7 +167,7 @@ export const apiService = {
 
   pauseExecution: async (executionId: string): Promise<void> => {
     try {
-      await api.post(`/executions/${executionId}/pause`);
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/pause`);
     } catch (error) {
       console.error('API: Error pausing execution:', error);
       throw new Error('Failed to pause execution');
@@ -209,7 +176,7 @@ export const apiService = {
 
   resumeExecution: async (executionId: string): Promise<void> => {
     try {
-      await api.post(`/executions/${executionId}/resume`);
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/resume`);
     } catch (error) {
       console.error('API: Error resuming execution:', error);
       throw new Error('Failed to resume execution');
@@ -218,7 +185,7 @@ export const apiService = {
 
   stopExecution: async (executionId: string): Promise<void> => {
     try {
-      await api.post(`/executions/${executionId}/stop`);
+      await axios.post(`${API_BASE_URL}/executions/${executionId}/stop`);
     } catch (error) {
       console.error('API: Error stopping execution:', error);
       throw new Error('Failed to stop execution');
@@ -228,13 +195,11 @@ export const apiService = {
   // Recording methods
   startCodegenRecording: async (profileId: string): Promise<{ workflowId: string }> => {
     try {
-      const response = await api.post(`/recording/codegen/${profileId}`);
+      const response = await axios.post(`${API_BASE_URL}/recording/codegen/${profileId}`);
       return response.data;
     } catch (error) {
       console.error('API: Error starting codegen recording:', error);
       throw new Error('Failed to start recording');
     }
   },
-};
-
-export default apiService; 
+}; 
