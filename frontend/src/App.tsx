@@ -199,6 +199,23 @@ function App() {
     // This will trigger the useEffect in WorkflowCanvas to reset the state
   };
 
+  const handleStartRecording = async () => {
+    if (browserProfiles.length === 0) {
+      alert('No browser profiles found. Please create a browser profile first by going to the "Profiles" tab.');
+      setCurrentTab(4); // Switch to the Profiles tab (index 4)
+      return;
+    }
+
+    // Use the first profile for now
+    const profile = browserProfiles[0];
+    try {
+      await api.startCodegenRecording(profile._id);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      alert('Failed to start recording. Please try again.');
+    }
+  };
+
   const handleProfileAdd = async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const newProfile = await api.createBrowserProfile(profile);
@@ -434,6 +451,7 @@ function App() {
                     onSave={handleWorkflowSave}
                     initialWorkflow={editingWorkflow}
                     onCreateNew={handleCreateNew}
+                    onStartRecording={handleStartRecording}
                   />
                 </Box>
               </Box>

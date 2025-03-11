@@ -5,6 +5,7 @@ import workflowRoutes from './routes/workflow.routes';
 import browserProfileRoutes from './routes/browserProfiles';
 import executionRoutes from './routes/executions';
 import taskRoutes from './routes/tasks';
+import recordingRoutes from './routes/recording.routes';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/browser-profiles', browserProfileRoutes);
 app.use('/api/executions', executionRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/recording', recordingRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

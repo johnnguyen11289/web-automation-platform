@@ -191,4 +191,14 @@ export const api = {
       throw new Error('Failed to stop execution');
     }
   },
+
+  // Recording methods
+  startCodegenRecording: async (profileId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/recording/codegen/${profileId}`);
+    } catch (error) {
+      console.error('API: Error starting codegen recording:', error);
+      throw new Error('Failed to start recording');
+    }
+  },
 }; 

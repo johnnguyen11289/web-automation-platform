@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NodeProperties, OpenUrlNodeProperties, ClickNodeProperties, ProfileNodeProperties } from '../types/node.types';
 import NodePropertiesEditor from './NodePropertiesEditor';
-import { ZoomIn, ZoomOut, Save } from '@mui/icons-material';
+import { ZoomIn, ZoomOut, Save, FiberManualRecord } from '@mui/icons-material';
 import { IconButton, Button, Snackbar, Alert } from '@mui/material';
 import { Workflow } from '../services/api';
 import './WorkflowCanvas.css';
@@ -22,9 +22,10 @@ interface WorkflowCanvasProps {
   }) => Promise<boolean>;
   initialWorkflow?: Workflow | null;
   onCreateNew?: () => void;
+  onStartRecording?: () => void;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew }) => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew, onStartRecording }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -484,6 +485,15 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow
             sx={{ mr: 1 }}
           >
             Create New
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<FiberManualRecord />}
+            onClick={onStartRecording}
+            sx={{ mr: 1 }}
+          >
+            Record Workflow
           </Button>
           <Button
             variant="contained"
