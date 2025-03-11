@@ -1,6 +1,6 @@
 import express from 'express';
 import { Execution, IExecution } from '../models/Execution';
-import ExecutionService from '../services/ExecutionService';
+import ExecutionService from '../services/execution.service';
 import { Types } from 'mongoose';
 
 const router = express.Router();
