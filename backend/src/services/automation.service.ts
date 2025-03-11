@@ -7,6 +7,7 @@ export class AutomationService {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private currentProfile: BrowserProfile | null = null;
+  private currentPage: Page | null = null;
   private static browsersInstalled = false;
   private static instance: AutomationService | null = null;
 
@@ -76,6 +77,10 @@ export class AutomationService {
   }
 
   async close() {
+    if (this.currentPage) {
+      await this.currentPage.close();
+      this.currentPage = null;
+    }
     if (this.context) {
       await this.context.close();
       this.context = null;
@@ -89,14 +94,28 @@ export class AutomationService {
 
   async applyProfile(profile: BrowserProfile) {
     try {
-      // Check if we can reuse the existing browser and context
-      const canReuseBrowser = this.browser && 
+      console.log('Applying browser profile:', {
+        name: profile.name,
+        id: profile.id,
+        browserType: profile.browserType,
+        isHeadless: profile.isHeadless,
+        userAgent: profile.userAgent?.substring(0, 50) + '...',
+        hasProxy: !!profile.proxy,
+        viewport: profile.viewport
+      });
+
+      // Check if we can reuse both browser and context
+      const canReuseContext = this.context && 
         this.currentProfile?.browserType === profile.browserType &&
-        this.currentProfile?.isHeadless === profile.isHeadless;
+        this.currentProfile?.isHeadless === profile.isHeadless &&
+        this.currentProfile?.viewport?.width === profile.viewport?.width &&
+        this.currentProfile?.viewport?.height === profile.viewport?.height &&
+        this.currentProfile?.userAgent === profile.userAgent &&
+        JSON.stringify(this.currentProfile?.proxy) === JSON.stringify(profile.proxy);
 
       // Only close if we can't reuse
-      if (!canReuseBrowser) {
-        console.log('Creating new browser instance...');
+      if (!canReuseContext) {
+        console.log('Creating new browser context for profile:', profile.name);
         await this.close();
 
         // Select browser type
@@ -111,88 +130,88 @@ export class AutomationService {
         }
 
         // Set executable path for Windows
+        const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
         const executablePath = process.platform === 'win32' 
-          ? 'C:\\Users\\John\\AppData\\Local\\ms-playwright\\chromium-1161\\chrome-win\\chrome.exe'
+          ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
           : undefined;
 
-        // Launch browser with profile settings
-        console.log('Launching browser with profile:', {
-          type: profile.browserType,
-          headless: profile.isHeadless
-        });
+        // Create persistent user data directory for this profile
+        const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+        
+        // Ensure the directory exists
+        if (!require('fs').existsSync(userDataDir)) {
+          require('fs').mkdirSync(userDataDir, { recursive: true });
+        }
 
-        this.browser = await browserType.launch({
-          headless: profile.isHeadless,
-          executablePath: executablePath,
-          args: ['--start-maximized'] // Add this to ensure window is visible
-        });
-        console.log('Browser launched successfully');
-      } else {
-        console.log('Reusing existing browser instance');
-      }
-
-      // Always create a new context with the updated profile settings
-      if (this.context) {
-        await this.context.close();
-        this.context = null;
-      }
-
-      // Create context with profile settings
-      console.log('Creating browser context...');
-      const contextOptions: any = {
-        viewport: profile.viewport || null, // Set to null for maximized window
-        userAgent: profile.userAgent
-      };
-
-      // Add proxy if both host and port are provided
-      if (profile.proxy?.host && profile.proxy?.port) {
-        // Format proxy URL with protocol
-        const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
-          ? '' 
-          : 'http://';
-        const proxyHost = profile.proxy.host.replace(/^https?:\/\//, ''); // Remove protocol if exists
-        const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
-
-        console.log('Configuring proxy:', {
-          server: proxyUrl,
-          hasUsername: !!profile.proxy.username,
-          hasPassword: !!profile.proxy.password
-        });
-
-        contextOptions.proxy = {
-          server: proxyUrl,
-          ...(profile.proxy.username && { username: profile.proxy.username }),
-          ...(profile.proxy.password && { password: profile.proxy.password })
+        // Create context options with additional settings to appear more like regular Chrome
+        const contextOptions: any = {
+          viewport: profile.viewport || null,
+          userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          headless: false,
+          args: [
+            '--start-maximized',
+            '--disable-blink-features=AutomationControlled',
+            '--window-size=1920,1080'
+          ],
+          ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
+          executablePath: executablePath
         };
-      }
 
-      if (!this.browser) {
-        throw new Error('Browser not initialized');
-      }
+        // Add proxy if configured
+        if (profile.proxy?.host && profile.proxy?.port) {
+          const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
+            ? '' 
+            : 'http://';
+          const proxyHost = profile.proxy.host.replace(/^https?:\/\//, '');
+          const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
 
-      this.context = await this.browser.newContext(contextOptions);
-      console.log('Browser context created successfully');
+          console.log('Configuring proxy for profile:', {
+            profileName: profile.name,
+            server: proxyUrl,
+            hasUsername: !!profile.proxy.username,
+            hasPassword: !!profile.proxy.password
+          });
 
-      // Set cookies if any
-      if (profile.cookies?.length) {
-        console.log('Setting cookies...');
-        await this.context.addCookies(profile.cookies);
-        console.log('Cookies set successfully');
-      }
+          contextOptions.proxy = {
+            server: proxyUrl,
+            ...(profile.proxy.username && { username: profile.proxy.username }),
+            ...(profile.proxy.password && { password: profile.proxy.password })
+          };
+        }
 
-      // Execute startup script if any
-      if (profile.startupScript) {
-        console.log('Executing startup script...');
-        const page = await this.context.newPage();
-        await page.evaluate(profile.startupScript);
-        await page.close();
-        console.log('Startup script executed successfully');
+        // Launch persistent context
+        this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
+        console.log('Browser context created successfully for profile:', profile.name);
+
+        // Set cookies if any
+        if (profile.cookies?.length) {
+          console.log('Setting cookies for profile:', {
+            profileName: profile.name,
+            cookieCount: profile.cookies.length
+          });
+          await this.context.addCookies(profile.cookies);
+          console.log('Cookies set successfully for profile:', profile.name);
+        }
+
+        // Execute startup script if any
+        if (profile.startupScript) {
+          console.log('Executing startup script for profile:', profile.name);
+          const page = await this.context.newPage();
+          await page.evaluate(profile.startupScript);
+          await page.close();
+          console.log('Startup script executed successfully for profile:', profile.name);
+        }
+      } else {
+        console.log('Reusing existing browser context for profile:', profile.name);
       }
 
       this.currentProfile = profile;
-      console.log('Profile applied successfully');
+      console.log('Profile applied successfully:', profile.name);
     } catch (error) {
-      console.error('Failed to apply profile:', error);
+      console.error('Failed to apply profile:', {
+        name: profile.name,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       // Clean up resources in case of error
       await this.close();
       throw new Error('Failed to apply profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -203,21 +222,43 @@ export class AutomationService {
     if (!this.context) {
       throw new Error('Browser context not initialized. Did you call applyProfile?');
     }
-    return await this.context.newPage();
+    if (!this.currentPage || this.currentPage.isClosed()) {
+      console.log('Creating new page...');
+      this.currentPage = await this.context.newPage();
+    } else {
+      console.log('Reusing existing page');
+    }
+    return this.currentPage;
   }
 
-  async performWebAutomation(url: string, actions: AutomationAction[]): Promise<AutomationResult> {
+  async performWebAutomation(url: string | null, actions: AutomationAction[]): Promise<AutomationResult> {
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      await page.goto(url);
+      // Only navigate if we have a real URL (not null or about:blank)
+      if (url && url !== 'about:blank' && (!actions[0] || actions[0].type !== 'openUrl')) {
+        console.log('Navigating to initial URL:', url);
+        await page.goto(url);
+      }
 
       for (const action of actions) {
         try {
+          console.log('Performing action:', action.type);
           switch (action.type) {
+            case 'openUrl':
+              if (!action.value) {
+                throw new Error('URL is required for openUrl action');
+              }
+              console.log('Navigating to URL:', action.value);
+              await page.goto(action.value, {
+                waitUntil: action.waitUntil || 'load',
+                timeout: action.timeout
+              });
+              break;
+
             case 'click':
               if (!action.selector) {
                 throw new Error('Selector is required for click action');
@@ -329,14 +370,139 @@ export class AutomationService {
       }
 
       return { success, results, extractedData };
+    } catch (error) {
+      success = false;
+      throw error;
     } finally {
-      await page.close();
+      // Don't close the page here anymore since we're reusing it
+      return { success, results, extractedData };
     }
+  }
+
+  async openProfileForSetup(profile: BrowserProfile): Promise<void> {
+    try {
+      console.log('Opening profile for manual setup:', profile.name);
+      
+      // Initialize if needed
+      if (!AutomationService.browsersInstalled) {
+        await this.init();
+      }
+
+      // Close any existing browser instance
+      await this.close();
+
+      // Select browser type
+      const browserType = {
+        chromium: chromium,
+        firefox: firefox,
+        webkit: webkit
+      }[profile.browserType];
+
+      if (!browserType) {
+        throw new Error(`Unsupported browser type: ${profile.browserType}`);
+      }
+
+      // Set up paths
+      const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
+      const executablePath = process.platform === 'win32' 
+        ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
+        : undefined;
+
+      // Create persistent user data directory for this profile
+      const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+      
+      // Ensure the directory exists
+      if (!require('fs').existsSync(userDataDir)) {
+        require('fs').mkdirSync(userDataDir, { recursive: true });
+      }
+
+      console.log('Opening browser for manual setup:', {
+        name: profile.name,
+        userDataDir: userDataDir
+      });
+
+      // Create context options with additional settings to appear more like regular Chrome
+      const contextOptions: any = {
+        viewport: profile.viewport || null,
+        userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        headless: false,
+        args: [
+          '--start-maximized',
+          '--disable-blink-features=AutomationControlled',
+          '--window-size=1920,1080'
+        ],
+        ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
+        executablePath: executablePath
+      };
+
+      // Add proxy if configured
+      if (profile.proxy?.host && profile.proxy?.port) {
+        const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
+          ? '' 
+          : 'http://';
+        const proxyHost = profile.proxy.host.replace(/^https?:\/\//, '');
+        const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
+
+        contextOptions.proxy = {
+          server: proxyUrl,
+          ...(profile.proxy.username && { username: profile.proxy.username }),
+          ...(profile.proxy.password && { password: profile.proxy.password })
+        };
+      }
+
+      // Launch persistent context with modified options
+      this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
+      
+      // Close all existing pages/tabs
+      const pages = this.context.pages();
+      for (let i = 0; i < pages.length; i++) {
+        await pages[i].close();
+      }
+      
+      // Open a new page with common login URLs based on profile name
+      const page = await this.context.newPage();
+      this.currentPage = page;
+
+      // Suggest common login pages based on profile name
+      const lowerProfileName = profile.name.toLowerCase();
+      let loginUrl = 'about:blank';
+      if (lowerProfileName.includes('google')) {
+        loginUrl = 'https://accounts.google.com';
+      } else if (lowerProfileName.includes('facebook')) {
+        loginUrl = 'https://www.facebook.com';
+      } else if (lowerProfileName.includes('twitter')) {
+        loginUrl = 'https://twitter.com/login';
+      } else if (lowerProfileName.includes('linkedin')) {
+        loginUrl = 'https://www.linkedin.com/login';
+      }
+
+      await page.goto(loginUrl);
+      
+      console.log('Profile opened for manual setup. Please perform any necessary logins or configurations.');
+      console.log('The browser will remain open until you close it or call closeProfileSetup().');
+      
+      // Store current profile
+      this.currentProfile = profile;
+
+    } catch (error) {
+      console.error('Failed to open profile for setup:', {
+        name: profile.name,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      await this.close();
+      throw error;
+    }
+  }
+
+  async closeProfileSetup(): Promise<void> {
+    console.log('Closing profile setup...');
+    await this.close();
+    console.log('Profile setup closed. Your login sessions and configurations have been saved.');
   }
 }
 
 export interface AutomationAction {
-  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover';
+  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl';
   selector?: string;
   value?: string;
   key?: string;
@@ -349,6 +515,7 @@ export interface AutomationAction {
   attribute?: string;
   clearFirst?: boolean;
   stopOnError?: boolean;
+  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
 }
 
 export interface AutomationStepResult {

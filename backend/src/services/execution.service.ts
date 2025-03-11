@@ -15,6 +15,7 @@ class ExecutionService {
   private eventEmitter: EventEmitter;
   private automationService: AutomationService;
   private activeExecutions: Set<string> = new Set();
+  private isProcessing: boolean = false;
 
   private constructor() {
     console.log('Creating new ExecutionService instance');
@@ -34,22 +35,27 @@ class ExecutionService {
   private initializeQueueProcessor(): void {
     console.log('Initializing queue processor');
     setInterval(() => {
-      console.log('Queue processor running. Queue length:', this.executionQueue.length, 'Running executions:', this.runningExecutions.size);
       this.processQueue();
     }, 1000); // Check queue every second
   }
 
   private async processQueue(): Promise<void> {
-    if (this.runningExecutions.size >= this.maxConcurrentExecutions) {
-      console.log('Max concurrent executions reached:', this.maxConcurrentExecutions);
+    if (this.isProcessing) {
       return;
     }
 
-    const nextExecution = this.executionQueue.shift();
-    if (nextExecution?._id) {
-      console.log('Processing next execution from queue:', nextExecution._id.toString());
-      const executionId = (nextExecution._id as Types.ObjectId).toString();
-      await this.startExecution(executionId);
+    this.isProcessing = true;
+
+    try {
+      while (this.executionQueue.length > 0 && this.runningExecutions.size < this.maxConcurrentExecutions) {
+        const execution = this.executionQueue.shift();
+        if (execution?._id) {
+          const executionId = execution._id.toString();
+          await this.startExecution(executionId);
+        }
+      }
+    } finally {
+      this.isProcessing = false;
     }
   }
 
@@ -471,8 +477,21 @@ class ExecutionService {
       const executionId = (execution._id as Types.ObjectId).toString();
       const automationService = await this.getOrCreateBrowserInstance(executionId);
 
-      // Apply browser profile settings
-      await automationService.applyProfile(profile);
+      // Apply browser profile settings - convert Mongoose document to plain object
+      const plainProfile = profile.toObject() as any;
+      console.log('Preparing to apply browser profile:', {
+        name: plainProfile.name,
+        id: plainProfile._id.toString(),
+        executionId,
+        nodeId: step.nodeId,
+        nodeType: step.nodeType
+      });
+
+      await automationService.applyProfile({
+        ...plainProfile,
+        id: plainProfile._id.toString(), // Convert _id to id
+        name: plainProfile.name // Ensure name is included
+      });
 
       // Execute the automation using the target URL from node properties or a default URL
       const resolvedProps = this.resolveNodeProperties(node.properties || {}, context);

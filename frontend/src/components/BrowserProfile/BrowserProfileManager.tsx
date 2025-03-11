@@ -22,9 +22,11 @@ import {
   FormControlLabel,
   Grid,
   Divider,
+  Tooltip,
 } from '@mui/material';
-import { Edit, Delete, Add, ContentCopy } from '@mui/icons-material';
+import { Edit, Delete, Add, ContentCopy, Launch } from '@mui/icons-material';
 import { BrowserProfile, BrowserType, BROWSER_TYPES, DEFAULT_VIEWPORT } from '../../types/browser.types';
+import { api } from '../../services/api';
 
 interface BrowserProfileManagerProps {
   profiles: BrowserProfile[];
@@ -45,6 +47,8 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [profileToDelete, setProfileToDelete] = useState<BrowserProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState<BrowserProfile | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<BrowserProfile>>({
     name: '',
     browserType: 'chromium',
@@ -108,6 +112,19 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
     }
   };
 
+  const handleOpenBrowser = async (profile: BrowserProfile) => {
+    try {
+      setLoading(profile._id);
+      setError(null);
+      await api.openBrowserProfile(profile._id);
+    } catch (error) {
+      console.error('Error opening browser:', error);
+      setError(error instanceof Error ? error.message : 'Failed to open browser');
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <Box sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -120,6 +137,12 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
           Add Profile
         </Button>
       </Box>
+
+      {error && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
 
       <Paper elevation={2}>
         <List>
@@ -137,6 +160,17 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                   }
                 />
                 <ListItemSecondaryAction>
+                  <Tooltip title="Open Browser">
+                    <IconButton
+                      edge="end"
+                      aria-label="open browser"
+                      onClick={() => handleOpenBrowser(profile)}
+                      disabled={loading === profile._id}
+                      sx={{ mr: 1 }}
+                    >
+                      <Launch />
+                    </IconButton>
+                  </Tooltip>
                   <IconButton
                     edge="end"
                     aria-label="duplicate"

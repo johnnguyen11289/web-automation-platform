@@ -122,6 +122,24 @@ export const api = {
     }
   },
 
+  openBrowserProfile: async (_id: string): Promise<void> => {
+    const url = `${API_BASE_URL}/browser-profiles/${_id}/open`;
+    console.log('API: Opening browser profile:', { _id, url });
+    try {
+      await axios.post(url);
+      console.log('API: Browser profile opened successfully');
+    } catch (error: any) {
+      console.error('API: Error opening browser profile:', {
+        message: error?.message,
+        url,
+        baseUrl: API_BASE_URL,
+        status: error?.response?.status,
+        data: error?.response?.data
+      });
+      throw new Error('Failed to open browser profile');
+    }
+  },
+
   // Execution methods
   getExecutions: async (): Promise<Execution[]> => {
     try {
