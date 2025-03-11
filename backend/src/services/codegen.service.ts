@@ -113,42 +113,30 @@ export class CodegenService {
     }
 
     private convertToSelectors(code: string): string {
-        // Convert getByRole to locator with appropriate selectors
+        // Extract raw selectors from the code, removing quotes
         return code.replace(
-            /getByRole\(['"]([^'"]+)['"](?:,\s*{\s*name:\s*['"]([^'"]+)['"]\s*})?\)/g,
-            (match, role, name) => {
-                // For specific roles, include the element type
-                if (role === 'combobox' || role === 'textbox') {
-                    return name ? 
-                        `locator('textarea[name="${name}"][role="${role}"]')` :
-                        `locator('textarea[role="${role}"]')`;
-                }
-                if (role === 'button') {
-                    return name ? 
-                        `locator('button[name="${name}"]')` :
-                        `locator('button')`;
-                }
+            /locator\((["'`])(.*?)\1\)/g,
+            (match, quote, selector) => `locator(${selector})`
+        ).replace(
+            /getByRole\((["'`])([^'"]+)\1(?:,\s*{\s*name:\s*(["'`])([^'"]+)\3\s*})?\)/g,
+            (match, quote1, role, quote2, name) => {
                 if (name) {
-                    return `locator('[role="${role}"][name="${name}"]')`;
+                    return `locator([role=${role}][name=${name}], [role=${role}][aria-label=${name}])`;
                 }
-                return `locator('[role="${role}"]')`;
+                return `locator([role=${role}])`;
             }
         ).replace(
-            // Convert getByText to locator with text selector
-            /getByText\(['"]([^'"]+)['"]\)/g,
-            (match, text) => `locator(':text("${text}")')`
+            /getByText\((["'`])([^'"]+)\1\)/g,
+            (match, quote, text) => `locator(:text(${text}))`
         ).replace(
-            // Convert getByLabel to locator with aria-label selector
-            /getByLabel\(['"]([^'"]+)['"]\)/g,
-            (match, label) => `locator('[aria-label="${label}"]')`
+            /getByLabel\((["'`])([^'"]+)\1\)/g,
+            (match, quote, label) => `locator([aria-label=${label}])`
         ).replace(
-            // Convert getByPlaceholder to locator with placeholder selector
-            /getByPlaceholder\(['"]([^'"]+)['"]\)/g,
-            (match, placeholder) => `locator('input[placeholder="${placeholder}"], textarea[placeholder="${placeholder}"]')`
+            /getByPlaceholder\((["'`])([^'"]+)\1\)/g,
+            (match, quote, placeholder) => `locator([placeholder=${placeholder}])`
         ).replace(
-            // Convert getByTestId to data-testid selector
-            /getByTestId\(['"]([^'"]+)['"]\)/g,
-            (match, testId) => `locator('[data-testid="${testId}"]')`
+            /getByTestId\((["'`])([^'"]+)\1\)/g,
+            (match, quote, testId) => `locator([data-testid=${testId}])`
         );
     }
 
