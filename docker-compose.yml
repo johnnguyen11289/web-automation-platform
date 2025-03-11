@@ -1,6 +1,26 @@
 version: '3.8'
 
 services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"  # Frontend
+      - "5000:5000"  # Backend
+    environment:
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/automation-platform
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://localhost:5000
+      - REACT_APP_WS_URL=ws://localhost:5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BROWSER_EXECUTABLE_PATH=/usr/bin/chromium
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=http://localhost:3000
+    depends_on:
+      - mongodb
+      - redis
+
   mongodb:
     image: mongo:latest
     container_name: mongodb
@@ -13,5 +33,13 @@ services:
       - mongodb_data:/data/db
     command: mongod --auth
 
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
-  mongodb_data: 
+  mongodb_data:
+  redis_data: 
