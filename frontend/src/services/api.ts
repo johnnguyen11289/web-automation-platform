@@ -193,9 +193,10 @@ export const api = {
   },
 
   // Recording methods
-  startCodegenRecording: async (profileId: string): Promise<void> => {
+  startCodegenRecording: async (profileId: string): Promise<{ workflowId: string }> => {
     try {
-      await axios.post(`${API_BASE_URL}/recording/codegen/${profileId}`);
+      const response = await axios.post(`${API_BASE_URL}/recording/codegen/${profileId}`);
+      return response.data;
     } catch (error) {
       console.error('API: Error starting codegen recording:', error);
       throw new Error('Failed to start recording');

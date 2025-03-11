@@ -23,9 +23,10 @@ interface WorkflowCanvasProps {
   initialWorkflow?: Workflow | null;
   onCreateNew?: () => void;
   onStartRecording?: () => void;
+  isRecording?: boolean;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew, onStartRecording }) => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew, onStartRecording, isRecording = false }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -491,9 +492,10 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow
             color="secondary"
             startIcon={<FiberManualRecord />}
             onClick={onStartRecording}
+            disabled={isRecording}
             sx={{ mr: 1 }}
           >
-            Record Workflow
+            {isRecording ? 'Recording...' : 'Record Workflow'}
           </Button>
           <Button
             variant="contained"

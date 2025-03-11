@@ -23,6 +23,7 @@ import { BrowserProfile } from './types/browser.types';
 import { Execution, ExecutionStats } from './types/execution.types';
 import { Task, TaskFormData } from './types/task.types';
 import WorkflowProfileMatrix from './components/WorkflowProfileMatrix/WorkflowProfileMatrix';
+import ProfileSelectionDialog from './components/ProfileSelectionDialog';
 
 const theme = createTheme({
   palette: {
@@ -77,6 +78,8 @@ function App() {
   const [taskHistory, setTaskHistory] = useState([]);
   const [browserProfiles, setBrowserProfiles] = useState<BrowserProfile[]>([]);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     loadWorkflows();
@@ -206,13 +209,31 @@ function App() {
       return;
     }
 
-    // Use the first profile for now
-    const profile = browserProfiles[0];
+    // Show profile selection dialog
+    setIsProfileDialogOpen(true);
+  };
+
+  const handleProfileSelect = async (profile: BrowserProfile) => {
+    setIsProfileDialogOpen(false);
+    setIsRecording(true);
+
     try {
-      await api.startCodegenRecording(profile._id);
+      const response = await api.startCodegenRecording(profile._id);
+      setIsRecording(false);
+
+      // If recording completed successfully and created a new workflow
+      if (response.workflowId) {
+        // Load the newly created workflow
+        const newWorkflow = await api.getWorkflow(response.workflowId);
+        setEditingWorkflow(newWorkflow);
+        
+        // Show success message
+        alert('Recording completed successfully! The workflow has been created and loaded.');
+      }
     } catch (error) {
       console.error('Failed to start recording:', error);
       alert('Failed to start recording. Please try again.');
+      setIsRecording(false);
     }
   };
 
@@ -452,6 +473,7 @@ function App() {
                     initialWorkflow={editingWorkflow}
                     onCreateNew={handleCreateNew}
                     onStartRecording={handleStartRecording}
+                    isRecording={isRecording}
                   />
                 </Box>
               </Box>
@@ -511,6 +533,12 @@ function App() {
           </TabPanel>
         </Box>
       </Box>
+      <ProfileSelectionDialog
+        open={isProfileDialogOpen}
+        onClose={() => setIsProfileDialogOpen(false)}
+        profiles={browserProfiles}
+        onSelect={handleProfileSelect}
+      />
     </ThemeProvider>
   );
 }
