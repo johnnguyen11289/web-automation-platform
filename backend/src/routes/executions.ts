@@ -1,9 +1,10 @@
 import express from 'express';
 import { Execution, IExecution } from '../models/Execution';
-import { WorkflowModel } from '../models/Workflow';
-import { BrowserProfileModel } from '../models/BrowserProfile';
+import ExecutionService from '../services/ExecutionService';
+import { Types } from 'mongoose';
 
 const router = express.Router();
+const executionService = ExecutionService.getInstance();
 
 // Get all executions
 router.get('/', async (req, res) => {
@@ -19,55 +20,32 @@ router.get('/', async (req, res) => {
 // Start a new execution
 router.post('/', async (req, res) => {
   try {
+    console.log('Received execution request:', req.body);
     const { workflowId, profileId, parallel } = req.body;
-
-    // Validate workflow and profile exist
-    const workflow = await WorkflowModel.findById(workflowId);
-    if (!workflow) {
-      return res.status(404).json({ message: 'Workflow not found' });
-    }
-
-    const profile = await BrowserProfileModel.findById(profileId);
-    if (!profile) {
-      return res.status(404).json({ message: 'Browser profile not found' });
-    }
-
-    // Create new execution
-    const execution = new Execution({
+    
+    console.log('Starting execution with:', {
       workflowId,
       profileId,
-      status: 'running',
-      startTime: new Date(),
-      parallelExecution: parallel || false,
-      steps: workflow.nodes.map((node: { id: string; type: string }) => ({
-        nodeId: node.id,
-        nodeType: node.type,
-        status: 'pending'
-      }))
+      parallel
     });
-
-    await execution.save();
+    
+    const execution = await executionService.queueExecution(workflowId, profileId, parallel);
+    console.log('Execution queued successfully:', (execution._id as Types.ObjectId).toString());
+    
     res.status(201).json(execution);
   } catch (error) {
     console.error('Error starting execution:', error);
-    res.status(500).json({ message: 'Error starting execution' });
+    res.status(500).json({ 
+      message: 'Error starting execution',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 // Pause an execution
 router.post('/:id/pause', async (req, res) => {
   try {
-    const execution = await Execution.findById(req.params.id);
-    if (!execution) {
-      return res.status(404).json({ message: 'Execution not found' });
-    }
-
-    if (execution.status !== 'running') {
-      return res.status(400).json({ message: 'Execution is not running' });
-    }
-
-    execution.status = 'paused';
-    await execution.save();
+    const execution = await executionService.pauseExecution(req.params.id);
     res.json(execution);
   } catch (error) {
     console.error('Error pausing execution:', error);
@@ -78,17 +56,7 @@ router.post('/:id/pause', async (req, res) => {
 // Resume an execution
 router.post('/:id/resume', async (req, res) => {
   try {
-    const execution = await Execution.findById(req.params.id);
-    if (!execution) {
-      return res.status(404).json({ message: 'Execution not found' });
-    }
-
-    if (execution.status !== 'paused') {
-      return res.status(400).json({ message: 'Execution is not paused' });
-    }
-
-    execution.status = 'running';
-    await execution.save();
+    const execution = await executionService.resumeExecution(req.params.id);
     res.json(execution);
   } catch (error) {
     console.error('Error resuming execution:', error);
@@ -99,18 +67,7 @@ router.post('/:id/resume', async (req, res) => {
 // Stop an execution
 router.post('/:id/stop', async (req, res) => {
   try {
-    const execution = await Execution.findById(req.params.id);
-    if (!execution) {
-      return res.status(404).json({ message: 'Execution not found' });
-    }
-
-    if (!['running', 'paused'].includes(execution.status)) {
-      return res.status(400).json({ message: 'Execution cannot be stopped' });
-    }
-
-    execution.status = 'stopped';
-    execution.endTime = new Date();
-    await execution.save();
+    const execution = await executionService.stopExecution(req.params.id);
     res.json(execution);
   } catch (error) {
     console.error('Error stopping execution:', error);
