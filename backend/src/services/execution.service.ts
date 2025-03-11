@@ -123,18 +123,18 @@ class ExecutionService {
         status: step.status
       },
       execution: {
-        id: (execution._id as Types.ObjectId).toString(),
+        _id: (execution._id as unknown as Types.ObjectId).toString(),
         startTime: execution.startTime?.toISOString(),
         status: execution.status,
         parallelExecution: execution.parallelExecution
       },
       workflow: {
-        id: (workflow._id as Types.ObjectId).toString(),
+        _id: (workflow._id as unknown as Types.ObjectId).toString(),
         name: workflow.name,
         status: workflow.status
       },
       profile: {
-        id: (profile._id as Types.ObjectId)?.toString() || '',
+        _id: (profile._id as Types.ObjectId)?.toString() || '',
         name: profile.name,
         browserType: profile.browserType
       },
@@ -464,9 +464,10 @@ class ExecutionService {
     }
 
     // Create execution context with all available data
+    const profileObj = profile.toObject();
     const context = this.createExecutionContext(step, execution, workflow, {
-      ...profile.toObject(),
-      _id: profile._id as Types.ObjectId
+      ...profileObj,
+      _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
     });
 
     // Convert workflow node to automation actions with context
@@ -489,7 +490,7 @@ class ExecutionService {
 
       await automationService.applyProfile({
         ...plainProfile,
-        id: plainProfile._id.toString(), // Convert _id to id
+        _id: plainProfile._id.toString(), // Convert _id to id
         name: plainProfile.name // Ensure name is included
       });
 

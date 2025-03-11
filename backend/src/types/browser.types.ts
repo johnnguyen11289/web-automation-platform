@@ -1,3 +1,5 @@
+import { Types } from 'mongoose';
+
 export type BrowserType = 'chromium' | 'firefox' | 'webkit';
 
 export interface ViewportSettings {
@@ -13,7 +15,7 @@ export interface ProxySettings {
 }
 
 export interface BrowserProfile {
-  id: string;
+  _id: string | Types.ObjectId;
   name: string;
   browserType: BrowserType;
   userAgent?: string;

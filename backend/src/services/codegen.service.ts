@@ -20,7 +20,7 @@ export class CodegenService {
             
             // Set up paths
             const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
-            const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+            const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
             
             // Ensure the directory exists
             if (!require('fs').existsSync(userDataDir)) {

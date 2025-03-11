@@ -28,12 +28,12 @@ router.post('/', async (req, res) => {
 });
 
 // Update a browser profile
-router.put('/:id', async (req, res) => {
+router.put('/:_id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { _id } = req.params;
     const profileData = req.body as Partial<BrowserProfile>;
     const profile = await BrowserProfileModel.findByIdAndUpdate(
-      id,
+      _id,
       profileData,
       { new: true, runValidators: true }
     );
@@ -48,10 +48,10 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete a browser profile
-router.delete('/:id', async (req, res) => {
+router.delete('/:_id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const profile = await BrowserProfileModel.findByIdAndDelete(id);
+    const { _id } = req.params;
+    const profile = await BrowserProfileModel.findByIdAndDelete(_id);
     if (!profile) {
       return res.status(404).json({ error: 'Browser profile not found' });
     }
@@ -63,9 +63,9 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Add endpoint to open browser profile for setup
-router.post('/:id/open', async (req, res) => {
+router.post('/:_id/open', async (req, res) => {
   try {
-    const profile = await BrowserProfileModel.findById(req.params.id);
+    const profile = await BrowserProfileModel.findById(req.params._id);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -81,9 +81,9 @@ router.post('/:id/open', async (req, res) => {
 });
 
 // Add endpoint to close browser profile setup
-router.post('/:id/close', async (req, res) => {
+router.post('/:_id/close', async (req, res) => {
   try {
-    const profile = await BrowserProfileModel.findById(req.params.id);
+    const profile = await BrowserProfileModel.findById(req.params._id);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }

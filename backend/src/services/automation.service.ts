@@ -109,7 +109,7 @@ export class AutomationService {
     try {
       console.log('Applying browser profile:', {
         name: profile.name,
-        id: profile.id,
+        id: profile._id,
         browserType: profile.browserType,
         isHeadless: profile.isHeadless,
         userAgent: profile.userAgent?.substring(0, 50) + '...',
@@ -149,7 +149,7 @@ export class AutomationService {
           : undefined;
 
         // Create persistent user data directory for this profile
-        const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+        const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
         
         // Ensure the directory exists
         if (!require('fs').existsSync(userDataDir)) {
@@ -422,7 +422,7 @@ export class AutomationService {
         : undefined;
 
       // Create persistent user data directory for this profile
-      const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+      const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
       
       // Ensure the directory exists
       if (!require('fs').existsSync(userDataDir)) {

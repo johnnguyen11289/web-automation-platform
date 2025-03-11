@@ -21,7 +21,7 @@ export class ExtensionService {
             
             // Set up paths
             const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
-            const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile.id}`);
+            const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
             const extensionsDir = path.join(process.cwd(), 'extensions');
             
             // Ensure directories exist
