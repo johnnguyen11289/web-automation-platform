@@ -397,26 +397,73 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Workflow / Profile</TableCell>
+              <TableCell 
+                sx={{ 
+                  backgroundColor: 'background.default',
+                  borderRight: '1px solid',
+                  borderBottom: '2px solid',
+                  borderColor: 'divider',
+                  fontWeight: 'bold'
+                }}
+              >
+                Workflow / Profile
+              </TableCell>
               {profiles.map((profile) => (
-                <TableCell key={profile._id}>{profile.name}</TableCell>
+                <TableCell 
+                  key={profile._id}
+                  sx={{ 
+                    backgroundColor: 'background.default',
+                    borderRight: '1px solid',
+                    borderBottom: '2px solid',
+                    borderColor: 'divider',
+                    fontWeight: 'bold',
+                    textAlign: 'center'
+                  }}
+                >
+                  {profile.name}
+                </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
             {workflows.map((workflow) => (
               <TableRow key={workflow._id}>
-                <TableCell component="th" scope="row">
+                <TableCell 
+                  component="th" 
+                  scope="row"
+                  sx={{ 
+                    backgroundColor: 'background.default',
+                    borderRight: '1px solid',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    fontWeight: 'bold'
+                  }}
+                >
                   {workflow.name}
                 </TableCell>
                 {profiles.map((profile) => (
-                  <TableCell key={profile._id}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TableCell 
+                    key={profile._id}
+                    sx={{ 
+                      borderRight: '1px solid',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      textAlign: 'center',
+                      padding: 1
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                       <Tooltip title="Create Task">
                         <IconButton
                           size="small"
                           onClick={() => handleOpenDialog(workflow, profile)}
                           color="primary"
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: 'primary.light',
+                              color: 'white',
+                            },
+                          }}
                         >
                           <AddIcon />
                         </IconButton>
@@ -426,6 +473,12 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
                           size="small"
                           onClick={() => onTaskExecute(workflow._id, profile._id)}
                           color="success"
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: 'success.light',
+                              color: 'white',
+                            },
+                          }}
                         >
                           <PlayIcon />
                         </IconButton>
