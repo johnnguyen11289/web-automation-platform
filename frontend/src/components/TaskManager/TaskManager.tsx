@@ -454,33 +454,6 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                     >
                       <EditIcon />
                     </IconButton>
-                    {task.status === 'pending' && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleStart(task._id)}
-                        color="success"
-                      >
-                        <PlayIcon />
-                      </IconButton>
-                    )}
-                    {task.status === 'running' && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handlePause(task._id)}
-                        color="warning"
-                      >
-                        <PauseIcon />
-                      </IconButton>
-                    )}
-                    {(task.status === 'running' || task.status === 'pending') && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleStop(task._id)}
-                        color="error"
-                      >
-                        <StopIcon />
-                      </IconButton>
-                    )}
                     <IconButton
                       size="small"
                       onClick={() => handleDelete(task._id)}
