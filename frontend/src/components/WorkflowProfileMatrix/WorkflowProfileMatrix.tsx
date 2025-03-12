@@ -391,7 +391,7 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Workflow-Profile Matrix
+        MATRIX TASK CREATION
       </Typography>
       <TableContainer component={Paper}>
         <Table>
