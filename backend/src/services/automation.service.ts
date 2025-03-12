@@ -12,22 +12,54 @@ interface FingerPrintOptions {
     availHeight: number;
     colorDepth: number;
     pixelDepth: number;
+    orientation?: {
+      type: 'landscape-primary' | 'portrait-primary';
+      angle: 0 | 90 | 180 | 270;
+    };
   };
   userAgent?: string;
   webgl?: {
     vendor: string;
     renderer: string;
+    unmaskedVendor: string;
+    unmaskedRenderer: string;
+    antialias: boolean;
+    extensions: string[];
+    parameters: Record<string, any>;
   };
   cpu?: {
     architecture: string;
     cores: number;
+    platform: string;
+    oscpu: string;
   };
   memory?: {
     deviceMemory: number;
     jsHeapSizeLimit: number;
+    totalJSHeapSize: number;
+    usedJSHeapSize: number;
+  };
+  battery?: {
+    charging: boolean;
+    chargingTime: number;
+    dischargingTime: number;
+    level: number;
+  };
+  network?: {
+    effectiveType: '4g' | '3g' | '2g' | 'slow-2g';
+    downlink: number;
+    rtt: number;
+    saveData: boolean;
   };
   platform?: string;
   plugins?: Array<{ name: string; description: string; filename: string }>;
+  mediaDevices?: Array<{ kind: string; label: string }>;
+  fonts?: string[];
+  audio?: {
+    sampleRate: number;
+    channelCount: number;
+    volume: number;
+  };
 }
 
 // Add utility functions for fingerprint randomization
@@ -37,24 +69,126 @@ const getRandomFingerprint = (): FingerPrintOptions => {
     { width: 1366, height: 768 },
     { width: 1536, height: 864 },
     { width: 1440, height: 900 },
-    { width: 1280, height: 720 }
+    { width: 1280, height: 720 },
+    { width: 2560, height: 1440 },
+    { width: 3840, height: 2160 },
+    { width: 1680, height: 1050 }
   ];
   
   const webglVendors = [
-    { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0)' },
-    { vendor: 'Google Inc. (AMD)', renderer: 'ANGLE (AMD, AMD Radeon RX 580 Direct3D11 vs_5_0 ps_5_0)' },
-    { vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)' }
+    {
+      vendor: 'Google Inc. (NVIDIA)',
+      renderer: 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0)',
+      unmaskedVendor: 'NVIDIA Corporation',
+      unmaskedRenderer: 'NVIDIA GeForce GTX 1660 SUPER',
+      extensions: [
+        'ANGLE_instanced_arrays',
+        'EXT_blend_minmax',
+        'EXT_color_buffer_half_float',
+        'EXT_disjoint_timer_query',
+        'EXT_float_blend',
+        'EXT_frag_depth',
+        'EXT_shader_texture_lod',
+        'EXT_texture_compression_bptc',
+        'EXT_texture_compression_rgtc',
+        'EXT_texture_filter_anisotropic',
+        'OES_element_index_uint',
+        'OES_standard_derivatives',
+        'OES_texture_float',
+        'OES_texture_float_linear',
+        'OES_texture_half_float',
+        'OES_texture_half_float_linear',
+        'OES_vertex_array_object',
+        'WEBGL_color_buffer_float',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_compressed_texture_s3tc_srgb',
+        'WEBGL_debug_renderer_info',
+        'WEBGL_debug_shaders',
+        'WEBGL_depth_texture',
+        'WEBGL_draw_buffers',
+        'WEBGL_lose_context',
+        'WEBGL_multi_draw'
+      ]
+    },
+    {
+      vendor: 'Google Inc. (AMD)',
+      renderer: 'ANGLE (AMD, AMD Radeon RX 580 Direct3D11 vs_5_0 ps_5_0)',
+      unmaskedVendor: 'AMD',
+      unmaskedRenderer: 'AMD Radeon RX 580',
+      extensions: [
+        'ANGLE_instanced_arrays',
+        'EXT_blend_minmax',
+        'EXT_color_buffer_half_float',
+        'EXT_disjoint_timer_query',
+        'EXT_float_blend',
+        'EXT_frag_depth',
+        'EXT_shader_texture_lod',
+        'EXT_texture_compression_bptc',
+        'EXT_texture_filter_anisotropic',
+        'OES_element_index_uint',
+        'OES_standard_derivatives',
+        'OES_texture_float',
+        'OES_texture_float_linear',
+        'OES_texture_half_float',
+        'OES_vertex_array_object',
+        'WEBGL_color_buffer_float',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_depth_texture',
+        'WEBGL_draw_buffers'
+      ]
+    },
+    {
+      vendor: 'Google Inc. (Intel)',
+      renderer: 'ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)',
+      unmaskedVendor: 'Intel',
+      unmaskedRenderer: 'Intel(R) UHD Graphics 630',
+      extensions: [
+        'ANGLE_instanced_arrays',
+        'EXT_blend_minmax',
+        'EXT_color_buffer_half_float',
+        'EXT_disjoint_timer_query',
+        'EXT_float_blend',
+        'EXT_frag_depth',
+        'EXT_shader_texture_lod',
+        'EXT_texture_filter_anisotropic',
+        'OES_element_index_uint',
+        'OES_standard_derivatives',
+        'OES_texture_float',
+        'OES_texture_float_linear',
+        'OES_texture_half_float',
+        'OES_vertex_array_object',
+        'WEBGL_color_buffer_float',
+        'WEBGL_compressed_texture_s3tc',
+        'WEBGL_depth_texture'
+      ]
+    }
   ];
 
   const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Edg/122.0.2365.92'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Edg/122.0.2365.92',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 OPR/108.0.0.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Vivaldi/6.5.3206.53'
+  ];
+
+  const fonts = [
+    'Arial', 'Arial Black', 'Arial Narrow', 'Calibri', 'Cambria', 'Cambria Math', 'Comic Sans MS', 'Consolas',
+    'Courier', 'Courier New', 'Georgia', 'Helvetica', 'Impact', 'Lucida Console', 'Lucida Sans Unicode',
+    'Microsoft Sans Serif', 'MS Gothic', 'MS PGothic', 'Palatino Linotype', 'Segoe UI', 'Tahoma', 'Times',
+    'Times New Roman', 'Trebuchet MS', 'Verdana'
+  ];
+
+  const mediaDevices = [
+    { kind: 'audioinput', label: 'Microphone (Realtek(R) Audio)' },
+    { kind: 'audiooutput', label: 'Speakers (Realtek(R) Audio)' },
+    { kind: 'videoinput', label: 'HD WebCam (1080p)' }
   ];
 
   const screen = screenSizes[Math.floor(Math.random() * screenSizes.length)];
   const webgl = webglVendors[Math.floor(Math.random() * webglVendors.length)];
+  const selectedFonts = fonts.filter(() => Math.random() > 0.5);
 
   return {
     screen: {
@@ -62,24 +196,66 @@ const getRandomFingerprint = (): FingerPrintOptions => {
       availWidth: screen.width - Math.floor(Math.random() * 50),
       availHeight: screen.height - Math.floor(Math.random() * 100),
       colorDepth: 24,
-      pixelDepth: 24
+      pixelDepth: 24,
+      orientation: Math.random() > 0.5 ? 
+        { type: 'landscape-primary', angle: 0 } :
+        { type: 'portrait-primary', angle: 90 }
     },
     userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
-    webgl,
+    webgl: {
+      ...webgl,
+      antialias: Math.random() > 0.5,
+      parameters: {
+        'MAX_COMBINED_TEXTURE_IMAGE_UNITS': 32,
+        'MAX_CUBE_MAP_TEXTURE_SIZE': 16384,
+        'MAX_FRAGMENT_UNIFORM_VECTORS': 1024,
+        'MAX_RENDERBUFFER_SIZE': 16384,
+        'MAX_TEXTURE_IMAGE_UNITS': 16,
+        'MAX_TEXTURE_SIZE': 16384,
+        'MAX_VARYING_VECTORS': 30,
+        'MAX_VERTEX_ATTRIBS': 16,
+        'MAX_VERTEX_TEXTURE_IMAGE_UNITS': 16,
+        'MAX_VERTEX_UNIFORM_VECTORS': 4096,
+        'MAX_VIEWPORT_DIMS': [32767, 32767]
+      }
+    },
     cpu: {
       architecture: 'x86-64',
-      cores: [4, 6, 8, 12, 16][Math.floor(Math.random() * 5)]
+      cores: [4, 6, 8, 12, 16][Math.floor(Math.random() * 5)],
+      platform: 'Win32',
+      oscpu: 'Windows NT 10.0; Win64; x64'
     },
     memory: {
       deviceMemory: [4, 8, 16][Math.floor(Math.random() * 3)],
-      jsHeapSizeLimit: 2 ** 31
+      jsHeapSizeLimit: 2 ** 31,
+      totalJSHeapSize: Math.floor(Math.random() * 500000000) + 500000000,
+      usedJSHeapSize: Math.floor(Math.random() * 100000000) + 100000000
+    },
+    battery: {
+      charging: Math.random() > 0.3,
+      chargingTime: Math.random() > 0.5 ? 0 : Math.floor(Math.random() * 3600),
+      dischargingTime: Math.floor(Math.random() * 7200) + 1800,
+      level: Math.random()
+    },
+    network: {
+      effectiveType: '4g',
+      downlink: Math.floor(Math.random() * 30) + 10,
+      rtt: Math.floor(Math.random() * 50) + 50,
+      saveData: false
     },
     platform: 'Win32',
     plugins: [
       { name: 'Chrome PDF Plugin', description: 'Portable Document Format', filename: 'internal-pdf-viewer' },
       { name: 'Chrome PDF Viewer', description: '', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' },
       { name: 'Native Client', description: '', filename: 'internal-nacl-plugin' }
-    ]
+    ],
+    mediaDevices: mediaDevices.filter(() => Math.random() > 0.3),
+    fonts: selectedFonts,
+    audio: {
+      sampleRate: [44100, 48000, 96000][Math.floor(Math.random() * 3)],
+      channelCount: [2, 4, 6][Math.floor(Math.random() * 3)],
+      volume: Math.random()
+    }
   };
 };
 
@@ -96,6 +272,15 @@ const websiteSpecificEvasions: Record<string, (page: Page) => Promise<void>> = {
           downlink: 10,
           saveData: false
         })
+      });
+      // Add Facebook-specific evasions
+      Object.defineProperty(window, 'FB', {
+        get: () => undefined,
+        set: () => true
+      });
+      Object.defineProperty(document, 'fb_dtsg', {
+        get: () => undefined,
+        set: () => true
       });
     });
   },
@@ -117,6 +302,14 @@ const websiteSpecificEvasions: Record<string, (page: Page) => Promise<void>> = {
           platform: 'Windows'
         })
       });
+      // Add reCAPTCHA evasion
+      Object.defineProperty(window, 'grecaptcha', {
+        get: () => ({
+          ready: (cb: Function) => cb(),
+          execute: () => Promise.resolve('fake-token'),
+          render: () => 'fake-widget-id'
+        })
+      });
     });
   },
   'linkedin.com': async (page: Page) => {
@@ -127,6 +320,11 @@ const websiteSpecificEvasions: Record<string, (page: Page) => Promise<void>> = {
         const entries = originalGetEntries.call(this);
         return entries.filter((entry: PerformanceEntry) => !entry.name.includes('automation'));
       };
+      // Add LinkedIn-specific evasions
+      Object.defineProperty(window, 'li_at', {
+        get: () => undefined,
+        set: () => true
+      });
     });
   },
   'amazon.com': async (page: Page) => {
@@ -154,6 +352,35 @@ const websiteSpecificEvasions: Record<string, (page: Page) => Promise<void>> = {
         }
         return context;
       } as typeof HTMLCanvasElement.prototype.getContext;
+      // Add Amazon-specific evasions
+      Object.defineProperty(window, 'CardinalCommerce', {
+        get: () => undefined,
+        set: () => true
+      });
+    });
+  },
+  'twitter.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      // Override timing APIs
+      const originalNow = performance.now;
+      performance.now = function() {
+        return originalNow.call(this) + (Math.random() * 10);
+      };
+      // Add Twitter-specific evasions
+      Object.defineProperty(window, '__INITIAL_STATE__', {
+        get: () => undefined,
+        set: () => true
+      });
+    });
+  },
+  'instagram.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      // Override storage APIs
+      const originalSetItem = localStorage.setItem;
+      localStorage.setItem = function(key: string, value: string) {
+        if (key.includes('ig_')) return;
+        return originalSetItem.call(this, key, value);
+      };
     });
   }
 };
@@ -171,31 +398,90 @@ const humanMove = async (page: Page, selector: string) => {
   const box = await element.boundingBox();
   if (!box) return;
 
-  // Random start position
-  const startX = Math.random() * page.viewportSize()!.width;
-  const startY = Math.random() * page.viewportSize()!.height;
+  const viewportSize = page.viewportSize();
+  if (!viewportSize) return;
 
-  // Move to element with human-like curve
-  await page.mouse.move(startX, startY);
-  const steps = Math.floor(Math.random() * 10) + 5;
-  
-  for (let i = 0; i < steps; i++) {
-    const x = startX + (box.x + box.width/2 - startX) * (i/steps);
-    const y = startY + (box.y + box.height/2 - startY) * (i/steps);
-    // Add some random "shake" to the movement
-    const offsetX = (Math.random() - 0.5) * 20;
-    const offsetY = (Math.random() - 0.5) * 20;
-    await page.mouse.move(x + offsetX, y + offsetY, { steps: 1 });
-    await randomDelay(page, 20, 50);
+  // Random start position with natural bias towards common areas
+  const startX = Math.random() * viewportSize.width;
+  const startY = Math.random() * viewportSize.height;
+
+  // Bezier curve control points for natural movement
+  const cp1x = startX + (Math.random() - 0.5) * 100;
+  const cp1y = startY + (Math.random() - 0.5) * 100;
+  const cp2x = box.x + box.width/2 + (Math.random() - 0.5) * 50;
+  const cp2y = box.y + box.height/2 + (Math.random() - 0.5) * 50;
+  const endX = box.x + box.width/2;
+  const endY = box.y + box.height/2;
+
+  // Move mouse with bezier curve
+  const steps = Math.floor(Math.random() * 15) + 10;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const t1 = 1 - t;
+    
+    // Cubic bezier curve calculation
+    const x = t1 * t1 * t1 * startX +
+             3 * t1 * t1 * t * cp1x +
+             3 * t1 * t * t * cp2x +
+             t * t * t * endX;
+             
+    const y = t1 * t1 * t1 * startY +
+             3 * t1 * t1 * t * cp1y +
+             3 * t1 * t * t * cp2y +
+             t * t * t * endY;
+
+    // Add subtle "shake" to movement
+    const shake = Math.sin(t * Math.PI * 2) * (1 - t) * 2;
+    const offsetX = shake * (Math.random() - 0.5) * 2;
+    const offsetY = shake * (Math.random() - 0.5) * 2;
+
+    await page.mouse.move(x + offsetX, y + offsetY);
+    
+    // Variable delay between movements
+    const delay = Math.random() * 20 + 10;
+    await page.waitForTimeout(delay);
   }
+
+  // Final precise movement to target
+  await page.mouse.move(endX, endY);
 };
 
 const humanType = async (page: Page, selector: string, text: string) => {
   await page.focus(selector);
-  for (const char of text) {
-    await page.keyboard.type(char, {
-      delay: Math.random() * 100 + 30
-    });
+  
+  const typingStyles = [
+    { minDelay: 50, maxDelay: 200 }, // slow, careful typing
+    { minDelay: 30, maxDelay: 100 }, // moderate typing
+    { minDelay: 20, maxDelay: 60 }   // fast typing
+  ];
+  
+  const style = typingStyles[Math.floor(Math.random() * typingStyles.length)];
+  
+  for (let i = 0; i < text.length; i++) {
+    // Simulate common typing errors
+    if (Math.random() < 0.03) { // 3% chance of typo
+      const typo = text[i].replace(/[a-z]/i, String.fromCharCode(97 + Math.floor(Math.random() * 26)));
+      await page.keyboard.type(typo);
+      await page.waitForTimeout(style.maxDelay);
+      await page.keyboard.press('Backspace');
+      await page.waitForTimeout(style.maxDelay);
+    }
+    
+    // Simulate natural typing rhythm
+    const delay = Math.random() * (style.maxDelay - style.minDelay) + style.minDelay;
+    
+    // Add slight pause for space or punctuation
+    if ([' ', '.', ',', '!', '?'].includes(text[i])) {
+      await page.waitForTimeout(delay * 2);
+    }
+    
+    await page.keyboard.type(text[i]);
+    await page.waitForTimeout(delay);
+    
+    // Occasional pause while typing
+    if (Math.random() < 0.02) { // 2% chance of pause
+      await page.waitForTimeout(Math.random() * 500 + 500);
+    }
   }
 };
 
@@ -615,6 +901,12 @@ export class AutomationService {
       }
     }
 
+    // Set up fingerprint rotation
+    if (shouldRotateFingerprint()) {
+      console.log('Rotating browser fingerprint...');
+      await this.rotateFingerprint(page);
+    }
+
     await page.addInitScript((fp: FingerPrintOptions) => {
       // Override property descriptors with randomized fingerprint
       const overridePropertyDescriptor = (obj: any, prop: string, value: any) => {
@@ -738,28 +1030,131 @@ export class AutomationService {
         }
         return originalToDataURL.call(this, type, quality);
       };
+
+      // Add audio context fingerprint randomization
+      const originalGetChannelData = AudioBuffer.prototype.getChannelData;
+      AudioBuffer.prototype.getChannelData = function(channel: number) {
+        const data = originalGetChannelData.call(this, channel);
+        if (data.length > 0) {
+          // Add subtle variations to audio data
+          const noise = 0.0000001;
+          for (let i = 0; i < data.length; i += 100) {
+            data[i] = data[i] + (Math.random() * 2 - 1) * noise;
+          }
+        }
+        return data;
+      };
+
+      // Add WebRTC protection
+      Object.defineProperty(window, 'RTCPeerConnection', {
+        value: undefined,
+        writable: false
+      });
+
+      // Add more sophisticated timing protection
+      const timingJitter = () => (Math.random() * 2 - 1) * 0.1;
+      
+      const originalGetTime = Date.prototype.getTime;
+      Date.prototype.getTime = function() {
+        return originalGetTime.call(this) + timingJitter();
+      };
+      
+      const originalNow = Date.now;
+      Date.now = function() {
+        return originalNow() + timingJitter();
+      };
+
+      // Add font fingerprint protection
+      Object.defineProperty(document, 'fonts', {
+        get: () => ({
+          ready: Promise.resolve(),
+          check: () => Promise.resolve(false),
+          load: () => Promise.resolve([])
+        })
+      });
+
+      // Add hardware concurrency randomization
+      let lastConcurrencyCheck = Date.now();
+      let currentConcurrency = fp.cpu?.cores || 8;
+      
+      Object.defineProperty(navigator, 'hardwareConcurrency', {
+        get: () => {
+          const now = Date.now();
+          if (now - lastConcurrencyCheck > 10000) { // Change every 10 seconds
+            currentConcurrency = [4, 6, 8, 12, 16][Math.floor(Math.random() * 5)];
+            lastConcurrencyCheck = now;
+          }
+          return currentConcurrency;
+        }
+      });
+
+      // Add dynamic memory reporting
+      let lastMemoryCheck = Date.now();
+      let currentMemory = {
+        jsHeapSizeLimit: fp.memory?.jsHeapSizeLimit || 2147483648,
+        totalJSHeapSize: fp.memory?.totalJSHeapSize || 50000000,
+        usedJSHeapSize: fp.memory?.usedJSHeapSize || 25000000
+      };
+
+      Object.defineProperty(performance, 'memory', {
+        get: () => {
+          const now = Date.now();
+          if (now - lastMemoryCheck > 1000) { // Update every second
+            currentMemory.totalJSHeapSize += Math.random() * 1000000 - 500000;
+            currentMemory.usedJSHeapSize += Math.random() * 500000 - 250000;
+            lastMemoryCheck = now;
+          }
+          return { ...currentMemory };
+        }
+      });
+
     }, fingerprint);
 
-    // Add custom error handlers with randomized delays
+    // Enhanced request interception
     await page.route('**/*', async (route) => {
       try {
-        // Add random delays to requests to appear more human-like
-        const delay = Math.floor(Math.random() * 100) + 50;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Modify headers to appear more natural
         const request = route.request();
         const headers = request.headers();
-        headers['Accept-Language'] = 'en-US,en;q=0.9';
+        
+        // Randomize accept headers
+        headers['Accept'] = [
+          '*/*',
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
+        ][Math.floor(Math.random() * 3)];
+        
+        headers['Accept-Language'] = [
+          'en-US,en;q=0.9',
+          'en-US,en;q=0.8',
+          'en-GB,en;q=0.9,en-US;q=0.8',
+          'en-CA,en;q=0.9,fr-CA;q=0.8'
+        ][Math.floor(Math.random() * 4)];
+
+        // Add random client hints
         headers['sec-ch-ua-platform'] = '"Windows"';
         headers['sec-ch-ua'] = '"Chromium";v="122", "Google Chrome";v="122", "Not(A:Brand";v="24"';
-        
+        headers['sec-ch-ua-mobile'] = '?0';
+        headers['sec-fetch-dest'] = ['document', 'empty', 'image'][Math.floor(Math.random() * 3)];
+        headers['sec-fetch-mode'] = ['navigate', 'cors', 'no-cors'][Math.floor(Math.random() * 3)];
+        headers['sec-fetch-site'] = ['same-origin', 'cross-site', 'same-site'][Math.floor(Math.random() * 3)];
+
+        // Add random delay to requests
+        const delay = Math.floor(Math.random() * 100) + 50;
+        await new Promise(resolve => setTimeout(resolve, delay));
+
         await route.continue({ headers });
       } catch (error) {
         console.error('Error in request interception:', error);
         await route.continue();
       }
     });
+  }
+
+  // Add method for fingerprint rotation
+  private async rotateFingerprint(page: Page) {
+    const newFingerprint = getRandomFingerprint();
+    await this.injectAntiDetection(page);
+    return newFingerprint;
   }
 
   async openProfileForSetup(profile: BrowserProfile): Promise<void> {
@@ -917,4 +1312,17 @@ export interface AutomationResult {
   success: boolean;
   results: AutomationStepResult[];
   extractedData: Record<string, any>;
-} 
+}
+
+// Add dynamic fingerprint rotation
+let lastFingerprintRotation = Date.now();
+const FINGERPRINT_ROTATION_INTERVAL = 1000 * 60 * 30; // 30 minutes
+
+const shouldRotateFingerprint = () => {
+  const now = Date.now();
+  if (now - lastFingerprintRotation >= FINGERPRINT_ROTATION_INTERVAL) {
+    lastFingerprintRotation = now;
+    return true;
+  }
+  return false;
+}; 
