@@ -10,7 +10,6 @@ export class AutomationService {
   private currentPage: Page | null = null;
   private static browsersInstalled = false;
   private static instance: AutomationService | null = null;
-  private static readonly BROWSER_INSTALL_PATH = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
 
   // Singleton pattern to ensure single instance
   public static getInstance(): AutomationService {
@@ -20,30 +19,12 @@ export class AutomationService {
     return AutomationService.instance;
   }
 
-  // Get the browser installation path
-  public static getBrowserPath(): string {
-    return AutomationService.BROWSER_INSTALL_PATH;
-  }
-
-  // Get the specific browser executable path
-  public static getBrowserExecutablePath(): string {
-    return path.join(
-      AutomationService.BROWSER_INSTALL_PATH,
-      'chromium-1161',
-      'chrome-win',
-      'chrome.exe'
-    );
-  }
-
   // Private constructor to enforce singleton
   private constructor() {
     // Handle process termination
     process.on('SIGTERM', () => this.cleanup());
     process.on('SIGINT', () => this.cleanup());
     process.on('exit', () => this.cleanup());
-
-    // Ensure PLAYWRIGHT_BROWSERS_PATH is set
-    process.env.PLAYWRIGHT_BROWSERS_PATH = AutomationService.BROWSER_INSTALL_PATH;
   }
 
   private async cleanup() {
@@ -56,7 +37,8 @@ export class AutomationService {
   async init() {
     try {
       // Check if browser is already installed in the correct location
-      const chromePath = AutomationService.getBrowserExecutablePath();
+      const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
+      const chromePath = path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe');
       
       const isChromiumInstalled = (() => {
         try {
@@ -70,13 +52,17 @@ export class AutomationService {
         console.log('Browser not found, installing browser binaries...');
         const { execSync } = require('child_process');
         
-        console.log('Installing browsers to:', AutomationService.BROWSER_INSTALL_PATH);
+        // Force the Windows installation path
+        process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
+        
+        console.log('Installing browsers to:', installPath);
         
         // Only install if not already present
         execSync('npx playwright install chromium', { stdio: 'inherit' });
         console.log('Browser binaries installed successfully');
       } else {
         console.log('Using existing browser installation at:', chromePath);
+        process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
       }
 
       AutomationService.browsersInstalled = true;
@@ -131,14 +117,18 @@ export class AutomationService {
         viewport: profile.viewport
       });
 
-      // Check if we can reuse the existing browser and context
-      const canReuseBrowser = this.browser && 
+      // Check if we can reuse both browser and context
+      const canReuseContext = this.context && 
         this.currentProfile?.browserType === profile.browserType &&
-        this.currentProfile?.isHeadless === profile.isHeadless;
+        this.currentProfile?.isHeadless === profile.isHeadless &&
+        this.currentProfile?.viewport?.width === profile.viewport?.width &&
+        this.currentProfile?.viewport?.height === profile.viewport?.height &&
+        this.currentProfile?.userAgent === profile.userAgent &&
+        JSON.stringify(this.currentProfile?.proxy) === JSON.stringify(profile.proxy);
 
       // Only close if we can't reuse
-      if (!canReuseBrowser) {
-        console.log('Creating new browser instance...');
+      if (!canReuseContext) {
+        console.log('Creating new browser context for profile:', profile.name);
         await this.close();
 
         // Select browser type
@@ -152,21 +142,80 @@ export class AutomationService {
           throw new Error(`Unsupported browser type: ${profile.browserType}`);
         }
 
-        // Launch browser with profile settings
-        console.log('Launching browser with profile:', {
-          type: profile.browserType,
-          headless: profile.isHeadless,
-          executablePath: AutomationService.getBrowserExecutablePath()
-        });
+        // Set executable path for Windows
+        const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
+        const executablePath = process.platform === 'win32' 
+          ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
+          : undefined;
 
-        this.browser = await browserType.launch({
-          headless: profile.isHeadless,
-          executablePath: AutomationService.getBrowserExecutablePath(),
-          args: ['--start-maximized'] // Add this to ensure window is visible
-        });
-        console.log('Browser launched successfully');
+        // Create persistent user data directory for this profile
+        const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
+        
+        // Ensure the directory exists
+        if (!require('fs').existsSync(userDataDir)) {
+          require('fs').mkdirSync(userDataDir, { recursive: true });
+        }
+
+        // Create context options with additional settings to appear more like regular Chrome
+        const contextOptions: any = {
+          viewport: profile.viewport || null,
+          userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          headless: false,
+          args: [
+            '--start-maximized',
+            '--disable-blink-features=AutomationControlled',
+            '--window-size=1920,1080'
+          ],
+          ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
+          executablePath: executablePath
+        };
+
+        // Add proxy if configured
+        if (profile.proxy?.host && profile.proxy?.port) {
+          const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
+            ? '' 
+            : 'http://';
+          const proxyHost = profile.proxy.host.replace(/^https?:\/\//, '');
+          const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
+
+          console.log('Configuring proxy for profile:', {
+            profileName: profile.name,
+            server: proxyUrl,
+            hasUsername: !!profile.proxy.username,
+            hasPassword: !!profile.proxy.password
+          });
+
+          contextOptions.proxy = {
+            server: proxyUrl,
+            ...(profile.proxy.username && { username: profile.proxy.username }),
+            ...(profile.proxy.password && { password: profile.proxy.password })
+          };
+        }
+
+        // Launch persistent context
+        this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
+        console.log('Browser context created successfully for profile:', profile.name);
+
+        // Set cookies if any
+        if (profile.cookies?.length) {
+          console.log('Setting cookies for profile:', {
+            profileName: profile.name,
+            cookieCount: profile.cookies.length
+          });
+          await this.context.addCookies(profile.cookies);
+          console.log('Cookies set successfully for profile:', profile.name);
+        }
+
+        // Execute startup script if any
+        if (profile.startupScript) {
+          console.log('Executing startup script for profile:', profile.name);
+          const page = await this.context.newPage();
+          await page.evaluate(profile.startupScript);
+          await page.close();
+          console.log('Startup script executed successfully for profile:', profile.name);
+        }
       } else {
-        console.log('Reusing existing browser instance');
+        console.log('Reusing existing browser context for profile:', profile.name);
       }
 
       this.currentProfile = profile;
