@@ -2,7 +2,7 @@ import { BrowserProfile } from '../types/browser.types';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import { config } from '../config/config';
+import * as os from 'os';
 
 export class CodegenService {
     private static instance: CodegenService | null = null;
@@ -22,12 +22,14 @@ export class CodegenService {
             console.log('Starting codegen recording session for profile:', profile.name);
             
             // Create a temporary file for recording output
-            const outputFile = path.join(config.paths.temp, `recording-${Date.now()}.ts`);
-            const userDataDir = path.join(config.paths.userData, `profile-${profile._id}`);
+            const tempDir = os.tmpdir();
+            const outputFile = path.join(tempDir, `recording-${Date.now()}.ts`);
+            const userDataDir = path.join(tempDir, `profile-${profile._id}`);
             
-            // Ensure the directories exist
-            fs.mkdirSync(path.dirname(outputFile), { recursive: true });
-            fs.mkdirSync(userDataDir, { recursive: true });
+            // Ensure the directory exists
+            if (!fs.existsSync(userDataDir)) {
+                fs.mkdirSync(userDataDir, { recursive: true });
+            }
 
             // Determine the correct command and args based on platform
             const isWindows = process.platform === 'win32';
@@ -53,9 +55,7 @@ export class CodegenService {
                     shell: true,
                     env: {
                         ...process.env,
-                        PATH: `${process.env.PATH}${path.delimiter}${path.join(config.paths.project, 'node_modules', '.bin')}`,
-                        PLAYWRIGHT_BROWSERS_PATH: config.paths.playwright.browsers,
-                        PLAYWRIGHT_DOWNLOAD_HOST: config.paths.playwright.downloadHost,
+                        PATH: `${process.env.PATH};${process.cwd()}\\node_modules\\.bin`,
                         PWTEST_PREFER_SELECTORS: '1',
                         PWTEST_PREFER_CSS_SELECTOR: '1'
                     }
