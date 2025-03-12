@@ -414,43 +414,132 @@ function App() {
 
   const handleTaskStart = async (id: string) => {
     try {
+      // Find the task to get its workflow and profile IDs
+      const task = tasks.find(t => t._id === id);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      // Start a new execution for this task
+      await handleExecutionStart(task.workflowId, task.profileId, task.parallelExecution);
+      
+      // Update task status
       const response = await fetch(`http://localhost:5000/api/tasks/${id}/start`, {
         method: 'POST',
       });
-      if (response.ok) {
-        // Refresh tasks list
-        loadTasks();
+      if (!response.ok) {
+        throw new Error('Failed to update task status');
       }
+
+      // Refresh tasks list
+      await loadTasks();
+      // Refresh executions list
+      await loadExecutions();
+
+      setSnackbar({
+        open: true,
+        message: 'Task started successfully',
+        severity: 'success'
+      });
     } catch (error) {
       console.error('Error starting task:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to start task',
+        severity: 'error'
+      });
     }
   };
 
   const handleTaskPause = async (id: string) => {
     try {
+      // Find the latest execution for this task
+      const task = tasks.find(t => t._id === id);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      const taskExecution = executions.find(e => 
+        e.workflowId === task.workflowId && 
+        e.profileId === task.profileId && 
+        e.status === 'running'
+      );
+
+      if (taskExecution) {
+        await handleExecutionPause(taskExecution._id);
+      }
+
+      // Update task status
       const response = await fetch(`http://localhost:5000/api/tasks/${id}/pause`, {
         method: 'POST',
       });
-      if (response.ok) {
-        // Refresh tasks list
-        loadTasks();
+      if (!response.ok) {
+        throw new Error('Failed to update task status');
       }
+
+      // Refresh tasks list
+      await loadTasks();
+      // Refresh executions list
+      await loadExecutions();
+
+      setSnackbar({
+        open: true,
+        message: 'Task paused successfully',
+        severity: 'success'
+      });
     } catch (error) {
       console.error('Error pausing task:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to pause task',
+        severity: 'error'
+      });
     }
   };
 
   const handleTaskStop = async (id: string) => {
     try {
+      // Find the latest execution for this task
+      const task = tasks.find(t => t._id === id);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      const taskExecution = executions.find(e => 
+        e.workflowId === task.workflowId && 
+        e.profileId === task.profileId && 
+        (e.status === 'running' || e.status === 'paused')
+      );
+
+      if (taskExecution) {
+        await handleExecutionStop(taskExecution._id);
+      }
+
+      // Update task status
       const response = await fetch(`http://localhost:5000/api/tasks/${id}/stop`, {
         method: 'POST',
       });
-      if (response.ok) {
-        // Refresh tasks list
-        loadTasks();
+      if (!response.ok) {
+        throw new Error('Failed to update task status');
       }
+
+      // Refresh tasks list
+      await loadTasks();
+      // Refresh executions list
+      await loadExecutions();
+
+      setSnackbar({
+        open: true,
+        message: 'Task stopped successfully',
+        severity: 'success'
+      });
     } catch (error) {
       console.error('Error stopping task:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to stop task',
+        severity: 'error'
+      });
     }
   };
 
