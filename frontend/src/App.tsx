@@ -66,7 +66,10 @@ function TabPanel(props: TabPanelProps) {
 }
 
 function App() {
-  const [currentTab, setCurrentTab] = useState(0);
+  const [currentTab, setCurrentTab] = useState(() => {
+    const savedTab = localStorage.getItem('currentTab');
+    return savedTab ? parseInt(savedTab) : 0;
+  });
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -154,6 +157,7 @@ function App() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
+    localStorage.setItem('currentTab', newValue.toString());
   };
 
   const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
@@ -360,8 +364,6 @@ function App() {
       setTasks(prevTasks => [...prevTasks, newTask]);
       // Refresh tasks to ensure consistency
       await loadTasks();
-      // Return to Tasks tab after creation
-      setCurrentTab(1);
       // Show success message
       setSnackbar({
         open: true,
