@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  app:
+    build: .
+    container_name: web-automation-platform
+    ports:
+      - "3000:3000"  # Frontend
+      - "5000:5000"  # Backend
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+
   mongodb:
     image: mongo:latest
     container_name: mongodb
@@ -13,5 +26,15 @@ services:
       - mongodb_data:/data/db
     command: mongod --auth
 
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes  # Enable persistence
+
 volumes:
-  mongodb_data: 
+  mongodb_data:
+  redis_data: 

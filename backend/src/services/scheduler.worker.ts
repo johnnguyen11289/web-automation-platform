@@ -42,7 +42,7 @@ export class SchedulerWorker {
       },
       {
         connection: {
-          host: process.env.REDIS_HOST || 'localhost',
+          host: process.env.REDIS_HOST,
           port: parseInt(process.env.REDIS_PORT || '6379'),
         },
         concurrency: 5,

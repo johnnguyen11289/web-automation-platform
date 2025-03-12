@@ -3,6 +3,202 @@ import { BrowserProfile } from '../types/browser.types';
 import * as path from 'path';
 import * as os from 'os';
 
+// Add at the top of the file, after imports
+interface FingerPrintOptions {
+  screen?: {
+    width: number;
+    height: number;
+    availWidth: number;
+    availHeight: number;
+    colorDepth: number;
+    pixelDepth: number;
+  };
+  userAgent?: string;
+  webgl?: {
+    vendor: string;
+    renderer: string;
+  };
+  cpu?: {
+    architecture: string;
+    cores: number;
+  };
+  memory?: {
+    deviceMemory: number;
+    jsHeapSizeLimit: number;
+  };
+  platform?: string;
+  plugins?: Array<{ name: string; description: string; filename: string }>;
+}
+
+// Add utility functions for fingerprint randomization
+const getRandomFingerprint = (): FingerPrintOptions => {
+  const screenSizes = [
+    { width: 1920, height: 1080 },
+    { width: 1366, height: 768 },
+    { width: 1536, height: 864 },
+    { width: 1440, height: 900 },
+    { width: 1280, height: 720 }
+  ];
+  
+  const webglVendors = [
+    { vendor: 'Google Inc. (NVIDIA)', renderer: 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 SUPER Direct3D11 vs_5_0 ps_5_0)' },
+    { vendor: 'Google Inc. (AMD)', renderer: 'ANGLE (AMD, AMD Radeon RX 580 Direct3D11 vs_5_0 ps_5_0)' },
+    { vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)' }
+  ];
+
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Edg/122.0.2365.92'
+  ];
+
+  const screen = screenSizes[Math.floor(Math.random() * screenSizes.length)];
+  const webgl = webglVendors[Math.floor(Math.random() * webglVendors.length)];
+
+  return {
+    screen: {
+      ...screen,
+      availWidth: screen.width - Math.floor(Math.random() * 50),
+      availHeight: screen.height - Math.floor(Math.random() * 100),
+      colorDepth: 24,
+      pixelDepth: 24
+    },
+    userAgent: userAgents[Math.floor(Math.random() * userAgents.length)],
+    webgl,
+    cpu: {
+      architecture: 'x86-64',
+      cores: [4, 6, 8, 12, 16][Math.floor(Math.random() * 5)]
+    },
+    memory: {
+      deviceMemory: [4, 8, 16][Math.floor(Math.random() * 3)],
+      jsHeapSizeLimit: 2 ** 31
+    },
+    platform: 'Win32',
+    plugins: [
+      { name: 'Chrome PDF Plugin', description: 'Portable Document Format', filename: 'internal-pdf-viewer' },
+      { name: 'Chrome PDF Viewer', description: '', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' },
+      { name: 'Native Client', description: '', filename: 'internal-nacl-plugin' }
+    ]
+  };
+};
+
+// Add website-specific evasion techniques
+const websiteSpecificEvasions: Record<string, (page: Page) => Promise<void>> = {
+  'facebook.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', writable: false });
+      Object.defineProperty(document, 'hidden', { value: false, writable: false });
+      Object.defineProperty(navigator, 'connection', {
+        get: () => ({
+          effectiveType: '4g',
+          rtt: 50,
+          downlink: 10,
+          saveData: false
+        })
+      });
+    });
+  },
+  'google.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      // Override scheduling APIs
+      Object.defineProperty(window, 'requestIdleCallback', {
+        value: (cb: Function) => setTimeout(cb, 1)
+      });
+      // Add Chrome-specific APIs
+      Object.defineProperty(navigator, 'userAgentData', {
+        get: () => ({
+          brands: [
+            { brand: 'Chromium', version: '122' },
+            { brand: 'Google Chrome', version: '122' },
+            { brand: 'Not(A:Brand', version: '24' }
+          ],
+          mobile: false,
+          platform: 'Windows'
+        })
+      });
+    });
+  },
+  'linkedin.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      // Override performance API
+      const originalGetEntries = Performance.prototype.getEntries;
+      Performance.prototype.getEntries = function(this: Performance) {
+        const entries = originalGetEntries.call(this);
+        return entries.filter((entry: PerformanceEntry) => !entry.name.includes('automation'));
+      };
+    });
+  },
+  'amazon.com': async (page: Page) => {
+    await page.addInitScript(() => {
+      // Override canvas fingerprinting
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(
+        this: HTMLCanvasElement,
+        contextId: "2d" | "webgl" | "bitmaprenderer",
+        options?: any
+      ): RenderingContext | null {
+        const context = originalGetContext.call(this, contextId, options) as RenderingContext;
+        if (context && contextId === '2d' && 'measureText' in context) {
+          const ctx2d = context as CanvasRenderingContext2D;
+          const originalMeasureText = ctx2d.measureText.bind(ctx2d);
+          ctx2d.measureText = function(text: string) {
+            const metrics = originalMeasureText(text);
+            const newMetrics = Object.create(metrics);
+            Object.defineProperty(newMetrics, 'width', {
+              value: metrics.width * (1 + Math.random() * 0.02),
+              enumerable: true
+            });
+            return newMetrics;
+          };
+        }
+        return context;
+      } as typeof HTMLCanvasElement.prototype.getContext;
+    });
+  }
+};
+
+// Add utility functions for human-like behavior
+const randomDelay = async (page: Page, min = 100, max = 300) => {
+  const delay = Math.floor(Math.random() * (max - min) + min);
+  await page.waitForTimeout(delay);
+};
+
+const humanMove = async (page: Page, selector: string) => {
+  const element = await page.$(selector);
+  if (!element) return;
+  
+  const box = await element.boundingBox();
+  if (!box) return;
+
+  // Random start position
+  const startX = Math.random() * page.viewportSize()!.width;
+  const startY = Math.random() * page.viewportSize()!.height;
+
+  // Move to element with human-like curve
+  await page.mouse.move(startX, startY);
+  const steps = Math.floor(Math.random() * 10) + 5;
+  
+  for (let i = 0; i < steps; i++) {
+    const x = startX + (box.x + box.width/2 - startX) * (i/steps);
+    const y = startY + (box.y + box.height/2 - startY) * (i/steps);
+    // Add some random "shake" to the movement
+    const offsetX = (Math.random() - 0.5) * 20;
+    const offsetY = (Math.random() - 0.5) * 20;
+    await page.mouse.move(x + offsetX, y + offsetY, { steps: 1 });
+    await randomDelay(page, 20, 50);
+  }
+};
+
+const humanType = async (page: Page, selector: string, text: string) => {
+  await page.focus(selector);
+  for (const char of text) {
+    await page.keyboard.type(char, {
+      delay: Math.random() * 100 + 30
+    });
+  }
+};
+
 export class AutomationService {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -126,12 +322,9 @@ export class AutomationService {
         this.currentProfile?.userAgent === profile.userAgent &&
         JSON.stringify(this.currentProfile?.proxy) === JSON.stringify(profile.proxy);
 
-      // Only close if we can't reuse
       if (!canReuseContext) {
-        console.log('Creating new browser context for profile:', profile.name);
         await this.close();
 
-        // Select browser type
         const browserType = {
           chromium: chromium,
           firefox: firefox,
@@ -142,35 +335,76 @@ export class AutomationService {
           throw new Error(`Unsupported browser type: ${profile.browserType}`);
         }
 
-        // Set executable path for Windows
         const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
         const executablePath = process.platform === 'win32' 
           ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
           : undefined;
 
-        // Create persistent user data directory for this profile
         const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
         
-        // Ensure the directory exists
         if (!require('fs').existsSync(userDataDir)) {
           require('fs').mkdirSync(userDataDir, { recursive: true });
         }
 
-        // Create context options with additional settings to appear more like regular Chrome
+        // Enhanced context options with advanced anti-detection
         const contextOptions: any = {
-          viewport: profile.viewport || null,
+          viewport: profile.viewport || { width: 1920, height: 1080 },
           userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           headless: false,
+          deviceScaleFactor: 1,
+          isMobile: false,
+          hasTouch: false,
+          locale: 'en-US',
+          timezoneId: 'America/New_York',
+          geolocation: { longitude: 40.7128, latitude: -74.0060 },
+          permissions: ['geolocation'],
+          colorScheme: 'light',
+          reducedMotion: 'no-preference',
+          forcedColors: 'none',
+          acceptDownloads: true,
           args: [
-            '--start-maximized',
             '--disable-blink-features=AutomationControlled',
-            '--window-size=1920,1080'
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-site-isolation-trials',
+            '--disable-features=BlockInsecurePrivateNetworkRequests',
+            '--disable-web-security',
+            '--disable-gpu',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--window-position=0,0',
+            '--ignore-certifcate-errors',
+            '--ignore-certifcate-errors-spki-list',
+            '--disable-accelerated-2d-canvas',
+            '--hide-scrollbars',
+            '--disable-notifications',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-breakpad',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-extensions',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection',
+            '--disable-renderer-backgrounding',
+            '--enable-features=NetworkService,NetworkServiceInProcess',
+            '--force-color-profile=srgb',
+            '--metrics-recording-only',
+            '--no-first-run',
+            '--password-store=basic',
+            '--use-mock-keychain',
+            '--start-maximized'
           ],
-          ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
+          ignoreDefaultArgs: [
+            '--enable-automation',
+            '--enable-blink-features=AutomationControlled',
+            '--headless',
+            '--hide-scrollbars',
+            '--mute-audio'
+          ],
           executablePath: executablePath
         };
 
-        // Add proxy if configured
+        // Add proxy configuration if provided
         if (profile.proxy?.host && profile.proxy?.port) {
           const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
             ? '' 
@@ -178,56 +412,45 @@ export class AutomationService {
           const proxyHost = profile.proxy.host.replace(/^https?:\/\//, '');
           const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
 
-          console.log('Configuring proxy for profile:', {
-            profileName: profile.name,
-            server: proxyUrl,
-            hasUsername: !!profile.proxy.username,
-            hasPassword: !!profile.proxy.password
-          });
-
           contextOptions.proxy = {
             server: proxyUrl,
             ...(profile.proxy.username && { username: profile.proxy.username }),
-            ...(profile.proxy.password && { password: profile.proxy.password })
+            ...(profile.proxy.password && { password: profile.proxy.password }),
+            bypass: 'localhost,127.0.0.1'
           };
         }
 
-        // Launch persistent context
+        // Launch persistent context with enhanced options
         this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
-        console.log('Browser context created successfully for profile:', profile.name);
 
-        // Set cookies if any
-        if (profile.cookies?.length) {
-          console.log('Setting cookies for profile:', {
-            profileName: profile.name,
-            cookieCount: profile.cookies.length
-          });
-          await this.context.addCookies(profile.cookies);
-          console.log('Cookies set successfully for profile:', profile.name);
+        // Add anti-detection scripts
+        const pages = this.context.pages();
+        for (const page of pages) {
+          await this.injectAntiDetection(page);
         }
 
-        // Execute startup script if any
+        // Listen for new pages to inject anti-detection
+        this.context.on('page', async (page) => {
+          await this.injectAntiDetection(page);
+        });
+
+        if (profile.cookies?.length) {
+          await this.context.addCookies(profile.cookies);
+        }
+
         if (profile.startupScript) {
-          console.log('Executing startup script for profile:', profile.name);
           const page = await this.context.newPage();
           await page.evaluate(profile.startupScript);
           await page.close();
-          console.log('Startup script executed successfully for profile:', profile.name);
         }
-      } else {
-        console.log('Reusing existing browser context for profile:', profile.name);
       }
 
       this.currentProfile = profile;
       console.log('Profile applied successfully:', profile.name);
     } catch (error) {
-      console.error('Failed to apply profile:', {
-        name: profile.name,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      // Clean up resources in case of error
+      console.error('Failed to apply profile:', error);
       await this.close();
-      throw new Error('Failed to apply profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      throw error;
     }
   }
 
@@ -248,57 +471,46 @@ export class AutomationService {
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
-    let extractedData: Record<string, any> = {};
+    let extractedData: Record<string, any> = {};  // Define extractedData object
 
     try {
-      // Only navigate if we have a real URL (not null or about:blank)
-      if (url && url !== 'about:blank' && (!actions[0] || actions[0].type !== 'openUrl')) {
-        console.log('Navigating to initial URL:', url);
-        await page.goto(url);
+      if (url) {
+        await page.goto(url, { 
+          waitUntil: 'networkidle',
+          timeout: 30000 
+        });
+        await randomDelay(page, 1000, 2000);
       }
 
       for (const action of actions) {
         try {
-          console.log('Performing action:', action.type);
           switch (action.type) {
-            case 'openUrl':
-              if (!action.value) {
-                throw new Error('URL is required for openUrl action');
-              }
-              console.log('Navigating to URL:', action.value);
-              await page.goto(action.value, {
-                waitUntil: action.waitUntil || 'load',
-                timeout: action.timeout
-              });
-              break;
-
             case 'click':
-              if (!action.selector) {
-                throw new Error('Selector is required for click action');
+              if (action.selector) {
+                await humanMove(page, action.selector);
+                await randomDelay(page, 200, 500);
+                await page.click(action.selector, { 
+                  button: action.button || 'left',
+                  clickCount: action.clickCount || 1,
+                  delay: action.delay || Math.floor(Math.random() * 100) + 50
+                });
               }
-              await page.click(action.selector, {
-                button: action.button || 'left',
-                clickCount: action.clickCount || 1,
-                delay: action.delay
-              });
               break;
-
             case 'type':
-              if (!action.selector) {
-                throw new Error('Selector is required for type action');
+              if (action.selector && action.value) {
+                await humanMove(page, action.selector);
+                await randomDelay(page, 200, 500);
+                if (action.clearFirst) {
+                  await page.click(action.selector, { clickCount: 3 });
+                  await page.keyboard.press('Backspace');
+                }
+                await humanType(page, action.selector, action.value);
               }
-              if (action.clearFirst) {
-                await page.click(action.selector, { clickCount: 3 });
-                await page.keyboard.press('Backspace');
-              }
-              await page.fill(action.selector, action.value || '');
               break;
-
             case 'screenshot':
               const screenshotPath = action.value || `screenshot-${Date.now()}.png`;
               await page.screenshot({ path: screenshotPath });
               break;
-
             case 'wait':
               if (action.condition === 'networkIdle') {
                 await page.waitForLoadState('networkidle');
@@ -312,7 +524,6 @@ export class AutomationService {
                 throw new Error('Invalid wait action configuration');
               }
               break;
-
             case 'extract':
               if (!action.selector) {
                 throw new Error('Selector is required for extract action');
@@ -329,7 +540,6 @@ export class AutomationService {
                 extractedData[action.key] = extractedValue;
               }
               break;
-
             case 'evaluate':
               if (!action.script) {
                 throw new Error('Script is required for evaluate action');
@@ -339,28 +549,24 @@ export class AutomationService {
                 extractedData[action.key] = result;
               }
               break;
-
             case 'keyboard':
               if (!action.key) {
                 throw new Error('Key is required for keyboard action');
               }
               await page.keyboard.press(action.key);
               break;
-
             case 'select':
               if (!action.selector || !action.value) {
                 throw new Error('Selector and value are required for select action');
               }
               await page.selectOption(action.selector, action.value);
               break;
-
             case 'focus':
               if (!action.selector) {
                 throw new Error('Selector is required for focus action');
               }
               await page.focus(action.selector);
               break;
-
             case 'hover':
               if (!action.selector) {
                 throw new Error('Selector is required for hover action');
@@ -370,26 +576,190 @@ export class AutomationService {
           }
           results.push({ action, success: true });
         } catch (error) {
-          success = false;
-          results.push({
-            action,
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+          console.error('Action failed:', error);
+          results.push({ 
+            action, 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
           });
-          if (action.stopOnError !== false) {
-            throw error;
+          if (action.stopOnError) {
+            success = false;
+            break;
           }
+        }
+        // Add random delay between actions
+        await randomDelay(page, 500, 1500);
+      }
+    } catch (error) {
+      console.error('Automation failed:', error);
+      success = false;
+    }
+
+    return {
+      success,
+      results,
+      extractedData
+    };
+  }
+
+  // Modify the injectAntiDetection method in AutomationService class
+  private async injectAntiDetection(page: Page) {
+    const fingerprint = getRandomFingerprint();
+    
+    // Apply website-specific evasions
+    const url = page.url();
+    for (const [domain, evasion] of Object.entries(websiteSpecificEvasions)) {
+      if (url.includes(domain)) {
+        await evasion(page);
+        console.log(`Applied specific evasion for ${domain}`);
+      }
+    }
+
+    await page.addInitScript((fp: FingerPrintOptions) => {
+      // Override property descriptors with randomized fingerprint
+      const overridePropertyDescriptor = (obj: any, prop: string, value: any) => {
+        try {
+          Object.defineProperty(obj, prop, { get: () => value });
+        } catch (e) { }
+      };
+
+      // Screen properties
+      if (fp.screen) {
+        for (const [key, value] of Object.entries(fp.screen)) {
+          overridePropertyDescriptor(window.screen, key, value);
         }
       }
 
-      return { success, results, extractedData };
-    } catch (error) {
-      success = false;
-      throw error;
-    } finally {
-      // Don't close the page here anymore since we're reusing it
-      return { success, results, extractedData };
-    }
+      // Navigator properties
+      overridePropertyDescriptor(navigator, 'userAgent', fp.userAgent);
+      overridePropertyDescriptor(navigator, 'hardwareConcurrency', fp.cpu?.cores);
+      overridePropertyDescriptor(navigator, 'deviceMemory', fp.memory?.deviceMemory);
+      overridePropertyDescriptor(navigator, 'platform', fp.platform);
+      overridePropertyDescriptor(navigator, 'plugins', fp.plugins);
+
+      // WebGL fingerprint
+      if (fp.webgl) {
+        const getParameterProxyHandler = {
+          apply: function(target: Function, thisArg: WebGLRenderingContext, args: [number]) {
+            const param = args[0];
+
+            if (param === thisArg.VENDOR && fp.webgl?.vendor) {
+              return fp.webgl.vendor;
+            }
+            if (param === thisArg.RENDERER && fp.webgl?.renderer) {
+              return fp.webgl.renderer;
+            }
+
+            return Reflect.apply(target, thisArg, args);
+          }
+        };
+
+        // Override WebGL parameters
+        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = new Proxy(originalGetParameter, getParameterProxyHandler as ProxyHandler<typeof WebGLRenderingContext.prototype.getParameter>);
+      }
+
+      // Advanced browser behavior simulation
+      const originalRequestAnimationFrame = window.requestAnimationFrame;
+      window.requestAnimationFrame = function(callback) {
+        const start = performance.now();
+        return originalRequestAnimationFrame((timestamp) => {
+          // Add small random delay to simulate real browser timing
+          const delay = Math.random() * 3;
+          setTimeout(() => callback(timestamp + delay), delay);
+        });
+      };
+
+      // Override performance timing
+      const originalGetEntriesByType = Performance.prototype.getEntriesByType;
+      Performance.prototype.getEntriesByType = function(type: string) {
+        const entries = originalGetEntriesByType.call(this, type);
+        if (type === 'navigation') {
+          return entries.map(entry => {
+            if (entry instanceof PerformanceNavigationTiming) {
+              const variation = Math.random() * 50;
+              return {
+                ...entry,
+                domComplete: entry.domComplete + variation,
+                loadEventEnd: entry.loadEventEnd + variation
+              };
+            }
+            return entry;
+          });
+        }
+        return entries;
+      };
+
+      // Override Permissions with proper type handling
+      const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+      window.navigator.permissions.query = (parameters: PermissionDescriptor): Promise<PermissionStatus> => {
+        if (parameters.name === 'notifications') {
+          return Promise.resolve({
+            state: Notification.permission as PermissionState,
+            name: parameters.name,
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => true
+          });
+        }
+        return originalQuery(parameters);
+      };
+
+      // Override Function.prototype methods
+      const oldCall = Function.prototype.call;
+      function call(this: Function, thisArg: any, ...args: any[]) {
+        return oldCall.call(this, thisArg, ...args);
+      }
+      Function.prototype.call = call;
+
+      const nativeToString = Function.prototype.toString;
+      Function.prototype.toString = function(this: Function) {
+        if (this === call) {
+          return "function call() { [native code] }";
+        }
+        return nativeToString.call(this);
+      };
+
+      // Add timezone and locale consistency
+      const dateProto = Object.getPrototypeOf(new Date());
+      const originalToTimeString = dateProto.toTimeString;
+      dateProto.toTimeString = function() {
+        const result = originalToTimeString.call(this);
+        return result.replace(/GMT[+-]\d{4}/, 'GMT-0400');
+      };
+
+      // Override canvas fingerprinting
+      const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      HTMLCanvasElement.prototype.toDataURL = function(type?: string, quality?: any) {
+        if (this.width === 16 && this.height === 16) {
+          // Likely a fingerprinting attempt
+          return "data:image/png;base64,RANDOMIZED_STRING";
+        }
+        return originalToDataURL.call(this, type, quality);
+      };
+    }, fingerprint);
+
+    // Add custom error handlers with randomized delays
+    await page.route('**/*', async (route) => {
+      try {
+        // Add random delays to requests to appear more human-like
+        const delay = Math.floor(Math.random() * 100) + 50;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Modify headers to appear more natural
+        const request = route.request();
+        const headers = request.headers();
+        headers['Accept-Language'] = 'en-US,en;q=0.9';
+        headers['sec-ch-ua-platform'] = '"Windows"';
+        headers['sec-ch-ua'] = '"Chromium";v="122", "Google Chrome";v="122", "Not(A:Brand";v="24"';
+        
+        await route.continue({ headers });
+      } catch (error) {
+        console.error('Error in request interception:', error);
+        await route.continue();
+      }
+    });
   }
 
   async openProfileForSetup(profile: BrowserProfile): Promise<void> {

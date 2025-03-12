@@ -14,14 +14,14 @@ export class TaskSchedulerService {
     
     this.taskQueue = new Queue('scheduled-tasks', {
       connection: {
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST,
         port: parseInt(process.env.REDIS_PORT || '6379'),
       },
     });
 
     this.queueEvents = new QueueEvents('scheduled-tasks', {
       connection: {
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST,
         port: parseInt(process.env.REDIS_PORT || '6379'),
       },
     });
