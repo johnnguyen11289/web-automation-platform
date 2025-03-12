@@ -49,6 +49,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 interface TaskManagerProps {
   workflows: Workflow[];
   profiles: BrowserProfile[];
+  tasks: Task[];
   onAdd: (task: TaskFormData) => void;
   onEdit: (id: string, task: TaskFormData) => void;
   onDelete: (id: string) => void;
@@ -80,6 +81,7 @@ const getStatusColor = (status: TaskStatus) => {
 const TaskManager: React.FC<TaskManagerProps> = ({
   workflows,
   profiles,
+  tasks: propTasks,
   onAdd,
   onEdit,
   onDelete,
@@ -88,7 +90,6 @@ const TaskManager: React.FC<TaskManagerProps> = ({
   onStop,
   onRefresh,
 }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     totalTasks: 0,
     pendingTasks: 0,
@@ -117,19 +118,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({
   });
 
   useEffect(() => {
-    loadTasks();
-  }, []);
-
-  const loadTasks = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/tasks');
-      const data = await response.json();
-      setTasks(data);
-      updateStats(data);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    }
-  };
+    updateStats(propTasks);
+  }, [propTasks]);
 
   const updateStats = (tasks: Task[]) => {
     const stats: TaskStats = {
@@ -188,7 +178,23 @@ const TaskManager: React.FC<TaskManagerProps> = ({
     setSelectedTask(null);
   };
 
-  const handleSubmit = () => {
+  const handleStart = async (id: string) => {
+    await onStart(id);
+  };
+
+  const handlePause = async (id: string) => {
+    await onPause(id);
+  };
+
+  const handleStop = async (id: string) => {
+    await onStop(id);
+  };
+
+  const handleDelete = async (id: string) => {
+    await onDelete(id);
+  };
+
+  const handleSubmit = async () => {
     if (selectedTask) {
       const submissionData: TaskFormData = {
         ...formData,
@@ -202,7 +208,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
             : formData.schedule.endDate,
         },
       };
-      onEdit(selectedTask._id, submissionData);
+      await onEdit(selectedTask._id, submissionData);
     } else {
       const submissionData: TaskFormData = {
         ...formData,
@@ -216,7 +222,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
             : formData.schedule.endDate,
         },
       };
-      onAdd(submissionData);
+      await onAdd(submissionData);
     }
     handleCloseDialog();
   };
@@ -362,7 +368,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {tasks.map((task) => (
+            {propTasks.map((task) => (
               <TableRow key={task._id}>
                 <TableCell>{task.name}</TableCell>
                 <TableCell>
@@ -426,7 +432,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                   {task.status === 'pending' && (
                     <IconButton
                       size="small"
-                      onClick={() => onStart(task._id)}
+                      onClick={() => handleStart(task._id)}
                       color="success"
                     >
                       <PlayIcon />
@@ -435,7 +441,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                   {task.status === 'running' && (
                     <IconButton
                       size="small"
-                      onClick={() => onPause(task._id)}
+                      onClick={() => handlePause(task._id)}
                       color="warning"
                     >
                       <PauseIcon />
@@ -444,7 +450,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                   {(task.status === 'running' || task.status === 'pending') && (
                     <IconButton
                       size="small"
-                      onClick={() => onStop(task._id)}
+                      onClick={() => handleStop(task._id)}
                       color="error"
                     >
                       <StopIcon />
@@ -452,7 +458,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                   )}
                   <IconButton
                     size="small"
-                    onClick={() => onDelete(task._id)}
+                    onClick={() => handleDelete(task._id)}
                     color="error"
                   >
                     <DeleteIcon />

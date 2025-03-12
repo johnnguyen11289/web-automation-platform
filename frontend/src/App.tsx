@@ -352,13 +352,29 @@ function App() {
         },
         body: JSON.stringify(task),
       });
-      if (response.ok) {
-        const newTask = await response.json();
-        // Refresh tasks list
-        loadTasks();
+      if (!response.ok) {
+        throw new Error('Failed to create task');
       }
+      const newTask = await response.json();
+      // Update local state immediately
+      setTasks(prevTasks => [...prevTasks, newTask]);
+      // Refresh tasks to ensure consistency
+      await loadTasks();
+      // Return to Tasks tab after creation
+      setCurrentTab(1);
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Task created successfully',
+        severity: 'success'
+      });
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('Failed to create task:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to create task',
+        severity: 'error'
+      });
     }
   };
 
@@ -439,13 +455,18 @@ function App() {
   const loadTasks = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/tasks');
-      if (response.ok) {
-        const tasks = await response.json();
-        // Update tasks state
-        setTasks(tasks);
+      if (!response.ok) {
+        throw new Error('Failed to load tasks');
       }
+      const tasks = await response.json();
+      setTasks(tasks);
     } catch (error) {
       console.error('Error loading tasks:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load tasks',
+        severity: 'error'
+      });
     }
   };
 
@@ -510,6 +531,7 @@ function App() {
               <TaskManager
                 workflows={workflows}
                 profiles={browserProfiles}
+                tasks={tasks}
                 onAdd={handleTaskAdd}
                 onEdit={handleTaskEdit}
                 onDelete={handleTaskDelete}
