@@ -353,19 +353,40 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
   onTaskCreate,
   onTaskExecute,
 }) => {
+  const [openDialog, setOpenDialog] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<BrowserProfile | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleCreateTask = (workflow: Workflow, profile: BrowserProfile) => {
+  const handleOpenDialog = (workflow: Workflow, profile: BrowserProfile) => {
     setSelectedWorkflow(workflow);
     setSelectedProfile(profile);
-    setDialogOpen(true);
+    setOpenDialog(true);
   };
 
-  const handleExecuteTask = (workflowId: string, profileId: string) => {
-    onTaskExecute(workflowId, profileId);
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedWorkflow(null);
+    setSelectedProfile(null);
   };
+
+  if (workflows.length === 0 || profiles.length === 0) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Paper elevation={2}>
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              {workflows.length === 0 ? 'No Workflows Available' : 'No Browser Profiles Available'}
+            </Typography>
+            <Typography color="text.secondary" paragraph>
+              {workflows.length === 0
+                ? 'Create workflows to start building your automation matrix.'
+                : 'Create browser profiles to start building your automation matrix.'}
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -394,7 +415,7 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
                       <Tooltip title="Create Task">
                         <IconButton
                           size="small"
-                          onClick={() => handleCreateTask(workflow, profile)}
+                          onClick={() => handleOpenDialog(workflow, profile)}
                           color="primary"
                         >
                           <AddIcon />
@@ -403,7 +424,7 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
                       <Tooltip title="Execute Now">
                         <IconButton
                           size="small"
-                          onClick={() => handleExecuteTask(workflow._id, profile._id)}
+                          onClick={() => onTaskExecute(workflow._id, profile._id)}
                           color="success"
                         >
                           <PlayIcon />
@@ -420,8 +441,8 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
 
       {selectedWorkflow && selectedProfile && (
         <TaskFormDialog
-          open={dialogOpen}
-          onClose={() => setDialogOpen(false)}
+          open={openDialog}
+          onClose={handleCloseDialog}
           onSubmit={onTaskCreate}
           workflow={selectedWorkflow}
           profile={selectedProfile}

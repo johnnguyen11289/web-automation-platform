@@ -146,59 +146,77 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
 
       <Paper elevation={2}>
         <List>
-          {profiles.map((profile) => (
-            <React.Fragment key={profile._id}>
-              <ListItem>
-                <ListItemText
-                  primary={profile.name}
-                  secondary={
-                    <Typography variant="body2" color="text.secondary">
-                      {BROWSER_TYPES.find(t => t.value === profile.browserType)?.label} •{' '}
-                      {profile.isHeadless ? 'Headless' : 'Visible'} •{' '}
-                      {profile.viewport.width}x{profile.viewport.height}
-                    </Typography>
-                  }
-                />
-                <ListItemSecondaryAction>
-                  <Tooltip title="Open Browser">
+          {profiles.length === 0 ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No Browser Profiles Yet
+              </Typography>
+              <Typography color="text.secondary" paragraph>
+                Create your first browser profile to start automating web tasks.
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => handleOpenDialog()}
+              >
+                Create Profile
+              </Button>
+            </Box>
+          ) : (
+            profiles.map((profile) => (
+              <React.Fragment key={profile._id}>
+                <ListItem>
+                  <ListItemText
+                    primary={profile.name}
+                    secondary={
+                      <Typography variant="body2" color="text.secondary">
+                        {BROWSER_TYPES.find(t => t.value === profile.browserType)?.label} •{' '}
+                        {profile.isHeadless ? 'Headless' : 'Visible'} •{' '}
+                        {profile.viewport.width}x{profile.viewport.height}
+                      </Typography>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <Tooltip title="Open Browser">
+                      <IconButton
+                        edge="end"
+                        aria-label="open browser"
+                        onClick={() => handleOpenBrowser(profile)}
+                        disabled={loading === profile._id}
+                        sx={{ mr: 1 }}
+                      >
+                        <Launch />
+                      </IconButton>
+                    </Tooltip>
                     <IconButton
                       edge="end"
-                      aria-label="open browser"
-                      onClick={() => handleOpenBrowser(profile)}
-                      disabled={loading === profile._id}
+                      aria-label="duplicate"
+                      onClick={() => onDuplicate(profile._id)}
                       sx={{ mr: 1 }}
                     >
-                      <Launch />
+                      <ContentCopy />
                     </IconButton>
-                  </Tooltip>
-                  <IconButton
-                    edge="end"
-                    aria-label="duplicate"
-                    onClick={() => onDuplicate(profile._id)}
-                    sx={{ mr: 1 }}
-                  >
-                    <ContentCopy />
-                  </IconButton>
-                  <IconButton
-                    edge="end"
-                    aria-label="edit"
-                    onClick={() => handleOpenDialog(profile)}
-                    sx={{ mr: 1 }}
-                  >
-                    <Edit />
-                  </IconButton>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleOpenDeleteDialog(profile)}
-                  >
-                    <Delete />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-              <Divider />
-            </React.Fragment>
-          ))}
+                    <IconButton
+                      edge="end"
+                      aria-label="edit"
+                      onClick={() => handleOpenDialog(profile)}
+                      sx={{ mr: 1 }}
+                    >
+                      <Edit />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() => handleOpenDeleteDialog(profile)}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+                <Divider />
+              </React.Fragment>
+            ))
+          )}
         </List>
       </Paper>
 

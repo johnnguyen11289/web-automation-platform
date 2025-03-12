@@ -364,117 +364,143 @@ const TaskManager: React.FC<TaskManagerProps> = ({
               <TableCell>Schedule</TableCell>
               <TableCell>Next Run</TableCell>
               <TableCell>Last Run</TableCell>
+              <TableCell>Duration</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {propTasks.map((task) => (
-              <TableRow key={task._id}>
-                <TableCell>{task.name}</TableCell>
-                <TableCell>
-                  {workflows.find(w => w._id === task.workflowId)?.name || task.workflowId}
-                </TableCell>
-                <TableCell>
-                  {profiles.find(p => p._id === task.profileId)?.name || task.profileId}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={task.status}
-                    color={getStatusColor(task.status)}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={task.priority}
-                    color={task.priority === 'high' ? 'error' : task.priority === 'medium' ? 'warning' : 'default'}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  {task.schedule && (
-                    <Box>
-                      <Typography variant="body2">
-                        {task.schedule.type ? task.schedule.type.charAt(0).toUpperCase() + task.schedule.type.slice(1) : 'Not Set'}
-                      </Typography>
-                      {task.schedule.type && task.schedule.type !== 'once' && task.schedule.time && (
-                        <Typography variant="caption" color="textSecondary">
-                          {task.schedule.time}
-                        </Typography>
-                      )}
-                      {task.schedule.type === 'weekly' && task.schedule.daysOfWeek && task.schedule.daysOfWeek.length > 0 && (
-                        <Typography variant="caption" color="textSecondary">
-                          {task.schedule.daysOfWeek.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]).join(', ')}
-                        </Typography>
-                      )}
-                      {task.schedule.type === 'monthly' && task.schedule.daysOfMonth && task.schedule.daysOfMonth.length > 0 && (
-                        <Typography variant="caption" color="textSecondary">
-                          Days: {task.schedule.daysOfMonth.join(', ')}
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {task.nextRun ? format(new Date(task.nextRun), 'PPp') : 'Not scheduled'}
-                </TableCell>
-                <TableCell>
-                  {task.lastRun ? format(new Date(task.lastRun), 'PPp') : 'Never'}
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenDialog(task)}
-                    color="primary"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                  {task.status === 'pending' && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleStart(task._id)}
-                      color="success"
+            {propTasks.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9}>
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      No Tasks Yet
+                    </Typography>
+                    <Typography color="text.secondary" paragraph>
+                      Create your first task to start automating workflows.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => handleOpenDialog()}
                     >
-                      <PlayIcon />
-                    </IconButton>
-                  )}
-                  {task.status === 'running' && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handlePause(task._id)}
-                      color="warning"
-                    >
-                      <PauseIcon />
-                    </IconButton>
-                  )}
-                  {(task.status === 'running' || task.status === 'pending') && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleStop(task._id)}
-                      color="error"
-                    >
-                      <StopIcon />
-                    </IconButton>
-                  )}
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(task._id)}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                  {task.errorLogs && task.errorLogs.length > 0 && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleErrorClick(task)}
-                      color="error"
-                    >
-                      <ErrorIcon />
-                    </IconButton>
-                  )}
+                      Create Task
+                    </Button>
+                  </Box>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              propTasks.map((task) => (
+                <TableRow key={task._id}>
+                  <TableCell>{task.name}</TableCell>
+                  <TableCell>
+                    {workflows.find(w => w._id === task.workflowId)?.name || task.workflowId}
+                  </TableCell>
+                  <TableCell>
+                    {profiles.find(p => p._id === task.profileId)?.name || task.profileId}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={task.status}
+                      color={getStatusColor(task.status)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={task.priority}
+                      color={task.priority === 'high' ? 'error' : task.priority === 'medium' ? 'warning' : 'default'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {task.schedule && (
+                      <Box>
+                        <Typography variant="body2">
+                          {task.schedule.type ? task.schedule.type.charAt(0).toUpperCase() + task.schedule.type.slice(1) : 'Not Set'}
+                        </Typography>
+                        {task.schedule.type && task.schedule.type !== 'once' && task.schedule.time && (
+                          <Typography variant="caption" color="textSecondary">
+                            {task.schedule.time}
+                          </Typography>
+                        )}
+                        {task.schedule.type === 'weekly' && task.schedule.daysOfWeek && task.schedule.daysOfWeek.length > 0 && (
+                          <Typography variant="caption" color="textSecondary">
+                            {task.schedule.daysOfWeek.map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]).join(', ')}
+                          </Typography>
+                        )}
+                        {task.schedule.type === 'monthly' && task.schedule.daysOfMonth && task.schedule.daysOfMonth.length > 0 && (
+                          <Typography variant="caption" color="textSecondary">
+                            Days: {task.schedule.daysOfMonth.join(', ')}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {task.nextRun ? format(new Date(task.nextRun), 'PPp') : 'Not scheduled'}
+                  </TableCell>
+                  <TableCell>
+                    {task.lastRun ? format(new Date(task.lastRun), 'PPp') : 'Never'}
+                  </TableCell>
+                  <TableCell>
+                    {task.lastRun && task.status !== 'running' ? formatDuration(task.lastRun, task.updatedAt) : 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenDialog(task)}
+                      color="primary"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    {task.status === 'pending' && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleStart(task._id)}
+                        color="success"
+                      >
+                        <PlayIcon />
+                      </IconButton>
+                    )}
+                    {task.status === 'running' && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handlePause(task._id)}
+                        color="warning"
+                      >
+                        <PauseIcon />
+                      </IconButton>
+                    )}
+                    {(task.status === 'running' || task.status === 'pending') && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleStop(task._id)}
+                        color="error"
+                      >
+                        <StopIcon />
+                      </IconButton>
+                    )}
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(task._id)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                    {task.errorLogs && task.errorLogs.length > 0 && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleErrorClick(task)}
+                        color="error"
+                      >
+                        <ErrorIcon />
+                      </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
