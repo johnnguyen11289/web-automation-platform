@@ -1,8 +1,9 @@
 import { BrowserProfile } from '../types/browser.types';
 import * as path from 'path';
-import { spawn } from 'child_process';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import { config } from '../config/config';
+import { AutomationService } from './automation.service';
 
 export class CodegenService {
     private static instance: CodegenService | null = null;
@@ -17,98 +18,66 @@ export class CodegenService {
 
     private constructor() {}
 
-    async startRecording(profile: BrowserProfile): Promise<string> {
+    async startRecording(options: {
+        profilePath: string;
+        viewport: { width: number; height: number };
+        outputPath: string;
+    }): Promise<{ success: boolean }> {
         try {
-            console.log('Starting codegen recording session for profile:', profile.name);
-            
-            // Create a temporary file for recording output
-            const outputFile = path.join(config.paths.temp, `recording-${Date.now()}.ts`);
-            const userDataDir = path.join(config.paths.userData, `profile-${profile._id}`);
-            
-            // Ensure the directories exist
-            fs.mkdirSync(path.dirname(outputFile), { recursive: true });
-            fs.mkdirSync(userDataDir, { recursive: true });
+            // Ensure browser is installed
+            const automationService = AutomationService.getInstance();
+            await automationService.init();
 
-            // Determine the correct command and args based on platform
-            const isWindows = process.platform === 'win32';
-            const command = isWindows ? 'npx.cmd' : 'npx';
-            
-            // Launch playwright CLI for recording with selector preference
-            const args = [
-                'playwright',
-                'codegen',
-                `--save-storage="${userDataDir}"`,
-                '--viewport-size=1920,1080',
-                '--browser=chromium',
-                '--color-scheme=light',
-                `--output="${outputFile}"`,
-                '--target=javascript'
-            ];
+            // Set environment variable for Playwright
+            process.env.PLAYWRIGHT_BROWSERS_PATH = AutomationService.getBrowserPath();
 
-            console.log('Executing command:', command, args.join(' '));
+            const command = `npx playwright codegen` +
+                ` --save-storage="${options.profilePath}"` +
+                ` --viewport-size=${options.viewport.width},${options.viewport.height}` +
+                ` --browser=chromium` +
+                ` --color-scheme=light` +
+                ` --output="${options.outputPath}"` +
+                ` --target=javascript`;
 
-            return new Promise((resolve, reject) => {
-                this.currentProcess = spawn(command, args, {
-                    stdio: ['inherit', 'pipe', 'pipe'],
-                    shell: true,
+            console.log('Starting codegen with command:', command);
+            console.log('Using browser at:', AutomationService.getBrowserExecutablePath());
+
+            try {
+                execSync(command, { 
+                    stdio: 'inherit',
                     env: {
                         ...process.env,
-                        PATH: `${process.env.PATH}${path.delimiter}${path.join(config.paths.project, 'node_modules', '.bin')}`,
-                        PLAYWRIGHT_BROWSERS_PATH: config.paths.playwright.browsers,
-                        PLAYWRIGHT_DOWNLOAD_HOST: config.paths.playwright.downloadHost,
-                        PWTEST_PREFER_SELECTORS: '1',
-                        PWTEST_PREFER_CSS_SELECTOR: '1'
+                        PLAYWRIGHT_BROWSERS_PATH: AutomationService.getBrowserPath()
                     }
                 });
+            } catch (error) {
+                // If the process was terminated early (e.g., user closed the browser),
+                // we consider this a normal case
+                console.log('Codegen process ended:', error instanceof Error ? error.message : 'Unknown error');
+            }
 
-                let output = '';
-                this.currentProcess.stdout?.on('data', (data: Buffer) => {
-                    const message = data.toString();
-                    console.log('Codegen output:', message);
-                    output += message;
-                });
+            // Check if any code was generated
+            if (fs.existsSync(options.outputPath)) {
+                const content = fs.readFileSync(options.outputPath, 'utf8');
+                if (content.trim()) {
+                    return { success: true };
+                }
+            }
 
-                this.currentProcess.stderr?.on('data', (data: Buffer) => {
-                    const message = data.toString();
-                    console.error('Codegen error:', message);
-                });
-
-                this.currentProcess.on('error', (error: Error) => {
-                    console.error('Failed to start codegen process:', error);
-                    this.cleanup(outputFile, userDataDir);
-                    reject(error);
-                });
-
-                this.currentProcess.on('close', (code: number) => {
-                    console.log('Codegen process closed with code:', code);
-                    if (code === 0) {
-                        try {
-                            if (fs.existsSync(outputFile)) {
-                                let generatedCode = fs.readFileSync(outputFile, 'utf8');
-                                // Convert role-based selectors to CSS selectors
-                                generatedCode = this.convertToSelectors(generatedCode);
-                                // Clean up temporary files
-                                this.cleanup(outputFile, userDataDir);
-                                resolve(generatedCode);
-                            } else {
-                                this.cleanup(outputFile, userDataDir);
-                                reject(new Error('Output file not found'));
-                            }
-                        } catch (error) {
-                            console.error('Failed to read generated code:', error);
-                            this.cleanup(outputFile, userDataDir);
-                            reject(new Error('Failed to read generated code'));
-                        }
-                    } else {
-                        this.cleanup(outputFile, userDataDir);
-                        reject(new Error(`Codegen process exited with code ${code}`));
-                    }
-                });
-            });
-            
+            // If we reach here, no code was generated (normal case when user just opens and closes)
+            return { success: true };
         } catch (error) {
-            console.error('Failed to start codegen recording:', error);
-            throw error;
+            console.error('Failed to start recording:', error);
+            throw new Error('Failed to start recording: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            // Cleanup any temporary files
+            try {
+                if (fs.existsSync(options.outputPath)) {
+                    fs.unlinkSync(options.outputPath);
+                }
+            } catch (cleanupError) {
+                console.error('Error cleaning up temporary files:', cleanupError);
+            }
         }
     }
 
