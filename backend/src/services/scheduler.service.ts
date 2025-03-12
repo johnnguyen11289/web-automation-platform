@@ -72,6 +72,10 @@ export class TaskSchedulerService {
 
     console.log('Task schedule configuration:', JSON.stringify(schedule, null, 2));
 
+    // If this is a reschedule and the task has run before, use lastRun to calculate next run
+    const lastRun = task.lastRun ? new Date(task.lastRun) : null;
+    console.log('Last run time:', lastRun?.toISOString() || 'Never run');
+
     switch (schedule.type) {
       case 'once':
         console.log('Processing one-time schedule...');
@@ -82,7 +86,9 @@ export class TaskSchedulerService {
 
       case 'daily':
         console.log('Processing daily schedule...');
-        nextRun = this.calculateNextDailyRun(schedule.time);
+        nextRun = lastRun ? 
+          this.calculateNextDailyRunFromLast(schedule.time, lastRun) :
+          this.calculateNextDailyRun(schedule.time);
         await this.addToQueue(task, nextRun, {
           repeat: {
             pattern: `0 ${schedule.time.split(':')[1]} ${schedule.time.split(':')[0]} * * *`,
@@ -96,7 +102,9 @@ export class TaskSchedulerService {
           throw new Error('Weekly schedule requires daysOfWeek');
         }
         console.log('Processing weekly schedule...');
-        nextRun = this.calculateNextWeeklyRun(schedule.time, schedule.daysOfWeek);
+        nextRun = lastRun ?
+          this.calculateNextWeeklyRunFromLast(schedule.time, schedule.daysOfWeek, lastRun) :
+          this.calculateNextWeeklyRun(schedule.time, schedule.daysOfWeek);
         await this.addToQueue(task, nextRun, {
           repeat: {
             pattern: this.createWeeklyCronPattern(schedule.time, schedule.daysOfWeek),
@@ -110,7 +118,9 @@ export class TaskSchedulerService {
           throw new Error('Monthly schedule requires daysOfMonth');
         }
         console.log('Processing monthly schedule...');
-        nextRun = this.calculateNextMonthlyRun(schedule.time, schedule.daysOfMonth);
+        nextRun = lastRun ?
+          this.calculateNextMonthlyRunFromLast(schedule.time, schedule.daysOfMonth, lastRun) :
+          this.calculateNextMonthlyRun(schedule.time, schedule.daysOfMonth);
         await this.addToQueue(task, nextRun, {
           repeat: {
             pattern: this.createMonthlyCronPattern(schedule.time, schedule.daysOfMonth),
@@ -179,6 +189,22 @@ export class TaskSchedulerService {
     return next;
   }
 
+  private calculateNextDailyRunFromLast(time: string, lastRun: Date): Date {
+    console.log('Calculating next daily run from last run:', { time, lastRun: lastRun.toISOString() });
+    const [hours, minutes] = time.split(':').map(Number);
+    const next = new Date(lastRun);
+    next.setDate(next.getDate() + 1);
+    next.setHours(hours, minutes, 0, 0);
+    
+    // If the calculated time is still in the past, add another day
+    if (next <= new Date()) {
+      next.setDate(next.getDate() + 1);
+    }
+    
+    console.log('Next daily run calculated from last run:', next.toISOString());
+    return next;
+  }
+
   private calculateNextWeeklyRun(time: string, daysOfWeek: number[]): Date {
     console.log('Calculating next weekly run:', { time, daysOfWeek });
     const [hours, minutes] = time.split(':').map(Number);
@@ -204,6 +230,39 @@ export class TaskSchedulerService {
     return next;
   }
 
+  private calculateNextWeeklyRunFromLast(time: string, daysOfWeek: number[], lastRun: Date): Date {
+    console.log('Calculating next weekly run from last run:', { time, daysOfWeek, lastRun: lastRun.toISOString() });
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = new Date();
+    const next = new Date(lastRun);
+    
+    // Sort days to ensure we find the next occurrence
+    const sortedDays = [...daysOfWeek].sort((a, b) => a - b);
+    
+    // Find the next day of week after the last run
+    const lastRunDay = lastRun.getDay();
+    const nextDay = sortedDays.find(day => day > lastRunDay) ?? sortedDays[0];
+    const daysToAdd = nextDay > lastRunDay ? nextDay - lastRunDay : 7 - lastRunDay + nextDay;
+    
+    next.setDate(next.getDate() + daysToAdd);
+    next.setHours(hours, minutes, 0, 0);
+    
+    // If the calculated time is still in the past, find the next occurrence
+    if (next <= now) {
+      const currentDay = now.getDay();
+      const nextFutureDay = sortedDays.find(day => day > currentDay) ?? sortedDays[0];
+      const daysToAddFromNow = nextFutureDay > currentDay ? 
+        nextFutureDay - currentDay : 
+        7 - currentDay + nextFutureDay;
+      
+      next.setDate(now.getDate() + daysToAddFromNow);
+      next.setHours(hours, minutes, 0, 0);
+    }
+    
+    console.log('Next weekly run calculated from last run:', next.toISOString());
+    return next;
+  }
+
   private calculateNextMonthlyRun(time: string, daysOfMonth: number[]): Date {
     console.log('Calculating next monthly run:', { time, daysOfMonth });
     const [hours, minutes] = time.split(':').map(Number);
@@ -224,6 +283,34 @@ export class TaskSchedulerService {
     );
     
     console.log('Next monthly run calculated:', next.toISOString());
+    return next;
+  }
+
+  private calculateNextMonthlyRunFromLast(time: string, daysOfMonth: number[], lastRun: Date): Date {
+    console.log('Calculating next monthly run from last run:', { time, daysOfMonth, lastRun: lastRun.toISOString() });
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = new Date();
+    const next = new Date(lastRun);
+    
+    // Sort days to ensure we find the next occurrence
+    const sortedDays = [...daysOfMonth].sort((a, b) => a - b);
+    
+    // Move to next month
+    next.setMonth(next.getMonth() + 1);
+    
+    // Find the next valid day in the new month
+    const nextDay = sortedDays[0]; // Start with the first allowed day
+    next.setDate(nextDay);
+    next.setHours(hours, minutes, 0, 0);
+    
+    // If the calculated time is still in the past, move to the next month
+    if (next <= now) {
+      next.setMonth(next.getMonth() + 1);
+      next.setDate(nextDay);
+      next.setHours(hours, minutes, 0, 0);
+    }
+    
+    console.log('Next monthly run calculated from last run:', next.toISOString());
     return next;
   }
 
