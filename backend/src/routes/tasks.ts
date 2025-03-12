@@ -1,8 +1,10 @@
 import express from 'express';
 import Task, { ITask } from '../models/Task';
 import { TaskFormData } from '../types/task.types';
+import { TaskSchedulerService } from '../services/scheduler.service';
 
 const router = express.Router();
+const taskSchedulerService = TaskSchedulerService.getInstance();
 
 // Get all tasks
 router.get('/', async (req, res) => {
@@ -18,9 +20,25 @@ router.get('/', async (req, res) => {
 // Create a new task
 router.post('/', async (req, res) => {
   try {
+    console.log('Creating new task with data:', JSON.stringify(req.body, null, 2));
     const taskData: TaskFormData = req.body;
     const task = new Task(taskData);
     const savedTask = await task.save();
+
+    // Schedule task if it has schedule configuration
+    if (savedTask.schedule) {
+      console.log('Task has schedule configuration:', JSON.stringify(savedTask.schedule, null, 2));
+      try {
+        await taskSchedulerService.scheduleTask(savedTask);
+        console.log('Task scheduled successfully');
+      } catch (scheduleError) {
+        console.error('Error scheduling task:', scheduleError);
+        // Don't fail the request if scheduling fails
+      }
+    } else {
+      console.log('Task has no schedule configuration');
+    }
+
     res.status(201).json(savedTask);
   } catch (error) {
     console.error('Error creating task:', error);
@@ -31,6 +49,7 @@ router.post('/', async (req, res) => {
 // Update a task
 router.put('/:id', async (req, res) => {
   try {
+    console.log('Updating task with data:', JSON.stringify(req.body, null, 2));
     const taskData: Partial<TaskFormData> = req.body;
     const updatedTask = await Task.findByIdAndUpdate(
       req.params.id,
@@ -40,6 +59,21 @@ router.put('/:id', async (req, res) => {
     if (!updatedTask) {
       return res.status(404).json({ message: 'Task not found' });
     }
+
+    // Re-schedule task if it has schedule configuration
+    if (updatedTask.schedule) {
+      console.log('Updated task has schedule configuration:', JSON.stringify(updatedTask.schedule, null, 2));
+      try {
+        await taskSchedulerService.scheduleTask(updatedTask);
+        console.log('Task re-scheduled successfully');
+      } catch (scheduleError) {
+        console.error('Error re-scheduling task:', scheduleError);
+        // Don't fail the request if scheduling fails
+      }
+    } else {
+      console.log('Updated task has no schedule configuration');
+    }
+
     res.json(updatedTask);
   } catch (error) {
     console.error('Error updating task:', error);
@@ -50,10 +84,25 @@ router.put('/:id', async (req, res) => {
 // Delete a task
 router.delete('/:id', async (req, res) => {
   try {
-    const deletedTask = await Task.findByIdAndDelete(req.params.id);
+    const taskId = req.params.id;
+    console.log(`Deleting task ${taskId}...`);
+
+    // First try to remove from scheduler
+    try {
+      await taskSchedulerService.removeScheduledTask(taskId);
+      console.log('Task removed from scheduler');
+    } catch (scheduleError) {
+      console.error('Error removing task from scheduler:', scheduleError);
+      // Continue with deletion even if scheduler removal fails
+    }
+
+    // Then delete from database
+    const deletedTask = await Task.findByIdAndDelete(taskId);
     if (!deletedTask) {
       return res.status(404).json({ message: 'Task not found' });
     }
+
+    console.log(`Task ${taskId} deleted successfully`);
     res.json({ message: 'Task deleted successfully' });
   } catch (error) {
     console.error('Error deleting task:', error);

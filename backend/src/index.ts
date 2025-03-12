@@ -3,7 +3,9 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { Queue, Worker } from 'bullmq';
-import { AutomationService, AutomationAction } from './services/automation.service';
+import { AutomationService } from './services/automation.service';
+import { TaskSchedulerService } from './services/scheduler.service';
+import { SchedulerWorker } from './services/scheduler.worker';
 import { connectDB } from './config/database';
 import app from './app';
 
@@ -12,6 +14,8 @@ dotenv.config();
 
 const PORT = process.env.BACKEND_PORT || 5000;
 const automationService = AutomationService.getInstance();
+const taskSchedulerService = TaskSchedulerService.getInstance();
+const schedulerWorker = SchedulerWorker.getInstance();
 
 // Middleware
 app.use(cors());
@@ -91,8 +95,8 @@ app.get('/', (_req: Request, res: Response) => {
     message: 'Web Automation Platform API',
     status: {
       mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      taskQueue: taskQueue ? 'initialized' : 'disabled',
-      worker: worker ? 'running' : 'disabled'
+      taskScheduler: 'running',
+      schedulerWorker: 'running'
     }
   });
 });
@@ -163,6 +167,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 // Cleanup on server shutdown
 process.on('SIGTERM', async () => {
   await automationService.close();
+  await schedulerWorker.close();
   if (worker) await worker.close();
   if (taskQueue) await taskQueue.close();
   process.exit(0);
