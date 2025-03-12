@@ -489,8 +489,8 @@ function App() {
             <Tab label="Workflows" />
             <Tab label="Tasks" />
             <Tab label="Execution" />
-            <Tab label="History" />
             <Tab label="Profiles" />
+            <Tab label="History" />
           </Tabs>
         </Box>
 
@@ -558,20 +558,20 @@ function App() {
           </TabPanel>
 
           <TabPanel value={currentTab} index={3}>
-            <TaskHistory
-              executions={taskHistory}
-              onRefresh={() => {}}
-              onExportLogs={() => {}}
-            />
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={4}>
             <BrowserProfileManager
               profiles={browserProfiles}
               onAdd={handleProfileAdd}
               onEdit={handleProfileEdit}
               onDelete={handleProfileDelete}
               onDuplicate={handleProfileDuplicate}
+            />
+          </TabPanel>
+
+          <TabPanel value={currentTab} index={4}>
+            <TaskHistory
+              executions={taskHistory}
+              onRefresh={() => {}}
+              onExportLogs={() => {}}
             />
           </TabPanel>
         </Box>
