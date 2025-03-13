@@ -159,6 +159,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       setIsDraggingNode(false);
       setDraggedNode(null);
       setConnectingNode(null);
+      setTempConnection(null);
     }
   };
 
@@ -191,6 +192,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       return;
     }
     
+    // Clear any existing connection state when starting to drag
+    setConnectingNode(null);
+    setTempConnection(null);
     setIsDraggingNode(true);
     setDraggedNode(node);
     setLastClickTime(currentTime); // Update last click time
@@ -211,6 +215,12 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
 
   const handleNodeMouseMove = (e: React.MouseEvent) => {
     if (!isDraggingNode || !draggedNode) return;
+
+    // Clear any temporary connection while dragging
+    if (connectingNode) {
+      setConnectingNode(null);
+      setTempConnection(null);
+    }
 
     // Calculate the new position in canvas coordinates
     const newX = (e.clientX - dragOffset.x) / scale - offset.x;
@@ -234,18 +244,26 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   };
 
   const handleNodeMouseUp = (e: React.MouseEvent, targetNode: WorkflowNode) => {
-    if (connectingNode && connectingNode.id !== targetNode.id) {
-      // Create connection
-      setNodes(prev => prev.map(node => {
-        if (node.id === connectingNode.id) {
-          return {
-            ...node,
-            connections: [...node.connections, targetNode.id]
-          };
-        }
-        return node;
-      }));
+    // Only create connection if we're in connection mode and not dragging
+    if (connectingNode && connectingNode.id !== targetNode.id && !isDraggingNode) {
+      // Check if connection already exists
+      const connectionExists = connectingNode.connections.includes(targetNode.id);
+      
+      if (!connectionExists) {
+        // Create connection
+        setNodes(prev => prev.map(node => {
+          if (node.id === connectingNode.id) {
+            return {
+              ...node,
+              connections: [...node.connections, targetNode.id]
+            };
+          }
+          return node;
+        }));
+      }
     }
+    
+    // Clear all states
     setConnectingNode(null);
     setTempConnection(null);
     setIsDraggingNode(false);
@@ -567,12 +585,20 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       return { x: px, y: py };
     };
 
+    // Create a Set to track unique connections
+    const uniqueConnections = new Set<string>();
+
     return (
       <>
         {nodes.map(node => 
           node.connections.map(targetId => {
             const targetNode = nodes.find(n => n.id === targetId);
             if (!targetNode) return null;
+
+            // Create a unique key for this connection
+            const connectionKey = [node.id, targetId].sort().join('-');
+            if (uniqueConnections.has(connectionKey)) return null;
+            uniqueConnections.add(connectionKey);
 
             // Calculate center points of the nodes
             const sourceX = node.position.x + 60;
@@ -592,7 +618,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
 
             return (
               <svg
-                key={`${node.id}-${targetId}`}
+                key={connectionKey}
                 className="connection-line"
                 style={{
                   position: 'absolute',
