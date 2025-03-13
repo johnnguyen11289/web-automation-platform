@@ -489,7 +489,7 @@ class ExecutionService {
     try {
       // Apply browser profile settings - convert Mongoose document to plain object
       const plainProfile = profile.toObject() as any;
-      console.log('Preparing to apply browser profile:', {
+      console.log('Applying browser profile:', {
         name: plainProfile.name,
         id: plainProfile._id.toString(),
         executionId: (execution._id as Types.ObjectId).toString(),
@@ -497,10 +497,11 @@ class ExecutionService {
         nodeType: step.nodeType
       });
 
+      // Only apply profile settings without opening for manual setup
       await this.automationService.applyProfile({
         ...plainProfile,
-        _id: plainProfile._id.toString(), // Convert _id to id
-        name: plainProfile.name // Ensure name is included
+        _id: plainProfile._id.toString(),
+        name: plainProfile.name
       });
 
       // Execute the automation using the target URL from node properties or a default URL

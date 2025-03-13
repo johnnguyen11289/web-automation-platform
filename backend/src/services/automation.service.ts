@@ -47,7 +47,6 @@ export class AutomationService {
       this.currentProfile = profile;
       this.automation = this.getAutomationLibrary(profile);
       await this.initialize();
-      await this.openProfileForSetup(profile);
     } catch (error) {
       console.error('Failed to apply profile:', error);
       throw error;
