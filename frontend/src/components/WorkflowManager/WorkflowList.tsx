@@ -6,7 +6,8 @@ import { Workflow } from '../../services/api';
 interface WorkflowListProps {
   workflows: Workflow[];
   onEdit: (workflow: Workflow) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
+  onCreateNew: () => void;
   onExecute: (workflow: Workflow) => void;
 }
 
@@ -14,6 +15,7 @@ const WorkflowList: React.FC<WorkflowListProps> = ({
   workflows,
   onEdit,
   onDelete,
+  onCreateNew,
   onExecute,
 }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

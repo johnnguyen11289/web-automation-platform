@@ -43,14 +43,14 @@ import { SelectChangeEvent } from '@mui/material/Select';
 interface WorkflowProfileMatrixProps {
   workflows: Workflow[];
   profiles: BrowserProfile[];
-  onTaskCreate: (task: TaskFormData) => void;
-  onTaskExecute: (workflowId: string, profileId: string) => void;
+  onTaskCreate: (task: TaskFormData) => Promise<void>;
+  onTaskExecute: (workflowId: string, profileId: string) => Promise<void>;
 }
 
 interface TaskFormDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (task: TaskFormData) => void;
+  onSubmit: (task: TaskFormData) => Promise<void>;
   workflow: Workflow;
   profile: BrowserProfile;
 }
@@ -73,7 +73,7 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
     parallelExecution: false,
     schedule: {
       type: 'once',
-      startDate: new Date(),
+      startDate: new Date().toISOString(),
       time: '00:00',
     },
   });
@@ -147,20 +147,8 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
     }));
   };
 
-  const handleSubmit = () => {
-    const submissionData: TaskFormData = {
-      ...formData,
-      schedule: {
-        ...formData.schedule,
-        startDate: formData.schedule.startDate instanceof Date 
-          ? formData.schedule.startDate.toISOString() 
-          : formData.schedule.startDate,
-        endDate: formData.schedule.endDate instanceof Date 
-          ? formData.schedule.endDate.toISOString() 
-          : formData.schedule.endDate,
-      },
-    };
-    onSubmit(submissionData);
+  const handleSubmit = async () => {
+    await onSubmit(formData);
     onClose();
   };
 
@@ -369,6 +357,14 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
     setSelectedProfile(null);
   };
 
+  const handleTaskCreate = async (task: TaskFormData) => {
+    await onTaskCreate(task);
+  };
+
+  const handleTaskExecute = async (workflowId: string, profileId: string) => {
+    await onTaskExecute(workflowId, profileId);
+  };
+
   if (workflows.length === 0 || profiles.length === 0) {
     return (
       <Box sx={{ p: 2 }}>
@@ -458,12 +454,6 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
                           size="small"
                           onClick={() => handleOpenDialog(workflow, profile)}
                           color="primary"
-                          sx={{
-                            '&:hover': {
-                              backgroundColor: 'primary.light',
-                              color: 'white',
-                            },
-                          }}
                         >
                           <AddIcon />
                         </IconButton>
@@ -471,14 +461,8 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
                       <Tooltip title="Execute Now">
                         <IconButton
                           size="small"
-                          onClick={() => onTaskExecute(workflow._id, profile._id)}
+                          onClick={() => handleTaskExecute(workflow._id, profile._id)}
                           color="success"
-                          sx={{
-                            '&:hover': {
-                              backgroundColor: 'success.light',
-                              color: 'white',
-                            },
-                          }}
                         >
                           <PlayIcon />
                         </IconButton>
@@ -496,7 +480,7 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
         <TaskFormDialog
           open={openDialog}
           onClose={handleCloseDialog}
-          onSubmit={onTaskCreate}
+          onSubmit={handleTaskCreate}
           workflow={selectedWorkflow}
           profile={selectedProfile}
         />

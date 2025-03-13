@@ -15,18 +15,15 @@ interface WorkflowNode {
 }
 
 interface WorkflowCanvasProps {
-  onSave?: (workflow: {
-    nodes: WorkflowNode[];
-    name: string;
-    description?: string;
-  }) => Promise<boolean>;
+  workflow: Workflow | null;
+  onSave: (workflow: { nodes: any[]; name: string; description?: string }) => Promise<boolean>;
   initialWorkflow?: Workflow | null;
   onCreateNew?: () => void;
   onStartRecording?: () => void;
   isRecording?: boolean;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow, onCreateNew, onStartRecording, isRecording = false }) => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initialWorkflow, onCreateNew, onStartRecording, isRecording = false }) => {
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [isEditing, setIsEditing] = useState(false);

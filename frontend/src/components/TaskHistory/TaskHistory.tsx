@@ -24,6 +24,7 @@ import {
   Refresh,
   Download,
 } from '@mui/icons-material';
+import { Execution, ExecutionStatus } from '../../types/execution.types';
 
 interface TaskLog {
   timestamp: string;
@@ -42,32 +43,34 @@ interface TaskExecution {
 }
 
 interface TaskHistoryProps {
-  executions: TaskExecution[];
-  onRefresh: () => void;
+  executions: Execution[];
+  onRefresh: () => Promise<void>;
   onExportLogs: (taskId: string) => void;
 }
 
-const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) => void }> = ({
-  execution,
-  onExportLogs,
-}) => {
+interface RowProps {
+  execution: Execution;
+  onExportLogs: (taskId: string) => void;
+}
+
+const Row: React.FC<RowProps> = ({ execution, onExportLogs }) => {
   const [open, setOpen] = useState(false);
   const [showFullLogs, setShowFullLogs] = useState(false);
 
-  const getStatusColor = (status: TaskExecution['status']) => {
+  const getStatusColor = (status: ExecutionStatus) => {
     switch (status) {
       case 'completed':
         return 'success';
       case 'failed':
         return 'error';
-      case 'cancelled':
+      case 'stopped':
         return 'warning';
       default:
         return 'default';
     }
   };
 
-  const getLogColor = (level: TaskLog['level']) => {
+  const getLogColor = (level: 'info' | 'error' | 'warning') => {
     switch (level) {
       case 'error':
         return '#f44336';
@@ -78,6 +81,10 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
     }
   };
 
+  const duration = execution.endTime 
+    ? new Date(execution.endTime).getTime() - new Date(execution.startTime).getTime()
+    : null;
+
   return (
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
@@ -87,7 +94,7 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
           </IconButton>
         </TableCell>
         <TableCell component="th" scope="row">
-          {execution.workflowName}
+          {execution.workflowId}
         </TableCell>
         <TableCell>
           <Chip
@@ -97,9 +104,9 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
           />
         </TableCell>
         <TableCell>{new Date(execution.startTime).toLocaleString()}</TableCell>
-        <TableCell>{execution.duration}</TableCell>
+        <TableCell>{duration ? `${Math.round(duration / 1000)}s` : 'N/A'}</TableCell>
         <TableCell>
-          <IconButton size="small" onClick={() => onExportLogs(execution.id)}>
+          <IconButton size="small" onClick={() => onExportLogs(execution._id)}>
             <Download />
           </IconButton>
         </TableCell>
@@ -128,17 +135,17 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
                   p: 1,
                 }}
               >
-                {execution.logs.slice(0, 5).map((log, index) => (
+                {execution.errorLogs.slice(0, 5).map((log: string, index: number) => (
                   <Box
                     key={index}
-                    sx={{ color: getLogColor(log.level), whiteSpace: 'pre-wrap' }}
+                    sx={{ color: getLogColor('error'), whiteSpace: 'pre-wrap' }}
                   >
-                    [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
+                    {log}
                   </Box>
                 ))}
-                {execution.logs.length > 5 && !showFullLogs && (
+                {execution.errorLogs.length > 5 && !showFullLogs && (
                   <Box sx={{ mt: 1, color: 'text.secondary' }}>
-                    ... and {execution.logs.length - 5} more entries
+                    ... and {execution.errorLogs.length - 5} more entries
                   </Box>
                 )}
               </Box>
@@ -153,7 +160,7 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Full Logs - {execution.workflowName}</DialogTitle>
+        <DialogTitle>Full Logs - {execution.workflowId}</DialogTitle>
         <DialogContent>
           <Box
             sx={{
@@ -165,12 +172,12 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
               p: 2,
             }}
           >
-            {execution.logs.map((log, index) => (
+            {execution.errorLogs.map((log: string, index: number) => (
               <Box
                 key={index}
-                sx={{ color: getLogColor(log.level), whiteSpace: 'pre-wrap' }}
+                sx={{ color: getLogColor('error'), whiteSpace: 'pre-wrap' }}
               >
-                [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
+                {log}
               </Box>
             ))}
           </Box>
@@ -178,7 +185,7 @@ const Row: React.FC<{ execution: TaskExecution; onExportLogs: (taskId: string) =
         <DialogActions>
           <Button onClick={() => setShowFullLogs(false)}>Close</Button>
           <Button
-            onClick={() => onExportLogs(execution.id)}
+            onClick={() => onExportLogs(execution._id)}
             startIcon={<Download />}
           >
             Export Logs
@@ -219,7 +226,7 @@ const TaskHistory: React.FC<TaskHistoryProps> = ({
             <TableBody>
               {executions.map((execution) => (
                 <Row
-                  key={execution.id}
+                  key={execution._id}
                   execution={execution}
                   onExportLogs={onExportLogs}
                 />

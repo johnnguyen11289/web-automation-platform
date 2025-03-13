@@ -10,6 +10,7 @@ import {
   Container,
   Snackbar,
   Alert,
+  Button,
 } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import WorkflowList from './components/WorkflowManager/WorkflowList';
@@ -26,15 +27,96 @@ import { Execution, ExecutionStats } from './types/execution.types';
 import { Task, TaskFormData } from './types/task.types';
 import WorkflowProfileMatrix from './components/WorkflowProfileMatrix/WorkflowProfileMatrix';
 import ProfileSelectionDialog from './components/ProfileSelectionDialog';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#1976d2',
+      main: '#2196f3',
+      light: '#64b5f6',
+      dark: '#1976d2',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#f50057',
+      light: '#ff4081',
+      dark: '#c51162',
+      contrastText: '#ffffff',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: 'rgba(0, 0, 0, 0.87)',
+      secondary: 'rgba(0, 0, 0, 0.54)',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h6: {
+      fontWeight: 600,
+    },
+    subtitle1: {
+      fontWeight: 500,
+    },
+    subtitle2: {
+      fontWeight: 500,
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
+    },
+  },
+  shape: {
+    borderRadius: 8,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          padding: '8px 16px',
+        },
+        contained: {
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
+    },
+    MuiAccordion: {
+      styleOverrides: {
+        root: {
+          '&:before': {
+            display: 'none',
+          },
+        },
+      },
     },
   },
 });
@@ -370,6 +452,7 @@ function App() {
         message: 'Task created successfully',
         severity: 'success'
       });
+      return newTask;
     } catch (error) {
       console.error('Failed to create task:', error);
       setSnackbar({
@@ -377,6 +460,7 @@ function App() {
         message: 'Failed to create task',
         severity: 'error'
       });
+      return null;
     }
   };
 
@@ -563,66 +647,127 @@ function App() {
 
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <CssBaseline />
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" component="div">
+      <CssBaseline />
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <AppBar position="static" color="default" elevation={0}>
+          <Toolbar sx={{ px: 3, py: 1 }}>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                flexGrow: 1,
+                fontWeight: 700,
+                color: theme.palette.primary.main,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <Box component="span" sx={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 1, 
+                bgcolor: theme.palette.primary.main,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '1.2rem',
+                fontWeight: 700,
+              }}>
+                W
+              </Box>
               Web Automation Platform
             </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleStartRecording}
+                disabled={isRecording}
+                startIcon={<PlayArrowIcon />}
+              >
+                {isRecording ? 'Recording...' : 'Record New Workflow'}
+              </Button>
+            </Box>
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={currentTab} onChange={handleTabChange}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Tabs
+            value={currentTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              px: 2,
+              '& .MuiTabs-indicator': {
+                height: 3,
+                borderRadius: '3px 3px 0 0',
+              },
+            }}
+          >
             <Tab label="Workflows" />
             <Tab label="Tasks" />
-            <Tab label="Execution" />
-            <Tab label="Profiles" />
+            <Tab label="Executions" />
             <Tab label="History" />
+            <Tab label="Profiles" />
+            <Tab label="Matrix" />
           </Tabs>
-        </Box>
 
-        <Box sx={{ flex: 1, overflow: 'hidden' }}>
-          <TabPanel value={currentTab} index={0}>
-            <Box sx={{ display: 'flex', gap: 2, height: '100%' }}>
-              <Box sx={{ width: '300px', overflow: 'auto' }}>
-                <WorkflowList
-                  workflows={workflows}
-                  onEdit={handleWorkflowEdit}
-                  onDelete={handleWorkflowDelete}
-                  onExecute={() => {}}
-                />
-              </Box>
-              <Box sx={{ flex: 1, height: '100%', display: 'flex' }}>
-                <Box sx={{ width: '200px', borderRight: 1, borderColor: 'divider' }}>
-                  <NodePalette />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <WorkflowCanvas 
-                    onSave={handleWorkflowSave}
-                    initialWorkflow={editingWorkflow}
+          <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            <TabPanel value={currentTab} index={0}>
+              <Box sx={{ display: 'flex', gap: 2, height: '100%' }}>
+                <Box sx={{ width: 300, flexShrink: 0 }}>
+                  <WorkflowList
+                    workflows={workflows}
+                    onEdit={handleWorkflowEdit}
+                    onDelete={handleWorkflowDelete}
                     onCreateNew={handleCreateNew}
-                    onStartRecording={handleStartRecording}
-                    isRecording={isRecording}
+                    onExecute={async (workflow) => {
+                      const taskData: TaskFormData = {
+                        workflowId: workflow._id,
+                        profileId: browserProfiles[0]?._id || '',
+                        name: `Task ${tasks.length + 1}`,
+                        description: '',
+                        priority: 'medium',
+                        schedule: {
+                          type: 'once',
+                          startDate: new Date().toISOString(),
+                          time: new Date().toLocaleTimeString('en-US', { hour12: false })
+                        },
+                        maxRetries: 3,
+                        timeout: 30000,
+                        parallelExecution: false,
+                      };
+                      const newTask = await handleTaskAdd(taskData);
+                      if (newTask && '_id' in newTask) {
+                        await handleTaskStart(newTask._id);
+                      }
+                    }}
                   />
                 </Box>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <WorkflowCanvas
+                    workflow={editingWorkflow}
+                    initialWorkflow={editingWorkflow}
+                    onSave={handleWorkflowSave}
+                    key={editingWorkflow?._id || 'new-workflow'}
+                  />
+                </Box>
+                <Box sx={{ width: 250, flexShrink: 0 }}>
+                  <NodePalette />
+                </Box>
               </Box>
-            </Box>
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={1}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <WorkflowProfileMatrix
-                workflows={workflows}
-                profiles={browserProfiles}
-                onTaskCreate={handleTaskAdd}
-                onTaskExecute={(workflowId, profileId) => handleExecutionStart(workflowId, profileId, false)}
-              />
+            </TabPanel>
+            <TabPanel value={currentTab} index={1}>
               <TaskManager
+                tasks={tasks}
                 workflows={workflows}
                 profiles={browserProfiles}
-                tasks={tasks}
                 onAdd={handleTaskAdd}
                 onEdit={handleTaskEdit}
                 onDelete={handleTaskDelete}
@@ -631,57 +776,86 @@ function App() {
                 onStop={handleTaskStop}
                 onRefresh={loadTasks}
               />
-            </Box>
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={2}>
-            <ExecutionPanel
-              executions={executions}
-              stats={executionStats}
-              onStart={handleExecutionStart}
-              onPause={handleExecutionPause}
-              onResume={handleExecutionResume}
-              onStop={handleExecutionStop}
-              onRefresh={loadExecutions}
-            />
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={3}>
-            <BrowserProfileManager
-              profiles={browserProfiles}
-              onAdd={handleProfileAdd}
-              onEdit={handleProfileEdit}
-              onDelete={handleProfileDelete}
-              onDuplicate={handleProfileDuplicate}
-            />
-          </TabPanel>
-
-          <TabPanel value={currentTab} index={4}>
-            <TaskHistory
-              executions={taskHistory}
-              onRefresh={() => {}}
-              onExportLogs={() => {}}
-            />
-          </TabPanel>
+            </TabPanel>
+            <TabPanel value={currentTab} index={2}>
+              <ExecutionPanel
+                executions={executions}
+                stats={executionStats}
+                onStart={handleExecutionStart}
+                onPause={handleExecutionPause}
+                onResume={handleExecutionResume}
+                onStop={handleExecutionStop}
+                onRefresh={loadExecutions}
+              />
+            </TabPanel>
+            <TabPanel value={currentTab} index={3}>
+              <TaskHistory
+                executions={executions}
+                onRefresh={loadExecutions}
+                onExportLogs={async (taskId) => {
+                  // Implement export logs functionality
+                  console.log('Exporting logs for task:', taskId);
+                }}
+              />
+            </TabPanel>
+            <TabPanel value={currentTab} index={4}>
+              <BrowserProfileManager
+                profiles={browserProfiles}
+                onAdd={handleProfileAdd}
+                onEdit={handleProfileEdit}
+                onDelete={handleProfileDelete}
+                onDuplicate={handleProfileDuplicate}
+              />
+            </TabPanel>
+            <TabPanel value={currentTab} index={5}>
+              <WorkflowProfileMatrix
+                workflows={workflows}
+                profiles={browserProfiles}
+                onTaskCreate={async (task: TaskFormData) => {
+                  await handleTaskAdd(task);
+                }}
+                onTaskExecute={async (workflowId: string, profileId: string) => {
+                  const taskData: TaskFormData = {
+                    workflowId,
+                    profileId,
+                    name: `Task ${tasks.length + 1}`,
+                    description: '',
+                    priority: 'medium',
+                    schedule: {
+                      type: 'once',
+                      startDate: new Date().toISOString(),
+                      time: new Date().toLocaleTimeString('en-US', { hour12: false })
+                    },
+                    maxRetries: 3,
+                    timeout: 30000,
+                    parallelExecution: false,
+                  };
+                  const newTask = await handleTaskAdd(taskData);
+                  if (newTask && '_id' in newTask) {
+                    await handleTaskStart(newTask._id);
+                  }
+                }}
+              />
+            </TabPanel>
+          </Box>
         </Box>
 
         <ProfileSelectionDialog
           open={isProfileDialogOpen}
           onClose={() => setIsProfileDialogOpen(false)}
-          profiles={browserProfiles}
           onSelect={handleProfileSelect}
+          profiles={browserProfiles}
         />
 
-        <Snackbar 
-          open={snackbar.open} 
-          autoHideDuration={6000} 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         >
-          <Alert 
-            onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
             severity={snackbar.severity}
-            variant="filled"
             sx={{ width: '100%' }}
           >
             {snackbar.message}

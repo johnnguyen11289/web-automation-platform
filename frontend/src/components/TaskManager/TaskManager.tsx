@@ -47,16 +47,16 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { SelectChangeEvent } from '@mui/material/Select';
 
 interface TaskManagerProps {
+  tasks: Task[];
   workflows: Workflow[];
   profiles: BrowserProfile[];
-  tasks: Task[];
-  onAdd: (task: TaskFormData) => void;
-  onEdit: (id: string, task: TaskFormData) => void;
-  onDelete: (id: string) => void;
-  onStart: (id: string) => void;
-  onPause: (id: string) => void;
-  onStop: (id: string) => void;
-  onRefresh: () => void;
+  onAdd: (task: TaskFormData) => Promise<void>;
+  onEdit: (id: string, task: TaskFormData) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onStart: (id: string) => Promise<void>;
+  onPause: (id: string) => Promise<void>;
+  onStop: (id: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 const getStatusColor = (status: TaskStatus) => {

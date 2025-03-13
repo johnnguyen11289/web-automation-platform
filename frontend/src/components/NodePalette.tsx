@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
+import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, useTheme } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {
   Language as OpenUrlIcon,
@@ -88,6 +88,7 @@ const nodeGroups = [
 ];
 
 const NodePalette: React.FC = () => {
+  const theme = useTheme();
   const handleDragStart = (e: React.DragEvent, nodeType: string) => {
     e.dataTransfer.setData('nodeType', nodeType);
     e.dataTransfer.effectAllowed = 'move';
@@ -100,12 +101,27 @@ const NodePalette: React.FC = () => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#fafafa'
+        bgcolor: '#fafafa',
+        borderRight: `1px solid ${theme.palette.divider}`,
       }}
     >
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="subtitle1" fontWeight="medium">
-          Nodes
+      <Box 
+        sx={{ 
+          p: 2, 
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          bgcolor: theme.palette.background.paper,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        }}
+      >
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 600,
+            color: theme.palette.text.primary,
+            fontSize: '1.1rem',
+          }}
+        >
+          Node Palette
         </Typography>
       </Box>
       <Box sx={{ 
@@ -124,32 +140,104 @@ const NodePalette: React.FC = () => {
         },
       }}>
         {nodeGroups.map((group) => (
-          <Accordion key={group.name} defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle2" fontWeight="medium">
+          <Accordion 
+            key={group.name} 
+            defaultExpanded
+            sx={{
+              '&:before': {
+                display: 'none',
+              },
+              boxShadow: 'none',
+              border: 'none',
+              '&.MuiAccordion-root': {
+                borderBottom: `1px solid ${theme.palette.divider}`,
+              },
+            }}
+          >
+            <AccordionSummary 
+              expandIcon={<ExpandMoreIcon />}
+              sx={{
+                minHeight: '40px !important',
+                '& .MuiAccordionSummary-content': {
+                  margin: '8px 0',
+                },
+                bgcolor: theme.palette.background.paper,
+                '&:hover': {
+                  bgcolor: theme.palette.action.hover,
+                },
+              }}
+            >
+              <Typography 
+                variant="subtitle2" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: theme.palette.text.primary,
+                  fontSize: '0.9rem',
+                }}
+              >
                 {group.name}
               </Typography>
             </AccordionSummary>
-            <AccordionDetails sx={{ p: 1 }}>
-              {group.nodes.map((node) => {
-                const Icon = node.icon;
-                return (
-                  <div
-                    key={node.type}
-                    className="node-palette-item"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, node.type)}
-                    style={{ backgroundColor: node.color }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Icon sx={{ fontSize: 18, color: 'rgba(0, 0, 0, 0.54)' }} />
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {node.label}
-                      </Typography>
-                    </Box>
-                  </div>
-                );
-              })}
+            <AccordionDetails 
+              sx={{ 
+                p: 1,
+                bgcolor: theme.palette.background.default,
+              }}
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {group.nodes.map((node) => {
+                  const Icon = node.icon;
+                  return (
+                    <div
+                      key={node.type}
+                      className="node-palette-item"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, node.type)}
+                      style={{ 
+                        backgroundColor: node.color,
+                        transition: 'all 0.2s ease',
+                        cursor: 'grab',
+                      }}
+                    >
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          p: 1,
+                          borderRadius: '4px',
+                          '&:hover': {
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          },
+                        }}
+                      >
+                        <Icon 
+                          sx={{ 
+                            fontSize: 18, 
+                            color: 'rgba(0, 0, 0, 0.54)',
+                            transition: 'transform 0.2s ease',
+                            '&:hover': {
+                              transform: 'scale(1.1)',
+                            },
+                          }} 
+                        />
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 500,
+                            color: 'rgba(0, 0, 0, 0.87)',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          {node.label}
+                        </Typography>
+                      </Box>
+                    </div>
+                  );
+                })}
+              </Box>
             </AccordionDetails>
           </Accordion>
         ))}

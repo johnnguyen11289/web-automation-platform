@@ -34,11 +34,11 @@ import { formatDuration } from '../../utils/dateUtils';
 interface ExecutionPanelProps {
   executions: Execution[];
   stats: ExecutionStats;
-  onStart: (workflowId: string, profileId: string, parallel: boolean) => void;
-  onPause: (executionId: string) => void;
-  onResume: (executionId: string) => void;
-  onStop: (executionId: string) => void;
-  onRefresh: () => void;
+  onStart: (workflowId: string, profileId: string, parallel: boolean) => Promise<void>;
+  onPause: (executionId: string) => Promise<void>;
+  onResume: (executionId: string) => Promise<void>;
+  onStop: (executionId: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
 }
 
 const getStatusColor = (status: ExecutionStatus) => {
