@@ -502,14 +502,15 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
         const targetNode = nodes.find(n => n.id === targetId);
         if (!targetNode) return null;
 
-        const startX = node.position.x + 200; // Right edge of source node
-        const startY = node.position.y + 40; // Middle of source node
-        const endX = targetNode.position.x; // Left edge of target node
-        const endY = targetNode.position.y + 40; // Middle of target node
+        // Calculate center points of the circular nodes
+        const sourceX = node.position.x + 60; // Center of source node (120/2)
+        const sourceY = node.position.y + 60; // Center of source node (120/2)
+        const targetX = targetNode.position.x + 60; // Center of target node (120/2)
+        const targetY = targetNode.position.y + 60; // Center of target node (120/2)
 
         // Calculate the middle point of the connection
-        const midX = (startX + endX) / 2;
-        const midY = (startY + endY) / 2;
+        const midX = (sourceX + targetX) / 2;
+        const midY = (sourceY + targetY) / 2;
 
         const isHovered = hoveredConnection?.sourceId === node.id && hoveredConnection?.targetId === targetId;
 
@@ -528,7 +529,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
             }}
           >
             <path
-              d={`M ${startX} ${startY} C ${startX + 50} ${startY}, ${endX - 50} ${endY}, ${endX} ${endY}`}
+              d={`M ${sourceX} ${sourceY} C ${sourceX + 50} ${sourceY}, ${targetX - 50} ${targetY}, ${targetX} ${targetY}`}
               stroke={isHovered ? "#2196f3" : "#666"}
               strokeWidth={isHovered ? 2 : 1.5}
               fill="none"
@@ -699,6 +700,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
             key={node.id}
             className={`workflow-node ${draggedNode?.id === node.id ? 'dragging' : ''} ${connectingNode?.id === node.id ? 'connecting' : ''}`}
             data-type={node.type}
+            data-name={node.properties.nodeName}
             style={{
               left: node.position.x,
               top: node.position.y,
@@ -709,7 +711,6 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
             onMouseUp={(e) => handleNodeMouseUp(e, node)}
           >
             <div className="node-header">
-              {node.properties.nodeName}
               <button
                 className="delete-node-button"
                 onClick={(e) => handleNodeDelete(e, node.id)}
