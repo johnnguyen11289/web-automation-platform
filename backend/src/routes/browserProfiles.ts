@@ -71,6 +71,11 @@ router.post('/:_id/open', async (req, res) => {
     }
 
     const automationService = AutomationService.getInstance();
+    
+    // Initialize the browser with the profile first
+    await automationService.applyProfile(profile);
+    
+    // Then open the profile for setup
     await automationService.openProfileForSetup(profile);
     
     res.status(200).json({ message: 'Browser opened successfully' });
@@ -89,7 +94,7 @@ router.post('/:_id/close', async (req, res) => {
     }
 
     const automationService = AutomationService.getInstance();
-    await automationService.closeProfileSetup();
+    await automationService.close();
     
     res.status(200).json({ message: 'Browser closed successfully' });
   } catch (error) {
