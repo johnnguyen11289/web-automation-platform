@@ -133,7 +133,6 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 value={properties.clickCount}
                 onChange={(e) => handleNodeSpecificChange('clickCount', parseInt(e.target.value))}
                 min="1"
-                defaultValue="1"
               />
             </div>
             <div className="form-group">
@@ -143,7 +142,6 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 value={properties.delay}
                 onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
                 min="0"
-                defaultValue="0"
               />
             </div>
             <div className="form-group">
@@ -192,7 +190,6 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 value={properties.delay}
                 onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
                 min="0"
-                defaultValue="0"
               />
             </div>
             <div className="form-group">
