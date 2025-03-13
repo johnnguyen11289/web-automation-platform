@@ -4,6 +4,8 @@ import { BrowserProfile } from '../types/browser.types';
 import { PlaywrightAutomationService } from './playwright-automation.service';
 import { PuppeteerAutomationService } from './puppeteer-automation.service';
 
+export { AutomationAction } from '../types/automation.types';
+
 export class AutomationService {
   private static instance: AutomationService | null = null;
   private automation: IBrowserAutomation | null = null;
@@ -63,8 +65,8 @@ export class AutomationService {
       if (profile) {
         await this.applyProfile(profile);
       } else {
-        // If no profile provided, default to Playwright
-        this.automation = PlaywrightAutomationService.getInstance();
+        // If no profile provided, default to Puppeteer
+        this.automation = PuppeteerAutomationService.getInstance();
         await this.initialize();
       }
       return true;

@@ -432,7 +432,20 @@ class ExecutionService {
 
   private async getOrCreateBrowserInstance(executionId: string): Promise<AutomationService> {
     if (!this.activeExecutions.has(executionId)) {
-      await this.automationService.init();
+      // Get the execution to find its profile
+      const execution = await Execution.findById(executionId);
+      if (!execution) {
+        throw new Error('Execution not found');
+      }
+
+      // Get the profile
+      const profile = await BrowserProfileModel.findById(execution.profileId);
+      if (!profile) {
+        throw new Error('Browser profile not found');
+      }
+
+      // Initialize with profile
+      await this.automationService.init(false, profile.toObject());
       this.activeExecutions.add(executionId);
     }
     return this.automationService;
@@ -474,21 +487,17 @@ class ExecutionService {
     const actions = this.convertNodeToActions(node, context);
 
     try {
-      // Get or create browser instance for this execution
-      const executionId = (execution._id as Types.ObjectId).toString();
-      const automationService = await this.getOrCreateBrowserInstance(executionId);
-
       // Apply browser profile settings - convert Mongoose document to plain object
       const plainProfile = profile.toObject() as any;
       console.log('Preparing to apply browser profile:', {
         name: plainProfile.name,
         id: plainProfile._id.toString(),
-        executionId,
+        executionId: (execution._id as Types.ObjectId).toString(),
         nodeId: step.nodeId,
         nodeType: step.nodeType
       });
 
-      await automationService.applyProfile({
+      await this.automationService.applyProfile({
         ...plainProfile,
         _id: plainProfile._id.toString(), // Convert _id to id
         name: plainProfile.name // Ensure name is included
@@ -500,7 +509,7 @@ class ExecutionService {
         ? resolvedProps.url 
         : 'about:blank';
         
-      const result = await automationService.performWebAutomation(
+      const result = await this.automationService.performWebAutomation(
         targetUrl,
         actions
       );
