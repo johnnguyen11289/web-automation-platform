@@ -46,9 +46,27 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   useEffect(() => {
     if (initialWorkflow) {
       console.log('Loading initial workflow:', initialWorkflow);
-      setNodes(initialWorkflow.nodes);
+      // Ensure nodes have proper position format
+      const initializedNodes = initialWorkflow.nodes.map(node => ({
+        ...node,
+        position: {
+          x: typeof node.position.x === 'number' ? node.position.x : 0,
+          y: typeof node.position.y === 'number' ? node.position.y : 0
+        }
+      }));
+      
+      setNodes(initializedNodes);
       setWorkflowName(initialWorkflow.name);
       setWorkflowDescription(initialWorkflow.description || '');
+      
+      // Reset canvas state
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
+      setIsDraggingNode(false);
+      setDraggedNode(null);
+      setConnectingNode(null);
+      setSelectedNode(null);
+      setIsEditing(false);
     } else {
       // Reset to empty state when no workflow is selected
       console.log('Resetting workflow state');
@@ -59,6 +77,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       setIsEditing(false);
       setScale(1);
       setOffset({ x: 0, y: 0 });
+      setIsDraggingNode(false);
+      setDraggedNode(null);
+      setConnectingNode(null);
     }
   }, [initialWorkflow]);
 
@@ -95,17 +116,23 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     if (e.target === e.currentTarget) {
       setIsDraggingCanvas(true);
       setDragStart({
-        x: e.clientX - offset.x,
-        y: e.clientY - offset.y
+        x: e.clientX,
+        y: e.clientY
       });
     }
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (isDraggingCanvas) {
-      setOffset({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+      const dx = (e.clientX - dragStart.x) / scale;
+      const dy = (e.clientY - dragStart.y) / scale;
+      setOffset(prev => ({
+        x: prev.x + dx,
+        y: prev.y + dy
+      }));
+      setDragStart({
+        x: e.clientX,
+        y: e.clientY
       });
     }
     // Only handle node movement if not connecting
@@ -151,22 +178,29 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     setLastClickTime(currentTime); // Update last click time
     
     const rect = e.currentTarget.getBoundingClientRect();
+    const canvasRect = e.currentTarget.parentElement?.getBoundingClientRect();
+    if (!canvasRect) return;
+
+    // Calculate the offset relative to the node's position
+    const nodeX = node.position.x * scale + offset.x * scale;
+    const nodeY = node.position.y * scale + offset.y * scale;
+    
     setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: e.clientX - nodeX,
+      y: e.clientY - nodeY
     });
   };
 
   const handleNodeMouseMove = (e: React.MouseEvent) => {
     if (!isDraggingNode || !draggedNode) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const canvasX = (e.clientX - rect.left) / scale - offset.x - dragOffset.x;
-    const canvasY = (e.clientY - rect.top) / scale - offset.y - dragOffset.y;
+    // Calculate the new position in canvas coordinates
+    const newX = (e.clientX - dragOffset.x) / scale - offset.x;
+    const newY = (e.clientY - dragOffset.y) / scale - offset.y;
     
     const position = snapToGrid({
-      x: canvasX,
-      y: canvasY,
+      x: newX,
+      y: newY
     });
 
     // Only update if the position has actually changed
