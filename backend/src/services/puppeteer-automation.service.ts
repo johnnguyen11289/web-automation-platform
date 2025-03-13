@@ -7,6 +7,7 @@ import { HumanBehaviorService } from './human-behavior.service';
 import { WebsiteEvasionsService } from './website-evasions.service';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
 
 export class PuppeteerAutomationService implements IBrowserAutomation {
   private browser: Browser | null = null;
@@ -40,17 +41,65 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     PuppeteerAutomationService.instance = null;
   }
 
+  private getChromePath(): string {
+    const platform = os.platform();
+    const homeDir = os.homedir();
+
+    switch (platform) {
+      case 'win32':
+        const possiblePaths = [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          path.join(homeDir, 'AppData\\Local\\Google\\Chrome\\Application\\chrome.exe')
+        ];
+        
+        for (const path of possiblePaths) {
+          if (fs.existsSync(path)) {
+            return path;
+          }
+        }
+        break;
+
+      case 'darwin':
+        const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+        if (fs.existsSync(macPath)) {
+          return macPath;
+        }
+        break;
+
+      case 'linux':
+        const linuxPaths = [
+          '/usr/bin/google-chrome',
+          '/usr/bin/google-chrome-stable',
+          '/usr/bin/chromium-browser',
+          '/usr/bin/chromium'
+        ];
+        
+        for (const path of linuxPaths) {
+          if (fs.existsSync(path)) {
+            return path;
+          }
+        }
+        break;
+    }
+
+    // If no Chrome installation found, return default path
+    return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  }
+
   public async initialize(): Promise<void> {
     if (!this.browser) {
       const options: LaunchOptions = {
         headless: false,
+        executablePath: this.getChromePath(),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          '--window-size=1920,1080'
+          '--window-size=1920,1080',
+          '--remote-debugging-port=9222'
         ]
       };
 
@@ -80,10 +129,10 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     return this.currentPage;
   }
 
-  public async goto(url: string, options?: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle', timeout?: number }): Promise<void> {
+  public async goto(url: string, options?: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'networkidle0', timeout?: number }): Promise<void> {
     const page = await this.getPage();
     await page.goto(url, {
-      waitUntil: (options?.waitUntil || 'networkidle0') as PuppeteerLifeCycleEvent,
+      waitUntil: (options?.waitUntil === 'networkidle' ? 'networkidle0' : options?.waitUntil) as PuppeteerLifeCycleEvent,
       timeout: options?.timeout
     });
   }
@@ -166,30 +215,9 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       await page.setViewport(profile.viewport);
     }
 
-    // Set geolocation if provided
-    if (profile.geolocation) {
-      await page.setGeolocation(profile.geolocation);
-    }
-
-    // Set permissions if provided
-    if (profile.permissions) {
-      const context = page.browser().defaultBrowserContext();
-      await context.overridePermissions(page.url(), profile.permissions as Permission[]);
-    }
-
-    // Set cookies if provided
-    if (profile.cookies && profile.cookies.length > 0) {
-      await page.setCookie(...profile.cookies);
-    }
-
-    // Apply any custom JavaScript
-    if (profile.customJs) {
-      await page.evaluate(profile.customJs);
-    }
-
     // Navigate to appropriate login page based on profile name
     const lowerProfileName = profile.name.toLowerCase();
-    let loginUrl = 'about:blank';
+    let loginUrl = 'https://example.com'; // Default to a real URL instead of about:blank
     if (lowerProfileName.includes('google')) {
       loginUrl = 'https://accounts.google.com';
     } else if (lowerProfileName.includes('facebook')) {
@@ -200,7 +228,50 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       loginUrl = 'https://www.linkedin.com/login';
     }
 
-    await page.goto(loginUrl);
+    // Navigate first
+    await page.goto(loginUrl, { waitUntil: 'networkidle0' });
+
+    // Set permissions after navigation
+    if (profile.permissions) {
+      const context = page.browser().defaultBrowserContext();
+      try {
+        await context.overridePermissions(loginUrl, profile.permissions as Permission[]);
+      } catch (error) {
+        console.warn('Failed to set permissions:', error);
+        // Continue without permissions if they can't be set
+      }
+    }
+
+    // Set geolocation if provided
+    if (profile.geolocation) {
+      try {
+        await page.setGeolocation(profile.geolocation);
+      } catch (error) {
+        console.warn('Failed to set geolocation:', error);
+        // Continue without geolocation if it can't be set
+      }
+    }
+
+    // Set cookies if provided
+    if (profile.cookies && profile.cookies.length > 0) {
+      try {
+        await page.setCookie(...profile.cookies);
+      } catch (error) {
+        console.warn('Failed to set cookies:', error);
+        // Continue without cookies if they can't be set
+      }
+    }
+
+    // Apply any custom JavaScript
+    if (profile.customJs) {
+      try {
+        await page.evaluate(profile.customJs);
+      } catch (error) {
+        console.warn('Failed to apply custom JavaScript:', error);
+        // Continue without custom JS if it can't be applied
+      }
+    }
+
     console.log('Profile opened for manual setup. Please perform any necessary logins or configurations.');
   }
 
@@ -248,7 +319,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
     try {
       if (url) {
-        await this.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+        await this.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
         await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
       }
 

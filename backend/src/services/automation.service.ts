@@ -19,6 +19,11 @@ export class AutomationService {
   }
 
   private getAutomationLibrary(profile: BrowserProfile): IBrowserAutomation {
+    // Close existing automation if it exists
+    if (this.automation) {
+      this.automation.close().catch(console.error);
+    }
+
     switch (profile.automationLibrary?.toLowerCase()) {
       case 'playwright':
         return PlaywrightAutomationService.getInstance();
@@ -32,6 +37,11 @@ export class AutomationService {
 
   public async applyProfile(profile: BrowserProfile): Promise<void> {
     try {
+      // Close existing automation if it exists
+      if (this.automation) {
+        await this.automation.close();
+      }
+
       this.currentProfile = profile;
       this.automation = this.getAutomationLibrary(profile);
       await this.initialize();
@@ -45,6 +55,11 @@ export class AutomationService {
   // For backward compatibility
   public async init(useLocalChrome: boolean = false, profile?: BrowserProfile): Promise<boolean> {
     try {
+      // Close existing automation if it exists
+      if (this.automation) {
+        await this.automation.close();
+      }
+
       if (profile) {
         await this.applyProfile(profile);
       } else {
