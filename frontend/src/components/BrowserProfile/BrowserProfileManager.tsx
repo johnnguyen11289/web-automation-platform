@@ -25,7 +25,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Edit, Delete, Add, ContentCopy, Launch } from '@mui/icons-material';
-import { BrowserProfile, BrowserType, BROWSER_TYPES, DEFAULT_VIEWPORT, LOCALES, TIMEZONES } from '../../types/browser.types';
+import { BrowserProfile, BrowserType, AutomationLibrary, BROWSER_TYPES, DEFAULT_VIEWPORT, LOCALES, TIMEZONES, AUTOMATION_LIBRARIES } from '../../types/browser.types';
 import { api } from '../../services/api';
 
 interface BrowserProfileManagerProps {
@@ -52,6 +52,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
   const [formData, setFormData] = useState<Partial<BrowserProfile>>({
     name: '',
     browserType: 'chromium',
+    automationLibrary: 'Playwright',
     userAgent: '',
     cookies: [],
     localStorage: {},
@@ -74,6 +75,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
       setFormData({
         name: '',
         browserType: 'chromium',
+        automationLibrary: 'Playwright',
         userAgent: '',
         cookies: [],
         localStorage: {},
@@ -192,6 +194,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                     secondary={
                       <Typography variant="body2" color="text.secondary">
                         {BROWSER_TYPES.find(t => t.value === profile.browserType)?.label} •{' '}
+                        {AUTOMATION_LIBRARIES.find(l => l.value === profile.automationLibrary)?.label} •{' '}
                         {profile.isHeadless ? 'Headless' : 'Visible'} •{' '}
                         {profile.viewport.width}x{profile.viewport.height} •{' '}
                         {profile.useLocalChrome && profile.browserType === 'chromium' ? 'Local Chrome' : 'Chromium'}{' '}
@@ -248,7 +251,7 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
 
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingProfile ? 'Edit Profile' : 'Add New Profile'}
+          {editingProfile ? 'Edit Browser Profile' : 'Create Browser Profile'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -258,19 +261,36 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                 label="Profile Name"
                 value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
+              <FormControl fullWidth required>
                 <InputLabel>Browser Type</InputLabel>
                 <Select
                   value={formData.browserType || 'chromium'}
-                  label="Browser Type"
                   onChange={(e) => setFormData({ ...formData, browserType: e.target.value as BrowserType })}
+                  label="Browser Type"
                 >
                   {BROWSER_TYPES.map((type) => (
                     <MenuItem key={type.value} value={type.value}>
                       {type.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Automation Library</InputLabel>
+                <Select
+                  value={formData.automationLibrary || 'Playwright'}
+                  onChange={(e) => setFormData({ ...formData, automationLibrary: e.target.value as AutomationLibrary })}
+                  label="Automation Library"
+                >
+                  {AUTOMATION_LIBRARIES.map((lib) => (
+                    <MenuItem key={lib.value} value={lib.value}>
+                      {lib.label}
                     </MenuItem>
                   ))}
                 </Select>

@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 
 export type BrowserType = 'chromium' | 'firefox' | 'webkit';
+export type AutomationLibrary = 'Playwright' | 'Puppeteer';
 
 export interface ViewportSettings {
   width: number;
@@ -18,6 +19,7 @@ export interface BrowserProfile {
   _id: string | Types.ObjectId;
   name: string;
   browserType: BrowserType;
+  automationLibrary: AutomationLibrary;
   userAgent?: string;
   isHeadless: boolean;
   proxy?: ProxySettings;

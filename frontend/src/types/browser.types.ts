@@ -1,4 +1,5 @@
 export type BrowserType = 'chromium' | 'firefox' | 'webkit';
+export type AutomationLibrary = 'Playwright' | 'Puppeteer';
 
 export interface ProxySettings {
   host: string;
@@ -19,6 +20,7 @@ export interface BrowserProfile {
   _id: string;
   name: string;
   browserType: BrowserType;
+  automationLibrary: AutomationLibrary;
   userAgent?: string;
   isHeadless: boolean;
   proxy?: ProxySettings;
@@ -51,6 +53,11 @@ export const BROWSER_TYPES: { value: BrowserType; label: string }[] = [
   { value: 'chromium', label: 'Chromium' },
   { value: 'firefox', label: 'Firefox' },
   { value: 'webkit', label: 'WebKit' },
+];
+
+export const AUTOMATION_LIBRARIES: { value: AutomationLibrary; label: string }[] = [
+  { value: 'Playwright', label: 'Playwright' },
+  { value: 'Puppeteer', label: 'Puppeteer' },
 ];
 
 export const LOCALES = [

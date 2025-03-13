@@ -16,6 +16,7 @@ const ProxySchema = new Schema({
 const BrowserProfileSchema = new Schema({
   name: { type: String, required: true },
   browserType: { type: String, required: true, enum: ['chromium', 'firefox', 'webkit'] },
+  automationLibrary: { type: String, required: true, enum: ['Playwright', 'Puppeteer'] },
   userAgent: { type: String },
   isHeadless: { type: Boolean, default: false },
   proxy: { type: ProxySchema, required: false },

@@ -91,6 +91,7 @@ export const api = {
       const payload = {
         name: profile.name,
         browserType: profile.browserType,
+        automationLibrary: profile.automationLibrary,
         userAgent: profile.userAgent,
         isHeadless: profile.isHeadless,
         proxy: profile.proxy,
@@ -136,6 +137,7 @@ export const api = {
       const payload = {
         ...(profile.name !== undefined && { name: profile.name }),
         ...(profile.browserType !== undefined && { browserType: profile.browserType }),
+        ...(profile.automationLibrary !== undefined && { automationLibrary: profile.automationLibrary }),
         ...(profile.userAgent !== undefined && { userAgent: profile.userAgent }),
         ...(profile.isHeadless !== undefined && { isHeadless: profile.isHeadless }),
         ...(profile.proxy !== undefined && { proxy: profile.proxy }),
