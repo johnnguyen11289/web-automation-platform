@@ -37,6 +37,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [connectingNode, setConnectingNode] = useState<WorkflowNode | null>(null);
   const [hoveredConnection, setHoveredConnection] = useState<{ sourceId: string; targetId: string } | null>(null);
+  const [tempConnection, setTempConnection] = useState<{ x: number; y: number } | null>(null);
   const [workflowName, setWorkflowName] = useState('New Workflow');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
@@ -139,6 +140,16 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     if (isDraggingNode && draggedNode && !connectingNode) {
       handleNodeMouseMove(e);
     }
+    // Update temporary connection line position
+    if (connectingNode && tempConnection) {
+      const canvasRect = e.currentTarget.getBoundingClientRect();
+      if (!canvasRect) return;
+      
+      // Convert mouse coordinates to canvas coordinates
+      const mouseX = (e.clientX - canvasRect.left) / scale;
+      const mouseY = (e.clientY - canvasRect.top) / scale;
+      setTempConnection({ x: mouseX, y: mouseY });
+    }
   };
 
   const handleCanvasMouseUp = (e: React.MouseEvent) => {
@@ -169,6 +180,13 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     if (e.shiftKey) {
       // Start connection mode
       setConnectingNode(node);
+      const canvasRect = e.currentTarget.parentElement?.getBoundingClientRect();
+      if (!canvasRect) return;
+      
+      // Convert mouse coordinates to canvas coordinates
+      const mouseX = (e.clientX - canvasRect.left) / scale;
+      const mouseY = (e.clientY - canvasRect.top) / scale;
+      setTempConnection({ x: mouseX, y: mouseY });
       setLastClickTime(currentTime); // Update last click time
       return;
     }
@@ -229,6 +247,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       }));
     }
     setConnectingNode(null);
+    setTempConnection(null);
     setIsDraggingNode(false);
     setDraggedNode(null);
     setLastClickTime(0); // Reset last click time
@@ -531,27 +550,97 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   };
 
   const drawConnections = () => {
-    return nodes.map(node => 
-      node.connections.map(targetId => {
-        const targetNode = nodes.find(n => n.id === targetId);
-        if (!targetNode) return null;
+    // Helper function to calculate intersection point with circle
+    const getCircleIntersection = (x1: number, y1: number, x2: number, y2: number, cx: number, cy: number, radius: number) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      
+      // Normalize direction vector
+      const ux = dx / len;
+      const uy = dy / len;
+      
+      // Calculate intersection point
+      const px = cx + ux * radius;
+      const py = cy + uy * radius;
+      
+      return { x: px, y: py };
+    };
 
-        // Calculate center points of the circular nodes
-        const sourceX = node.position.x + 60; // Center of source node (120/2)
-        const sourceY = node.position.y + 60; // Center of source node (120/2)
-        const targetX = targetNode.position.x + 60; // Center of target node (120/2)
-        const targetY = targetNode.position.y + 60; // Center of target node (120/2)
+    return (
+      <>
+        {nodes.map(node => 
+          node.connections.map(targetId => {
+            const targetNode = nodes.find(n => n.id === targetId);
+            if (!targetNode) return null;
 
-        // Calculate the middle point of the connection
-        const midX = (sourceX + targetX) / 2;
-        const midY = (sourceY + targetY) / 2;
+            // Calculate center points of the nodes
+            const sourceX = node.position.x + 60;
+            const sourceY = node.position.y + 60;
+            const targetX = targetNode.position.x + 60;
+            const targetY = targetNode.position.y + 60;
 
-        const isHovered = hoveredConnection?.sourceId === node.id && hoveredConnection?.targetId === targetId;
+            // Calculate intersection points with circles
+            const sourceIntersection = getCircleIntersection(sourceX, sourceY, targetX, targetY, sourceX, sourceY, 60);
+            const targetIntersection = getCircleIntersection(targetX, targetY, sourceX, sourceY, targetX, targetY, 60);
 
-        return (
+            // Calculate the middle point of the connection
+            const midX = (sourceIntersection.x + targetIntersection.x) / 2;
+            const midY = (sourceIntersection.y + targetIntersection.y) / 2;
+
+            const isHovered = hoveredConnection?.sourceId === node.id && hoveredConnection?.targetId === targetId;
+
+            return (
+              <svg
+                key={`${node.id}-${targetId}`}
+                className="connection-line"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: isHovered ? 2 : 0,
+                }}
+              >
+                <path
+                  d={`M ${sourceIntersection.x} ${sourceIntersection.y} C ${sourceIntersection.x + 50} ${sourceIntersection.y}, ${targetIntersection.x - 50} ${targetIntersection.y}, ${targetIntersection.x} ${targetIntersection.y}`}
+                  stroke={isHovered ? "#2196f3" : "#666"}
+                  strokeWidth={isHovered ? 2 : 1.5}
+                  fill="none"
+                  markerEnd="url(#arrowhead)"
+                />
+                <g 
+                  transform={`translate(${midX - 8}, ${midY - 8})`}
+                  style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                  onMouseEnter={() => setHoveredConnection({ sourceId: node.id, targetId })}
+                  onMouseLeave={() => setHoveredConnection(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleRemoveConnection(node.id, targetId);
+                  }}
+                >
+                  <text
+                    x="8"
+                    y="10"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill={isHovered ? "#f44336" : "#666"}
+                    style={{ userSelect: 'none', fontSize: '16px' }}
+                  >
+                    ×
+                  </text>
+                </g>
+              </svg>
+            );
+          })
+        )}
+        {/* Temporary connection line */}
+        {connectingNode && tempConnection && (
           <svg
-            key={`${node.id}-${targetId}`}
-            className="connection-line"
+            className="temp-connection-line"
             style={{
               position: 'absolute',
               top: 0,
@@ -559,41 +648,34 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
               width: '100%',
               height: '100%',
               pointerEvents: 'none',
-              zIndex: isHovered ? 2 : 0,
+              zIndex: 1000,
             }}
           >
-            <path
-              d={`M ${sourceX} ${sourceY} C ${sourceX + 50} ${sourceY}, ${targetX - 50} ${targetY}, ${targetX} ${targetY}`}
-              stroke={isHovered ? "#2196f3" : "#666"}
-              strokeWidth={isHovered ? 2 : 1.5}
-              fill="none"
-              markerEnd="url(#arrowhead)"
-            />
-            <g 
-              transform={`translate(${midX - 8}, ${midY - 8})`}
-              style={{ cursor: 'pointer', pointerEvents: 'all' }}
-              onMouseEnter={() => setHoveredConnection({ sourceId: node.id, targetId })}
-              onMouseLeave={() => setHoveredConnection(null)}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleRemoveConnection(node.id, targetId);
-              }}
-            >
-              <text
-                x="8"
-                y="10"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={isHovered ? "#f44336" : "#666"}
-                style={{ userSelect: 'none', fontSize: '16px' }}
-              >
-                ×
-              </text>
-            </g>
+            {/* Calculate intersection point for the source node */}
+            {(() => {
+              const sourceX = connectingNode.position.x + 60;
+              const sourceY = connectingNode.position.y + 60;
+              const sourceIntersection = getCircleIntersection(
+                sourceX, sourceY,
+                tempConnection.x, tempConnection.y,
+                sourceX, sourceY,
+                60
+              );
+
+              return (
+                <path
+                  d={`M ${sourceIntersection.x} ${sourceIntersection.y} C ${sourceIntersection.x + 50} ${sourceIntersection.y}, ${tempConnection.x - 50} ${tempConnection.y}, ${tempConnection.x} ${tempConnection.y}`}
+                  stroke="#2196f3"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
+                  fill="none"
+                  markerEnd="url(#arrowhead)"
+                />
+              );
+            })()}
           </svg>
-        );
-      })
+        )}
+      </>
     );
   };
 
