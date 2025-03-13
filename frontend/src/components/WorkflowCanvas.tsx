@@ -51,9 +51,14 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       setWorkflowDescription(initialWorkflow.description || '');
     } else {
       // Reset to empty state when no workflow is selected
+      console.log('Resetting workflow state');
       setNodes([]);
       setWorkflowName('New Workflow');
       setWorkflowDescription('');
+      setSelectedNode(null);
+      setIsEditing(false);
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
     }
   }, [initialWorkflow]);
 
@@ -610,7 +615,12 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
           <Button
             variant="outlined"
             color="primary"
-            onClick={onCreateNew}
+            onClick={() => {
+              console.log('Canvas: Create New button clicked');
+              if (onCreateNew) {
+                onCreateNew();
+              }
+            }}
             sx={{ mr: 1 }}
           >
             Create New

@@ -176,6 +176,7 @@ function App() {
     message: '',
     severity: 'success'
   });
+  const [workflowCanvasKey, setWorkflowCanvasKey] = useState(Date.now());
 
   useEffect(() => {
     loadWorkflows();
@@ -295,8 +296,11 @@ function App() {
   };
 
   const handleCreateNew = () => {
+    console.log('App: Creating new workflow');
+    // Reset editing workflow to null
     setEditingWorkflow(null);
-    // This will trigger the useEffect in WorkflowCanvas to reset the state
+    // Force a re-render of WorkflowCanvas by changing its key
+    setWorkflowCanvasKey(Date.now());
   };
 
   const handleStartRecording = async () => {
@@ -760,7 +764,8 @@ function App() {
                     workflow={editingWorkflow}
                     initialWorkflow={editingWorkflow}
                     onSave={handleWorkflowSave}
-                    key={editingWorkflow?._id || 'new-workflow'}
+                    key={workflowCanvasKey}
+                    onCreateNew={handleCreateNew}
                   />
                 </Box>
                 <Box sx={{ width: 250, flexShrink: 0 }}>
