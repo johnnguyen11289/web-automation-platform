@@ -25,7 +25,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Edit, Delete, Add, ContentCopy, Launch } from '@mui/icons-material';
-import { BrowserProfile, BrowserType, BROWSER_TYPES, DEFAULT_VIEWPORT } from '../../types/browser.types';
+import { BrowserProfile, BrowserType, BROWSER_TYPES, DEFAULT_VIEWPORT, LOCALES, TIMEZONES } from '../../types/browser.types';
 import { api } from '../../services/api';
 
 interface BrowserProfileManagerProps {
@@ -58,6 +58,11 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
     sessionStorage: {},
     viewport: DEFAULT_VIEWPORT,
     isHeadless: false,
+    useLocalChrome: false,
+    locale: LOCALES[0].value,
+    timezone: TIMEZONES[0].value,
+    permissions: [],
+    businessType: '',
   });
 
   const handleOpenDialog = (profile?: BrowserProfile) => {
@@ -75,6 +80,11 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
         sessionStorage: {},
         viewport: DEFAULT_VIEWPORT,
         isHeadless: false,
+        useLocalChrome: false,
+        locale: LOCALES[0].value,
+        timezone: TIMEZONES[0].value,
+        permissions: [],
+        businessType: '',
       });
     }
     setDialogOpen(true);
@@ -116,7 +126,18 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
     try {
       setLoading(profile._id);
       setError(null);
-      await api.openBrowserProfile(profile._id);
+      console.log('Opening browser with profile:', {
+        id: profile._id,
+        useLocalChrome: profile.useLocalChrome,
+        browserType: profile.browserType
+      });
+      
+      // Only use forceChromium if we're not using local Chrome
+      if (!profile.useLocalChrome || profile.browserType !== 'chromium') {
+        await api.openBrowserProfile(profile._id, { forceChromium: true });
+      } else {
+        await api.openBrowserProfile(profile._id);
+      }
     } catch (error) {
       console.error('Error opening browser:', error);
       setError(error instanceof Error ? error.message : 'Failed to open browser');
@@ -172,7 +193,12 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                       <Typography variant="body2" color="text.secondary">
                         {BROWSER_TYPES.find(t => t.value === profile.browserType)?.label} •{' '}
                         {profile.isHeadless ? 'Headless' : 'Visible'} •{' '}
-                        {profile.viewport.width}x{profile.viewport.height}
+                        {profile.viewport.width}x{profile.viewport.height} •{' '}
+                        {profile.useLocalChrome && profile.browserType === 'chromium' ? 'Local Chrome' : 'Chromium'}{' '}
+                        {profile.locale && `• ${LOCALES.find(l => l.value === profile.locale)?.label}`}{' '}
+                        {profile.timezone && `• ${TIMEZONES.find(t => t.value === profile.timezone)?.label}`}{' '}
+                        {profile.permissions?.length ? `• ${profile.permissions.length} permissions` : ''}{' '}
+                        {profile.businessType && `• ${profile.businessType}`}
                       </Typography>
                     }
                   />
@@ -249,6 +275,80 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                   ))}
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.useLocalChrome || false}
+                    onChange={(e) => setFormData({ ...formData, useLocalChrome: e.target.checked })}
+                  />
+                }
+                label="Use Local Chrome"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Locale</InputLabel>
+                <Select
+                  value={formData.locale || ''}
+                  label="Locale"
+                  onChange={(e) => setFormData({ ...formData, locale: e.target.value })}
+                >
+                  {LOCALES.map((locale) => (
+                    <MenuItem key={locale.value} value={locale.value}>
+                      {locale.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Timezone</InputLabel>
+                <Select
+                  value={formData.timezone || ''}
+                  label="Timezone"
+                  onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                >
+                  {TIMEZONES.map((timezone) => (
+                    <MenuItem key={timezone.value} value={timezone.value}>
+                      {timezone.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="User Data Directory (optional)"
+                value={formData.userDataDir || ''}
+                onChange={(e) => setFormData({ ...formData, userDataDir: e.target.value })}
+                placeholder="Leave empty to use default Chrome profile"
+                helperText="Path to Chrome user data directory. Leave empty to use default."
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Permissions (comma-separated)"
+                value={formData.permissions?.join(', ') || ''}
+                onChange={(e) => setFormData({ ...formData, permissions: e.target.value.split(',').map(p => p.trim()).filter(Boolean) })}
+                placeholder="geolocation, notifications, clipboard-read"
+                helperText="List of permissions to grant, separated by commas"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Custom JavaScript"
+                value={formData.customJs || ''}
+                onChange={(e) => setFormData({ ...formData, customJs: e.target.value })}
+                placeholder="// Custom JavaScript to inject into pages"
+              />
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -380,6 +480,15 @@ const BrowserProfileManager: React.FC<BrowserProfileManagerProps> = ({
                 label="Startup Script (Optional)"
                 value={formData.startupScript || ''}
                 onChange={(e) => setFormData({ ...formData, startupScript: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Business Type"
+                value={formData.businessType || ''}
+                onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+                placeholder="Enter your business type"
               />
             </Grid>
           </Grid>

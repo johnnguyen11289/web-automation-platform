@@ -2,6 +2,7 @@ import { chromium, firefox, webkit, Browser, Page, BrowserContext } from 'playwr
 import { BrowserProfile } from '../types/browser.types';
 import * as path from 'path';
 import * as os from 'os';
+import { execSync, spawn } from 'child_process';
 
 // Add at the top of the file, after imports
 interface FingerPrintOptions {
@@ -516,45 +517,73 @@ export class AutomationService {
     AutomationService.instance = null;
   }
 
-  async init() {
-    try {
-      // Check if browser is already installed in the correct location
-      const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
-      const chromePath = path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe');
-      
-      const isChromiumInstalled = (() => {
-        try {
-          return require('fs').existsSync(chromePath);
-        } catch (e) {
-          return false;
-        }
-      })();
+  private async launchLocalChrome(options: any = {}, profile?: BrowserProfile): Promise<Browser> {
+    // Find Chrome executable based on the platform
+    const chromePath = process.platform === 'win32'
+      ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      : process.platform === 'darwin'
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : '/usr/bin/google-chrome';
 
-      if (!isChromiumInstalled) {
-        console.log('Browser not found, installing browser binaries...');
-        const { execSync } = require('child_process');
-        
-        // Force the Windows installation path
-        process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
-        
-        console.log('Installing browsers to:', installPath);
-        
-        // Only install if not already present
-        execSync('npx playwright install chromium', { stdio: 'inherit' });
-        console.log('Browser binaries installed successfully');
-      } else {
-        console.log('Using existing browser installation at:', chromePath);
-        process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
+    // Get default Chrome user data directory
+    const defaultUserDataDir = process.platform === 'win32'
+      ? path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\User Data')
+      : process.platform === 'darwin'
+        ? path.join(os.homedir(), 'Library/Application Support/Google/Chrome')
+        : path.join(os.homedir(), '.config/google-chrome');
+
+    // Use provided userDataDir, or default Chrome path, or create a new one
+    const userDataDir = profile?.userDataDir || 
+      (profile?.useLocalChrome ? defaultUserDataDir : 
+        path.join(os.tmpdir(), `chrome-automation-${profile?._id || Date.now()}`));
+
+    console.log('Using Chrome user data directory:', userDataDir);
+
+    return chromium.launch({
+      executablePath: chromePath,
+      headless: false, // Local Chrome doesn't support new headless mode yet
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-site-isolation-trials',
+        `--user-data-dir=${userDataDir}`
+      ],
+      ...options
+    });
+  }
+
+  async init(useLocalChrome: boolean = false, profile?: BrowserProfile) {
+    try {
+      if (!this.browser) {
+        if (useLocalChrome) {
+          this.browser = await this.launchLocalChrome({}, profile);
+        } else {
+          // Original Chromium launch logic
+          const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
+          if (!AutomationService.browsersInstalled) {
+            process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
+            console.log('Installing browsers...');
+            execSync('npx playwright install chromium', { stdio: 'inherit' });
+            AutomationService.browsersInstalled = true;
+            process.env.PLAYWRIGHT_BROWSERS_PATH = installPath;
+          }
+          this.browser = await chromium.launch({
+            headless: false
+          });
+        }
       }
 
-      AutomationService.browsersInstalled = true;
+      if (!this.context) {
+        this.context = await this.browser.newContext({
+          viewport: { width: 1920, height: 1080 },
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        });
+      }
 
-      // Browser will be initialized when profile is applied
-      this.browser = null;
-      this.context = null;
+      return true;
     } catch (error) {
-      console.error('Failed to initialize automation service:', error);
-      throw new Error('Failed to initialize automation service: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      console.error('Failed to initialize browser:', error);
+      return false;
     }
   }
 
@@ -589,153 +618,60 @@ export class AutomationService {
 
   async applyProfile(profile: BrowserProfile) {
     try {
-      console.log('Applying browser profile:', {
-        name: profile.name,
-        id: profile._id,
-        browserType: profile.browserType,
-        isHeadless: profile.isHeadless,
-        userAgent: profile.userAgent?.substring(0, 50) + '...',
-        hasProxy: !!profile.proxy,
-        viewport: profile.viewport
-      });
+      // Close existing browser and context if they exist
+      await this.cleanup();
 
-      // Check if we can reuse both browser and context
-      const canReuseContext = this.context && 
-        this.currentProfile?.browserType === profile.browserType &&
-        this.currentProfile?.isHeadless === profile.isHeadless &&
-        this.currentProfile?.viewport?.width === profile.viewport?.width &&
-        this.currentProfile?.viewport?.height === profile.viewport?.height &&
-        this.currentProfile?.userAgent === profile.userAgent &&
-        JSON.stringify(this.currentProfile?.proxy) === JSON.stringify(profile.proxy);
+      // Initialize with local Chrome if specified in the profile
+      await this.init(profile.useLocalChrome, profile);
 
-      if (!canReuseContext) {
-        await this.close();
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
 
-        const browserType = {
-          chromium: chromium,
-          firefox: firefox,
-          webkit: webkit
-        }[profile.browserType];
+      // Create a new context with the profile settings
+      const contextOptions: any = {
+        viewport: profile.viewport || { width: 1920, height: 1080 },
+        userAgent: profile.userAgent,
+        locale: profile.locale || 'en-US',
+        timezoneId: profile.timezone || 'America/New_York',
+        geolocation: profile.geolocation,
+        permissions: profile.permissions || [],
+        bypassCSP: true,
+      };
 
-        if (!browserType) {
-          throw new Error(`Unsupported browser type: ${profile.browserType}`);
-        }
+      // Add proxy if configured
+      if (profile.proxy) {
+        contextOptions.proxy = profile.proxy;
+      }
 
-        const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
-        const executablePath = process.platform === 'win32' 
-          ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
-          : undefined;
+      this.context = await this.browser.newContext(contextOptions);
+      this.currentProfile = profile;
 
-        const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
-        
-        if (!require('fs').existsSync(userDataDir)) {
-          require('fs').mkdirSync(userDataDir, { recursive: true });
-        }
-
-        // Enhanced context options with advanced anti-detection
-        const contextOptions: any = {
-          viewport: profile.viewport || { width: 1920, height: 1080 },
-          userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          headless: false,
-          deviceScaleFactor: 1,
-          isMobile: false,
-          hasTouch: false,
-          locale: 'en-US',
-          timezoneId: 'America/New_York',
-          geolocation: { longitude: 40.7128, latitude: -74.0060 },
-          permissions: ['geolocation'],
-          colorScheme: 'light',
-          reducedMotion: 'no-preference',
-          forcedColors: 'none',
-          acceptDownloads: true,
-          args: [
-            '--disable-blink-features=AutomationControlled',
-            '--disable-features=IsolateOrigins,site-per-process',
-            '--disable-site-isolation-trials',
-            '--disable-features=BlockInsecurePrivateNetworkRequests',
-            '--disable-web-security',
-            '--disable-gpu',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-infobars',
-            '--window-position=0,0',
-            '--ignore-certifcate-errors',
-            '--ignore-certifcate-errors-spki-list',
-            '--disable-accelerated-2d-canvas',
-            '--hide-scrollbars',
-            '--disable-notifications',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-breakpad',
-            '--disable-component-extensions-with-background-pages',
-            '--disable-extensions',
-            '--disable-features=TranslateUI',
-            '--disable-ipc-flooding-protection',
-            '--disable-renderer-backgrounding',
-            '--enable-features=NetworkService,NetworkServiceInProcess',
-            '--force-color-profile=srgb',
-            '--metrics-recording-only',
-            '--no-first-run',
-            '--password-store=basic',
-            '--use-mock-keychain',
-            '--start-maximized'
-          ],
-          ignoreDefaultArgs: [
-            '--enable-automation',
-            '--enable-blink-features=AutomationControlled',
-            '--headless',
-            '--hide-scrollbars',
-            '--mute-audio'
-          ],
-          executablePath: executablePath
-        };
-
-        // Add proxy configuration if provided
-        if (profile.proxy?.host && profile.proxy?.port) {
-          const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
-            ? '' 
-            : 'http://';
-          const proxyHost = profile.proxy.host.replace(/^https?:\/\//, '');
-          const proxyUrl = `${proxyProtocol}${proxyHost}:${profile.proxy.port}`;
-
-          contextOptions.proxy = {
-            server: proxyUrl,
-            ...(profile.proxy.username && { username: profile.proxy.username }),
-            ...(profile.proxy.password && { password: profile.proxy.password }),
-            bypass: 'localhost,127.0.0.1'
-          };
-        }
-
-        // Launch persistent context with enhanced options
-        this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
-
-        // Add anti-detection scripts
-        const pages = this.context.pages();
-        for (const page of pages) {
-          await this.injectAntiDetection(page);
-        }
-
-        // Listen for new pages to inject anti-detection
-        this.context.on('page', async (page) => {
-          await this.injectAntiDetection(page);
-        });
-
-        if (profile.cookies?.length) {
+      // Apply additional configurations
+      if (this.context) {
+        // Set cookies if provided
+        if (profile.cookies && profile.cookies.length > 0) {
           await this.context.addCookies(profile.cookies);
         }
 
-        if (profile.startupScript) {
-          const page = await this.context.newPage();
-          await page.evaluate(profile.startupScript);
-          await page.close();
+        // Create a new page
+        const page = await this.context.newPage();
+        this.currentPage = page;
+
+        // Apply anti-detection measures if not using local Chrome
+        if (!profile.useLocalChrome) {
+          await this.injectAntiDetection(page);
+        }
+
+        // Apply any custom JavaScript
+        if (profile.customJs) {
+          await page.addInitScript(profile.customJs);
         }
       }
 
-      this.currentProfile = profile;
-      console.log('Profile applied successfully:', profile.name);
+      return true;
     } catch (error) {
       console.error('Failed to apply profile:', error);
-      await this.close();
       throw error;
     }
   }
@@ -775,21 +711,21 @@ export class AutomationService {
               if (action.selector) {
                 await humanMove(page, action.selector);
                 await randomDelay(page, 200, 500);
-                await page.click(action.selector, { 
-                  button: action.button || 'left',
-                  clickCount: action.clickCount || 1,
+              await page.click(action.selector, {
+                button: action.button || 'left',
+                clickCount: action.clickCount || 1,
                   delay: action.delay || Math.floor(Math.random() * 100) + 50
-                });
+              });
               }
               break;
             case 'type':
               if (action.selector && action.value) {
                 await humanMove(page, action.selector);
                 await randomDelay(page, 200, 500);
-                if (action.clearFirst) {
-                  await page.click(action.selector, { clickCount: 3 });
-                  await page.keyboard.press('Backspace');
-                }
+              if (action.clearFirst) {
+                await page.click(action.selector, { clickCount: 3 });
+                await page.keyboard.press('Backspace');
+              }
                 await humanType(page, action.selector, action.value);
               }
               break;
@@ -863,9 +799,9 @@ export class AutomationService {
           results.push({ action, success: true });
         } catch (error) {
           console.error('Action failed:', error);
-          results.push({ 
-            action, 
-            success: false, 
+          results.push({
+            action,
+            success: false,
             error: error instanceof Error ? error.message : 'Unknown error' 
           });
           if (action.stopOnError) {
@@ -1160,16 +1096,83 @@ export class AutomationService {
   async openProfileForSetup(profile: BrowserProfile): Promise<void> {
     try {
       console.log('Opening profile for manual setup:', profile.name);
-      
-      // Initialize if needed
-      if (!AutomationService.browsersInstalled) {
-        await this.init();
-      }
 
       // Close any existing browser instance
       await this.close();
 
-      // Select browser type
+      if (profile.useLocalChrome && profile.browserType === 'chromium') {
+        // Find Chrome executable
+        let chromeExecutable;
+        if (process.platform === 'win32') {
+          const programFiles = process.env['PROGRAMFILES'] || 'C:\\Program Files';
+          const programFiles86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+          const possiblePaths = [
+            path.join(programFiles, 'Google\\Chrome\\Application\\chrome.exe'),
+            path.join(programFiles86, 'Google\\Chrome\\Application\\chrome.exe'),
+            path.join(os.homedir(), 'AppData\\Local\\Google\\Chrome\\Application\\chrome.exe')
+          ];
+          
+          for (const path of possiblePaths) {
+            if (require('fs').existsSync(path)) {
+              chromeExecutable = path;
+              break;
+            }
+          }
+        } else if (process.platform === 'darwin') {
+          chromeExecutable = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+        } else {
+          chromeExecutable = '/usr/bin/google-chrome';
+        }
+
+        if (!chromeExecutable || !require('fs').existsSync(chromeExecutable)) {
+          throw new Error('Could not find Google Chrome installation');
+        }
+
+        // Set up user data directory
+        const defaultUserDataDir = process.platform === 'win32'
+          ? path.join(os.homedir(), 'AppData\\Local\\Google\\Chrome\\User Data')
+          : process.platform === 'darwin'
+            ? path.join(os.homedir(), 'Library/Application Support/Google/Chrome')
+            : path.join(os.homedir(), '.config/google-chrome');
+
+        // Use the default Chrome user data directory
+        const userDataDir = defaultUserDataDir;
+
+        console.log('Launching Chrome with:', {
+          executable: chromeExecutable,
+          userDataDir: userDataDir
+        });
+
+        // Build Chrome arguments
+        const chromeArgs = [
+          `--user-data-dir=${userDataDir}`,
+          '--no-default-browser-check',
+          '--no-first-run',
+          '--disable-blink-features=AutomationControlled',
+          '--window-size=1920,1080',
+          '--start-maximized'
+        ];
+
+        // Add proxy settings if configured
+        if (profile.proxy?.host && profile.proxy?.port) {
+          const proxyUrl = `${profile.proxy.host}:${profile.proxy.port}`;
+          chromeArgs.push(`--proxy-server=${proxyUrl}`);
+        }
+
+        // Launch Chrome directly
+        const chrome = spawn(chromeExecutable, chromeArgs, {
+          stdio: 'ignore',
+          detached: true
+        });
+
+        // Don't wait for Chrome to close
+        chrome.unref();
+
+        console.log('Chrome launched successfully');
+        return;
+      }
+
+      // Fall back to Playwright for non-Chrome browsers
       const browserType = {
         chromium: chromium,
         firefox: firefox,
@@ -1180,26 +1183,17 @@ export class AutomationService {
         throw new Error(`Unsupported browser type: ${profile.browserType}`);
       }
 
-      // Set up paths
-      const installPath = 'C:\\Users\\John\\AppData\\Local\\ms-playwright';
-      const executablePath = process.platform === 'win32' 
-        ? path.join(installPath, 'chromium-1161', 'chrome-win', 'chrome.exe')
-        : undefined;
+      // For Playwright, use a separate user data directory
+      const installPath = process.platform === 'win32' 
+        ? path.join(os.homedir(), 'AppData', 'Local', 'ms-playwright')
+        : path.join(os.homedir(), '.cache', 'ms-playwright');
 
-      // Create persistent user data directory for this profile
       const userDataDir = path.join(installPath, 'user-data-dirs', `profile-${profile._id}`);
       
-      // Ensure the directory exists
       if (!require('fs').existsSync(userDataDir)) {
         require('fs').mkdirSync(userDataDir, { recursive: true });
       }
 
-      console.log('Opening browser for manual setup:', {
-        name: profile.name,
-        userDataDir: userDataDir
-      });
-
-      // Create context options with additional settings to appear more like regular Chrome
       const contextOptions: any = {
         viewport: profile.viewport || null,
         userAgent: profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -1209,11 +1203,9 @@ export class AutomationService {
           '--disable-blink-features=AutomationControlled',
           '--window-size=1920,1080'
         ],
-        ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
-        executablePath: executablePath
+        ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled']
       };
 
-      // Add proxy if configured
       if (profile.proxy?.host && profile.proxy?.port) {
         const proxyProtocol = profile.proxy.host.startsWith('http://') || profile.proxy.host.startsWith('https://') 
           ? '' 
@@ -1228,10 +1220,8 @@ export class AutomationService {
         };
       }
 
-      // Launch persistent context with modified options
       this.context = await browserType.launchPersistentContext(userDataDir, contextOptions);
       
-      // Safely close any existing pages/tabs
       try {
         const pages = this.context.pages();
         for (const page of pages) {
@@ -1243,11 +1233,9 @@ export class AutomationService {
         console.log('Error closing existing pages, but continuing:', error);
       }
       
-      // Open a new page with common login URLs based on profile name
       const page = await this.context.newPage();
       this.currentPage = page;
 
-      // Suggest common login pages based on profile name
       const lowerProfileName = profile.name.toLowerCase();
       let loginUrl = 'about:blank';
       if (lowerProfileName.includes('google')) {
@@ -1263,9 +1251,6 @@ export class AutomationService {
       await page.goto(loginUrl);
       
       console.log('Profile opened for manual setup. Please perform any necessary logins or configurations.');
-      console.log('The browser will remain open until you close it or call closeProfileSetup().');
-      
-      // Store current profile
       this.currentProfile = profile;
 
     } catch (error) {
@@ -1312,7 +1297,7 @@ export interface AutomationResult {
   success: boolean;
   results: AutomationStepResult[];
   extractedData: Record<string, any>;
-}
+} 
 
 // Add dynamic fingerprint rotation
 let lastFingerprintRotation = Date.now();

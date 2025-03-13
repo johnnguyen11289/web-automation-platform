@@ -28,4 +28,11 @@ export interface BrowserProfile {
   startupScript?: string;
   createdAt: Date;
   updatedAt: Date;
+  useLocalChrome?: boolean;
+  userDataDir?: string;
+  locale?: string;
+  timezone?: string;
+  geolocation?: { latitude: number; longitude: number };
+  permissions?: string[];
+  customJs?: string;
 } 

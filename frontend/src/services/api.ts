@@ -84,8 +84,34 @@ export const api = {
 
   // Browser Profile methods
   createBrowserProfile: async (profile: Omit<BrowserProfile, '_id' | 'createdAt' | 'updatedAt'>): Promise<BrowserProfile> => {
+    console.log('API: Creating browser profile:', profile);
+    console.log('API: Business Type value:', profile.businessType);
     try {
-      const response = await axios.post(`${API_BASE_URL}/browser-profiles`, profile);
+      // Ensure all properties are included in the payload
+      const payload = {
+        name: profile.name,
+        browserType: profile.browserType,
+        userAgent: profile.userAgent,
+        isHeadless: profile.isHeadless,
+        proxy: profile.proxy,
+        viewport: profile.viewport,
+        cookies: profile.cookies,
+        localStorage: profile.localStorage,
+        sessionStorage: profile.sessionStorage,
+        startupScript: profile.startupScript,
+        useLocalChrome: profile.useLocalChrome,
+        userDataDir: profile.userDataDir,
+        locale: profile.locale,
+        timezone: profile.timezone,
+        geolocation: profile.geolocation,
+        permissions: profile.permissions,
+        customJs: profile.customJs,
+        businessType: profile.businessType,
+      };
+      console.log('API: Sending payload with businessType:', payload.businessType);
+      const response = await axios.post(`${API_BASE_URL}/browser-profiles`, payload);
+      console.log('API: Profile created successfully. Response data:', response.data);
+      console.log('API: Business Type in response:', response.data.businessType);
       return response.data;
     } catch (error) {
       console.error('API: Error creating browser profile:', error);
@@ -104,8 +130,33 @@ export const api = {
   },
 
   updateBrowserProfile: async (_id: string, profile: Partial<BrowserProfile>): Promise<BrowserProfile> => {
+    console.log('API: Updating browser profile:', { _id, profile });
+    console.log('API: Business Type value in update:', profile.businessType);
     try {
-      const response = await axios.put(`${API_BASE_URL}/browser-profiles/${_id}`, profile);
+      const payload = {
+        ...(profile.name !== undefined && { name: profile.name }),
+        ...(profile.browserType !== undefined && { browserType: profile.browserType }),
+        ...(profile.userAgent !== undefined && { userAgent: profile.userAgent }),
+        ...(profile.isHeadless !== undefined && { isHeadless: profile.isHeadless }),
+        ...(profile.proxy !== undefined && { proxy: profile.proxy }),
+        ...(profile.viewport !== undefined && { viewport: profile.viewport }),
+        ...(profile.cookies !== undefined && { cookies: profile.cookies }),
+        ...(profile.localStorage !== undefined && { localStorage: profile.localStorage }),
+        ...(profile.sessionStorage !== undefined && { sessionStorage: profile.sessionStorage }),
+        ...(profile.startupScript !== undefined && { startupScript: profile.startupScript }),
+        ...(profile.useLocalChrome !== undefined && { useLocalChrome: profile.useLocalChrome }),
+        ...(profile.userDataDir !== undefined && { userDataDir: profile.userDataDir }),
+        ...(profile.locale !== undefined && { locale: profile.locale }),
+        ...(profile.timezone !== undefined && { timezone: profile.timezone }),
+        ...(profile.geolocation !== undefined && { geolocation: profile.geolocation }),
+        ...(profile.permissions !== undefined && { permissions: profile.permissions }),
+        ...(profile.customJs !== undefined && { customJs: profile.customJs }),
+        ...(profile.businessType !== undefined && { businessType: profile.businessType }),
+      };
+      console.log('API: Sending update payload with businessType:', payload.businessType);
+      const response = await axios.put(`${API_BASE_URL}/browser-profiles/${_id}`, payload);
+      console.log('API: Profile updated successfully. Response data:', response.data);
+      console.log('API: Business Type in response:', response.data.businessType);
       return response.data;
     } catch (error) {
       console.error('API: Error updating browser profile:', error);
@@ -122,21 +173,39 @@ export const api = {
     }
   },
 
-  openBrowserProfile: async (_id: string): Promise<void> => {
-    const url = `${API_BASE_URL}/browser-profiles/${_id}/open`;
-    console.log('API: Opening browser profile:', { _id, url });
+  openBrowserProfile: async (_id: string, options?: { forceChromium?: boolean }): Promise<void> => {
+    console.log('API: Opening browser profile:', { _id, options });
     try {
-      await axios.post(url);
-      console.log('API: Browser profile opened successfully');
+      // Don't send forceChromium option when we want to use local Chrome
+      const payload = options?.forceChromium ? { forceChromium: true } : {};
+      console.log('API: Opening browser with payload:', payload);
+      
+      const response = await axios.post(`${API_BASE_URL}/browser-profiles/${_id}/open`, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.status !== 200) {
+        console.error('API: Failed to open browser profile:', {
+          status: response.status,
+          data: response.data,
+        });
+        throw new Error('Failed to open browser profile');
+      }
+      
+      console.log('API: Browser profile opened successfully:', {
+        status: response.status,
+        data: response.data,
+        useLocalChrome: !options?.forceChromium,
+      });
     } catch (error: any) {
       console.error('API: Error opening browser profile:', {
-        message: error?.message,
-        url,
-        baseUrl: API_BASE_URL,
+        error: error?.message,
+        response: error?.response?.data,
         status: error?.response?.status,
-        data: error?.response?.data
       });
-      throw new Error('Failed to open browser profile');
+      throw new Error(error?.response?.data?.message || 'Failed to open browser profile');
     }
   },
 
