@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NodeProperties, OpenUrlNodeProperties, ClickNodeProperties, ProfileNodeProperties } from '../types/node.types';
+import { NodeProperties } from '../types/node.types';
 import NodePropertiesEditor from './NodePropertiesEditor';
 import { ZoomIn, ZoomOut, Save, FiberManualRecord } from '@mui/icons-material';
 import { IconButton, Button, Snackbar, Alert } from '@mui/material';
@@ -223,6 +223,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow
     const baseProps = {
       nodeName: `New ${nodeType} Node`,
       timeout: 5000,
+      stopOnError: false,
       enabled: true,
       errorHandling: 'retry' as const,
     };
@@ -234,75 +235,205 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ onSave, initialWorkflow
           nodeType: 'openUrl' as const,
           url: '',
           openInNewTab: false,
-          waitForPageLoad: true,
-          returnPageData: false,
+          waitUntil: 'networkidle',
         };
       case 'click':
         return {
           ...baseProps,
           nodeType: 'click' as const,
           selector: '',
-          clickType: 'single',
-          waitForElement: true,
+          button: 'left',
+          clickCount: 1,
+          delay: 0,
+          waitForNavigation: false,
         };
-      case 'input':
+      case 'type':
         return {
           ...baseProps,
-          nodeType: 'input' as const,
+          nodeType: 'type' as const,
           selector: '',
-          inputType: 'text',
           value: '',
-          clearBeforeInput: true,
+          clearFirst: false,
+          delay: 0,
+          pressEnter: false,
         };
-      case 'submit':
+      case 'select':
         return {
           ...baseProps,
-          nodeType: 'submit' as const,
+          nodeType: 'select' as const,
           selector: '',
-          waitForNavigation: true,
+          value: '',
         };
       case 'wait':
         return {
           ...baseProps,
           nodeType: 'wait' as const,
-          waitType: 'fixed',
-          timeout: 1000,
-        };
-      case 'condition':
-        return {
-          ...baseProps,
-          nodeType: 'condition' as const,
-          conditionType: 'equals',
-          target: '',
-          value: '',
-          truePath: '',
-          falsePath: '',
-        };
-      case 'loop':
-        return {
-          ...baseProps,
-          nodeType: 'loop' as const,
-          loopType: 'fixed',
-          maxIterations: 5,
-          breakCondition: '',
+          condition: 'delay',
+          delay: 1000,
         };
       case 'extract':
         return {
           ...baseProps,
           nodeType: 'extract' as const,
           selector: '',
+          key: '',
           attribute: 'text',
-          variableName: '',
         };
-      case 'profile':
+      case 'evaluate':
         return {
           ...baseProps,
-          nodeType: 'profile' as const,
-          profileName: 'default',
-          incognitoMode: false,
+          nodeType: 'evaluate' as const,
+          script: '',
+          key: '',
+        };
+      case 'keyboard':
+        return {
+          ...baseProps,
+          nodeType: 'keyboard' as const,
+          key: '',
+        };
+      case 'focus':
+        return {
+          ...baseProps,
+          nodeType: 'focus' as const,
+          selector: '',
+        };
+      case 'hover':
+        return {
+          ...baseProps,
+          nodeType: 'hover' as const,
+          selector: '',
+        };
+      case 'screenshot':
+        return {
+          ...baseProps,
+          nodeType: 'screenshot' as const,
+          selector: '',
+          path: `screenshot-${Date.now()}.png`,
+        };
+      case 'scroll':
+        return {
+          ...baseProps,
+          nodeType: 'scroll' as const,
+          selector: '',
+          direction: 'down',
+          amount: 0,
+          smooth: true,
+        };
+      case 'iframe':
+        return {
+          ...baseProps,
+          nodeType: 'iframe' as const,
+          selector: '',
+          action: 'switch',
+        };
+      case 'alert':
+        return {
+          ...baseProps,
+          nodeType: 'alert' as const,
+          action: 'accept',
+          text: '',
+        };
+      case 'cookie':
+        return {
+          ...baseProps,
+          nodeType: 'cookie' as const,
+          action: 'get',
+          name: '',
+          value: '',
+        };
+      case 'storage':
+        return {
+          ...baseProps,
+          nodeType: 'storage' as const,
+          storageType: 'local',
+          action: 'get',
+          key: '',
+          value: '',
+        };
+      case 'fileUpload':
+        return {
+          ...baseProps,
+          nodeType: 'fileUpload' as const,
+          selector: '',
+          filePath: '',
+        };
+      case 'dragDrop':
+        return {
+          ...baseProps,
+          nodeType: 'dragDrop' as const,
+          sourceSelector: '',
+          targetSelector: '',
+        };
+      case 'network':
+        return {
+          ...baseProps,
+          nodeType: 'network' as const,
+          action: 'block',
+          urlPattern: '',
+          response: {},
+        };
+      case 'walletConnect':
+        return {
+          ...baseProps,
+          nodeType: 'walletConnect' as const,
+          walletType: 'metamask',
+          network: 'ethereum',
+          action: 'connect',
+        };
+      case 'walletSign':
+        return {
+          ...baseProps,
+          nodeType: 'walletSign' as const,
+          action: 'signMessage',
+          message: '',
+          transaction: {},
+          key: '',
+        };
+      case 'walletSend':
+        return {
+          ...baseProps,
+          nodeType: 'walletSend' as const,
+          action: 'sendTransaction',
+          to: '',
+          amount: '',
+          token: '',
+          network: 'ethereum',
+          key: '',
+        };
+      case 'walletBalance':
+        return {
+          ...baseProps,
+          nodeType: 'walletBalance' as const,
+          action: 'getBalance',
+          token: '',
+          network: 'ethereum',
+          key: '',
+        };
+      case 'walletApprove':
+        return {
+          ...baseProps,
+          nodeType: 'walletApprove' as const,
+          action: 'approveToken',
+          token: '',
+          spender: '',
+          amount: '',
+          network: 'ethereum',
+          key: '',
+        };
+      case 'walletSwitch':
+        return {
+          ...baseProps,
+          nodeType: 'walletSwitch' as const,
+          action: 'switchNetwork',
+          network: 'ethereum',
+          chainId: 1,
         };
       default:
-        throw new Error(`Unknown node type: ${nodeType}`);
+        return {
+          ...baseProps,
+          nodeType: nodeType as any,
+        };
     }
   };
 
