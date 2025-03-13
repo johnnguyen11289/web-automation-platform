@@ -728,24 +728,29 @@ function App() {
                     onDelete={handleWorkflowDelete}
                     onCreateNew={handleCreateNew}
                     onExecute={async (workflow) => {
-                      const taskData: TaskFormData = {
-                        workflowId: workflow._id,
-                        profileId: browserProfiles[0]?._id || '',
-                        name: `Task ${tasks.length + 1}`,
-                        description: '',
-                        priority: 'medium',
-                        schedule: {
-                          type: 'once',
-                          startDate: new Date().toISOString(),
-                          time: new Date().toLocaleTimeString('en-US', { hour12: false })
-                        },
-                        maxRetries: 3,
-                        timeout: 30000,
-                        parallelExecution: false,
-                      };
-                      const newTask = await handleTaskAdd(taskData);
-                      if (newTask && '_id' in newTask) {
-                        await handleTaskStart(newTask._id);
+                      try {
+                        // Get the first available profile
+                        const profileId = browserProfiles[0]?._id;
+                        if (!profileId) {
+                          throw new Error('No browser profile available');
+                        }
+
+                        // Start a test execution
+                        await api.startExecution(workflow._id, profileId, false);
+                        
+                        // Show success message
+                        setSnackbar({
+                          open: true,
+                          message: 'Workflow test started successfully',
+                          severity: 'success'
+                        });
+                      } catch (error) {
+                        // Show error message
+                        setSnackbar({
+                          open: true,
+                          message: error instanceof Error ? error.message : 'Failed to test workflow',
+                          severity: 'error'
+                        });
                       }
                     }}
                   />

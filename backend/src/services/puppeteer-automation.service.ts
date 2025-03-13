@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions } from 'puppeteer';
+import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions, PuppeteerLaunchOptions } from 'puppeteer';
 import { IBrowserAutomation } from '../interfaces/browser-automation.interface';
 import { BrowserProfile } from '../types/browser.types';
 import { AutomationAction, AutomationResult, AutomationStepResult } from '../types/automation.types';
@@ -89,8 +89,14 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
-      const options: LaunchOptions = {
-        headless: false,
+      console.log('[Puppeteer] Initializing browser with profile:', {
+        isHeadless: this.currentProfile?.isHeadless,
+        browserType: this.currentProfile?.browserType,
+        automationLibrary: this.currentProfile?.automationLibrary
+      });
+
+      const options: PuppeteerLaunchOptions = {
+        headless: this.currentProfile?.isHeadless ? "new" : false,
         executablePath: this.getChromePath(),
         args: [
           '--no-sandbox',
@@ -103,14 +109,21 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         ]
       };
 
+      console.log('[Puppeteer] Launching browser with options:', options);
       this.browser = await puppeteer.launch(options);
+      console.log('[Puppeteer] Browser launched successfully');
+      
       this.currentPage = await this.browser.newPage();
+      console.log('[Puppeteer] New page created');
       
       // Set default viewport
       await this.currentPage.setViewport({
         width: 1920,
         height: 1080
       });
+      console.log('[Puppeteer] Viewport set to 1920x1080');
+    } else {
+      console.log('[Puppeteer] Browser already initialized');
     }
   }
 
@@ -311,6 +324,12 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   }
 
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
+    console.log('[Puppeteer] Starting web automation with profile:', {
+      isHeadless: this.currentProfile?.isHeadless,
+      browserType: this.currentProfile?.browserType,
+      automationLibrary: this.currentProfile?.automationLibrary
+    });
+
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
@@ -321,7 +340,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       
       for (const [index, action] of actions.entries()) {
         try {
-          console.log(`[Puppeteer] Executing action ${index + 1}/${actions.length}: ${action.type}`);
+          console.log(`[Puppeteer] Executing action ${index + 1}/${actions.length}:`, {
+            type: action.type,
+            selector: action.selector,
+            value: action.value
+          });
           
           switch (action.type) {
             case 'openUrl':
@@ -331,6 +354,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                   waitUntil: action.waitUntil || 'networkidle0',
                   timeout: action.timeout || 30000 
                 });
+                console.log('[Puppeteer] Navigation completed');
                 await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
               }
               break;

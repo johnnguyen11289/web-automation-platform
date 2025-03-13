@@ -39,6 +39,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format } from 'date-fns';
 import { SelectChangeEvent } from '@mui/material/Select';
+import { api } from '../../services/api';
 
 interface WorkflowProfileMatrixProps {
   workflows: Workflow[];
@@ -344,6 +345,11 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<BrowserProfile | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   const handleOpenDialog = (workflow: Workflow, profile: BrowserProfile) => {
     setSelectedWorkflow(workflow);
@@ -362,7 +368,24 @@ const WorkflowProfileMatrix: React.FC<WorkflowProfileMatrixProps> = ({
   };
 
   const handleTaskExecute = async (workflowId: string, profileId: string) => {
-    await onTaskExecute(workflowId, profileId);
+    try {
+      // Start a test execution
+      await api.startExecution(workflowId, profileId, false);
+      
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Workflow test started successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      // Show error message
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to test workflow',
+        severity: 'error'
+      });
+    }
   };
 
   if (workflows.length === 0 || profiles.length === 0) {

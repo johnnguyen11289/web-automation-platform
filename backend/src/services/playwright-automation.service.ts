@@ -42,8 +42,14 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
+      console.log('[Playwright] Initializing browser with profile:', {
+        isHeadless: this.currentProfile?.isHeadless,
+        browserType: this.currentProfile?.browserType,
+        automationLibrary: this.currentProfile?.automationLibrary
+      });
+
       const options = {
-        headless: false,
+        headless: this.currentProfile?.isHeadless ?? false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -54,14 +60,21 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
         ]
       };
 
+      console.log('[Playwright] Launching browser with options:', options);
       this.browser = await chromium.launch(options);
+      console.log('[Playwright] Browser launched successfully');
+      
       this.currentPage = await this.browser.newPage();
+      console.log('[Playwright] New page created');
       
       // Set default viewport
       await this.currentPage.setViewportSize({
         width: 1920,
         height: 1080
       });
+      console.log('[Playwright] Viewport set to 1920x1080');
+    } else {
+      console.log('[Playwright] Browser already initialized');
     }
   }
 
@@ -152,18 +165,34 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
   }
 
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
+    console.log('[Playwright] Starting web automation with profile:', {
+      isHeadless: this.currentProfile?.isHeadless,
+      browserType: this.currentProfile?.browserType,
+      automationLibrary: this.currentProfile?.automationLibrary
+    });
+
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      for (const action of actions) {
+      console.log(`[Playwright] Starting automation with ${actions.length} actions`);
+      
+      for (const [index, action] of actions.entries()) {
         try {
+          console.log(`[Playwright] Executing action ${index + 1}/${actions.length}:`, {
+            type: action.type,
+            selector: action.selector,
+            value: action.value
+          });
+          
           switch (action.type) {
             case 'openUrl':
               if (action.value) {
+                console.log(`[Playwright] Navigating to URL: ${action.value}`);
                 await this.goto(action.value, { waitUntil: 'networkidle', timeout: 30000 });
+                console.log('[Playwright] Navigation completed');
                 await this.humanBehaviorService.randomDelay(page, 1000, 2000);
               }
               break;

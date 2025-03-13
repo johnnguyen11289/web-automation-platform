@@ -170,13 +170,11 @@ class ExecutionService {
       uuid: () => crypto.randomUUID()
     });
 
-    // Handle URL navigation first if specified
-    if (props.url && (node.type === 'openUrl' || props.navigate)) {
-      actions.push({
-        type: 'wait',
-        condition: 'networkIdle'
-      });
-    }
+    console.log('[ExecutionService] Converting node to actions:', {
+      nodeType: node.type,
+      nodeId: node.id,
+      properties: props
+    });
 
     switch (node.type) {
       case 'openUrl':
@@ -185,9 +183,10 @@ class ExecutionService {
             type: 'openUrl',
             value: props.url,
             waitUntil: props.waitUntil || 'networkidle0',
-            timeout: props.timeout,
+            timeout: props.timeout || 30000,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added openUrl action:', props.url);
         }
         break;
 
@@ -206,11 +205,12 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
           actions.push(clickAction);
+          console.log('[ExecutionService] Added click action:', props.selector);
 
           if (props.waitForNavigation) {
             actions.push({
@@ -227,7 +227,7 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
@@ -257,6 +257,7 @@ class ExecutionService {
             delay: props.delay,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added type action:', props.selector);
 
           if (props.pressEnter) {
             actions.push({
@@ -273,7 +274,7 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
@@ -283,6 +284,7 @@ class ExecutionService {
             value: props.value,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added select action:', props.selector);
         }
         break;
 
@@ -293,20 +295,15 @@ class ExecutionService {
             delay: props.delay,
             stopOnError: props.stopOnError
           });
-        } else if (props.condition === 'networkIdle') {
-          actions.push({
-            type: 'wait',
-            condition: 'networkIdle',
-            timeout: props.timeout,
-            stopOnError: props.stopOnError
-          });
+          console.log('[ExecutionService] Added delay wait action:', props.delay);
         } else if (props.selector) {
           actions.push({
             type: 'wait',
             selector: props.selector,
-            timeout: props.timeout,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added selector wait action:', props.selector);
         }
         break;
 
@@ -316,7 +313,7 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
@@ -327,6 +324,7 @@ class ExecutionService {
             key: props.key || props.name || props.selector,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added extract action:', props.selector);
         }
         break;
 
@@ -337,6 +335,7 @@ class ExecutionService {
             key: props.key,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added keyboard action:', props.key);
         }
         break;
 
@@ -346,7 +345,7 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
@@ -355,6 +354,7 @@ class ExecutionService {
             selector: props.selector,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added hover action:', props.selector);
         }
         break;
 
@@ -371,12 +371,13 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
         }
 
         actions.push(screenshotAction);
+        console.log('[ExecutionService] Added screenshot action:', screenshotAction.value);
         break;
 
       case 'evaluate':
@@ -387,6 +388,7 @@ class ExecutionService {
             key: props.key || props.name,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added evaluate action');
         }
         break;
 
@@ -396,7 +398,7 @@ class ExecutionService {
             actions.push({
               type: 'wait',
               selector: props.selector,
-              timeout: props.timeout
+              timeout: props.timeout || 5000
             });
           }
 
@@ -405,6 +407,7 @@ class ExecutionService {
             selector: props.selector,
             stopOnError: props.stopOnError
           });
+          console.log('[ExecutionService] Added focus action:', props.selector);
         }
         break;
 
@@ -417,6 +420,7 @@ class ExecutionService {
         // For custom node types, try to extract actions from properties
         if (props.actions && Array.isArray(props.actions)) {
           actions.push(...props.actions);
+          console.log('[ExecutionService] Added custom actions:', props.actions.length);
         }
         break;
     }
@@ -428,14 +432,11 @@ class ExecutionService {
           type: 'wait',
           delay: props.waitAfter
         });
-      } else if (props.waitAfter === 'networkIdle') {
-        actions.push({
-          type: 'wait',
-          condition: 'networkIdle'
-        });
+        console.log('[ExecutionService] Added post-action delay:', props.waitAfter);
       }
     }
 
+    console.log('[ExecutionService] Generated actions:', actions);
     return actions;
   }
 
@@ -539,6 +540,16 @@ class ExecutionService {
       const workflow = await WorkflowModel.findById(execution.workflowId);
       if (!workflow) throw new Error('Workflow not found');
 
+      console.log('[ExecutionService] Loaded workflow:', {
+        id: workflow._id,
+        name: workflow.name,
+        nodes: workflow.nodes.map(node => ({
+          id: node.id,
+          type: node.type,
+          properties: node.properties
+        }))
+      });
+
       // Collect all actions and contexts first
       const allActions: AutomationAction[] = [];
       const contexts: Record<string, any>[] = [];
@@ -567,6 +578,12 @@ class ExecutionService {
             throw new Error(`Node ${step.nodeId} not found in workflow`);
           }
 
+          console.log('[ExecutionService] Processing node:', {
+            nodeId: node.id,
+            nodeType: node.type,
+            properties: node.properties
+          });
+
           // Convert workflow node to automation actions with context
           const actions = this.convertNodeToActions(node, context);
           
@@ -588,7 +605,8 @@ class ExecutionService {
 
         await execution.save();
       }
-      console.log(allActions);
+
+      console.log('[ExecutionService] Generated actions:', allActions);
       // Perform automation with all collected actions
       if (execution.status === 'running' && allActions.length > 0) {
         const result = await this.automationService.performWebAutomation(allActions);
