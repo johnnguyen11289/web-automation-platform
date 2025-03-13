@@ -10,9 +10,9 @@ export class HumanBehaviorService {
     return HumanBehaviorService.instance;
   }
 
-  public async randomDelay(page: Page, min = 100, max = 300): Promise<void> {
+  public async randomDelay(page: any, min = 100, max = 300): Promise<void> {
     const delay = Math.floor(Math.random() * (max - min) + min);
-    await page.waitForTimeout(delay);
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
   public async humanMove(page: Page, selector: string): Promise<void> {

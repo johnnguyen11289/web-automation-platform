@@ -26,14 +26,15 @@ export class AutomationService {
       this.automation.close().catch(console.error);
     }
 
-    switch (profile.automationLibrary?.toLowerCase()) {
+    const library = profile.automationLibrary?.toLowerCase();
+    switch (library) {
       case 'playwright':
         return PlaywrightAutomationService.getInstance();
       case 'puppeteer':
         return PuppeteerAutomationService.getInstance();
       default:
-        // Default to Playwright if no library specified
-        return PlaywrightAutomationService.getInstance();
+        // Default to Puppeteer if no library specified
+        return PuppeteerAutomationService.getInstance();
     }
   }
 
@@ -63,7 +64,7 @@ export class AutomationService {
 
       if (profile) {
         await this.applyProfile(profile);
-      } else {
+              } else {
         // If no profile provided, default to Puppeteer
         this.automation = PuppeteerAutomationService.getInstance();
         await this.initialize();
@@ -89,11 +90,11 @@ export class AutomationService {
     await this.automation.close();
   }
 
-  public async performWebAutomation(url: string | null, actions: AutomationAction[]): Promise<AutomationResult> {
+  public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
     if (!this.automation) {
       throw new Error('No automation library initialized. Call init() with a profile first.');
     }
-    return this.automation.performWebAutomation(url, actions);
+    return this.automation.performWebAutomation(actions);
   }
 
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {

@@ -151,21 +151,22 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     }
   }
 
-  public async performWebAutomation(url: string | null, actions: AutomationAction[]): Promise<AutomationResult> {
+  public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      if (url) {
-        await this.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-        await this.humanBehaviorService.randomDelay(page, 1000, 2000);
-      }
-
       for (const action of actions) {
         try {
           switch (action.type) {
+            case 'openUrl':
+              if (action.value) {
+                await this.goto(action.value, { waitUntil: 'networkidle', timeout: 30000 });
+                await this.humanBehaviorService.randomDelay(page, 1000, 2000);
+              }
+              break;
             case 'click':
               if (action.selector) {
                 await this.humanBehaviorService.humanMove(page, action.selector);
@@ -177,7 +178,74 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
                 });
               }
               break;
-            // ... (copy the rest of the action handling from the original file)
+            case 'type':
+              if (action.selector && action.value) {
+                await this.humanBehaviorService.humanMove(page, action.selector);
+                await this.humanBehaviorService.randomDelay(page, 200, 500);
+                if (action.clearFirst) {
+                  await page.click(action.selector, { clickCount: 3 });
+                  await page.keyboard.press('Backspace');
+                }
+                await this.type(action.selector, action.value, { delay: action.delay });
+              }
+              break;
+            case 'select':
+              if (action.selector && action.value) {
+                await this.select(action.selector, action.value);
+              }
+              break;
+            case 'wait':
+              if (action.condition === 'networkIdle') {
+                await this.waitForLoadState('networkidle');
+              } else if (action.condition === 'delay' && action.delay) {
+                await this.waitForTimeout(action.delay);
+              } else if (action.selector) {
+                await this.waitForSelector(action.selector, { timeout: action.timeout });
+              }
+              break;
+            case 'extract':
+              if (action.selector) {
+                let extractedValue: string | null = null;
+                if (action.attribute === 'text') {
+                  extractedValue = await page.$eval(action.selector, el => el.textContent);
+                } else if (action.attribute) {
+                  extractedValue = await page.$eval(action.selector, (el, attr) => el.getAttribute(attr), action.attribute);
+                } else {
+                  extractedValue = await page.$eval(action.selector, el => el.textContent);
+                }
+                if (action.key) {
+                  extractedData[action.key] = extractedValue;
+                }
+              }
+              break;
+            case 'evaluate':
+              if (action.script) {
+                const result = await this.evaluate(action.script);
+                if (action.key) {
+                  extractedData[action.key] = result;
+                }
+              }
+              break;
+            case 'keyboard':
+              if (action.key) {
+                await page.keyboard.press(action.key);
+              }
+              break;
+            case 'focus':
+              if (action.selector) {
+                await this.focus(action.selector);
+              }
+              break;
+            case 'hover':
+              if (action.selector) {
+                await this.hover(action.selector);
+              }
+              break;
+            case 'screenshot':
+              if (action.value) {
+                await this.screenshot({ path: action.value });
+              }
+              break;
           }
           results.push({ action, success: true });
         } catch (error) {

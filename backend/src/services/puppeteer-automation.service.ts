@@ -187,7 +187,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   }
 
   public async waitForTimeout(ms: number): Promise<void> {
-    const page = await this.getPage();
     await new Promise(resolve => setTimeout(resolve, ms));
   }
 
@@ -311,21 +310,30 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     }, fingerprint);
   }
 
-  public async performWebAutomation(url: string | null, actions: AutomationAction[]): Promise<AutomationResult> {
+  public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      if (url) {
-        await this.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
-        await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
-      }
-
-      for (const action of actions) {
+      console.log(`[Puppeteer] Starting automation with ${actions.length} actions`);
+      
+      for (const [index, action] of actions.entries()) {
         try {
+          console.log(`[Puppeteer] Executing action ${index + 1}/${actions.length}: ${action.type}`);
+          
           switch (action.type) {
+            case 'openUrl':
+              if (action.value) {
+                console.log(`[Puppeteer] Navigating to URL: ${action.value}`);
+                await this.goto(action.value, { 
+                  waitUntil: action.waitUntil || 'networkidle0',
+                  timeout: action.timeout || 30000 
+                });
+                await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
+              }
+              break;
             case 'click':
               if (action.selector) {
                 await this.humanBehaviorService.humanMove(page as any, action.selector);
@@ -335,6 +343,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                   clickCount: action.clickCount || 1,
                   delay: action.delay || Math.floor(Math.random() * 100) + 50
                 });
+                console.log(`[Puppeteer] Clicked element: ${action.selector}`);
               }
               break;
             case 'type':
@@ -346,18 +355,23 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                   await page.keyboard.press('Backspace');
                 }
                 await this.humanBehaviorService.humanType(page as any, action.selector, action.value);
+                console.log(`[Puppeteer] Typed into element: ${action.selector}`);
               }
               break;
             case 'screenshot':
               const screenshotPath = action.value || `screenshot-${Date.now()}.png`;
               await this.screenshot({ path: screenshotPath });
+              console.log(`[Puppeteer] Screenshot saved: ${screenshotPath}`);
               break;
             case 'wait':
               if (action.condition === 'networkIdle') {
+                console.log('[Puppeteer] Waiting for network idle');
                 await this.waitForLoadState('networkidle');
               } else if (action.condition === 'delay' && action.delay) {
+                console.log(`[Puppeteer] Waiting for ${action.delay}ms`);
                 await this.waitForTimeout(action.delay);
               } else if (action.selector) {
+                console.log(`[Puppeteer] Waiting for selector: ${action.selector}`);
                 await this.waitForSelector(action.selector, { timeout: action.timeout });
               }
               break;
@@ -375,6 +389,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               }
               if (action.key) {
                 extractedData[action.key] = extractedValue;
+                console.log(`[Puppeteer] Extracted data for key "${action.key}": ${extractedValue}`);
               }
               break;
             case 'evaluate':
@@ -384,6 +399,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               const result = await this.evaluate(action.script);
               if (action.key) {
                 extractedData[action.key] = result;
+                console.log(`[Puppeteer] Evaluated script result for key "${action.key}": ${result}`);
               }
               break;
             case 'keyboard':
@@ -391,29 +407,33 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                 throw new Error('Key is required for keyboard action');
               }
               await page.keyboard.press(action.key as KeyInput);
+              console.log(`[Puppeteer] Pressed key: ${action.key}`);
               break;
             case 'select':
               if (!action.selector || !action.value) {
                 throw new Error('Selector and value are required for select action');
               }
               await this.select(action.selector, action.value);
+              console.log(`[Puppeteer] Selected value "${action.value}" for element: ${action.selector}`);
               break;
             case 'focus':
               if (!action.selector) {
                 throw new Error('Selector is required for focus action');
               }
               await this.focus(action.selector);
+              console.log(`[Puppeteer] Focused element: ${action.selector}`);
               break;
             case 'hover':
               if (!action.selector) {
                 throw new Error('Selector is required for hover action');
               }
               await this.hover(action.selector);
+              console.log(`[Puppeteer] Hovered over element: ${action.selector}`);
               break;
           }
           results.push({ action, success: true });
         } catch (error) {
-          console.error('Action failed:', error);
+          console.error(`[Puppeteer] Action failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
           results.push({
             action,
             success: false,
@@ -427,10 +447,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         await this.humanBehaviorService.randomDelay(page as any, 500, 1500);
       }
     } catch (error) {
-      console.error('Automation failed:', error);
+      console.error(`[Puppeteer] Automation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       success = false;
     }
 
+    console.log(`[Puppeteer] Automation completed. Success: ${success}`);
     return { success, results, extractedData };
   }
 

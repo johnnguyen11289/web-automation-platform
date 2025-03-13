@@ -35,5 +35,5 @@ export interface IBrowserAutomation {
   injectAntiDetection(): Promise<void>;
   
   // Automation
-  performWebAutomation(url: string | null, actions: AutomationAction[]): Promise<AutomationResult>;
+  performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult>;
 } 
