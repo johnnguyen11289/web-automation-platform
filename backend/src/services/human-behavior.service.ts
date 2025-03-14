@@ -10,19 +10,35 @@ export class HumanBehaviorService {
     return HumanBehaviorService.instance;
   }
 
-  public async randomDelay(page: any, min = 100, max = 300): Promise<void> {
-    const delay = Math.floor(Math.random() * (max - min) + min);
-    await new Promise(resolve => setTimeout(resolve, delay));
+  private async getViewportSize(page: any) {
+    try {
+      return await page.evaluate(() => ({
+        width: window.innerWidth,
+        height: window.innerHeight
+      }));
+    } catch (error) {
+      console.warn('Failed to get viewport size:', error);
+      return { width: 1920, height: 1080 };
+    }
   }
 
-  public async humanMove(page: Page, selector: string): Promise<void> {
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  public async randomDelay(page: any, min = 100, max = 300): Promise<void> {
+    const delay = Math.floor(Math.random() * (max - min) + min);
+    await this.delay(delay);
+  }
+
+  public async humanMove(page: any, selector: string): Promise<void> {
     const element = await page.$(selector);
     if (!element) return;
     
     const box = await element.boundingBox();
     if (!box) return;
 
-    const viewportSize = page.viewportSize();
+    const viewportSize = await this.getViewportSize(page);
     if (!viewportSize) return;
 
     // Random start position with natural bias towards common areas
@@ -62,15 +78,15 @@ export class HumanBehaviorService {
       await page.mouse.move(x + offsetX, y + offsetY);
       
       // Variable delay between movements
-      const delay = Math.random() * 20 + 10;
-      await page.waitForTimeout(delay);
+      const moveDelay = Math.random() * 20 + 10;
+      await this.delay(moveDelay);
     }
 
     // Final precise movement to target
     await page.mouse.move(endX, endY);
   }
 
-  public async humanType(page: Page, selector: string, text: string): Promise<void> {
+  public async humanType(page: any, selector: string, text: string): Promise<void> {
     await page.focus(selector);
     
     const typingStyles = [
@@ -86,25 +102,25 @@ export class HumanBehaviorService {
       if (Math.random() < 0.03) { // 3% chance of typo
         const typo = text[i].replace(/[a-z]/i, String.fromCharCode(97 + Math.floor(Math.random() * 26)));
         await page.keyboard.type(typo);
-        await page.waitForTimeout(style.maxDelay);
+        await this.delay(style.maxDelay);
         await page.keyboard.press('Backspace');
-        await page.waitForTimeout(style.maxDelay);
+        await this.delay(style.maxDelay);
       }
       
       // Simulate natural typing rhythm
-      const delay = Math.random() * (style.maxDelay - style.minDelay) + style.minDelay;
+      const typeDelay = Math.random() * (style.maxDelay - style.minDelay) + style.minDelay;
       
       // Add slight pause for space or punctuation
       if ([' ', '.', ',', '!', '?'].includes(text[i])) {
-        await page.waitForTimeout(delay * 2);
+        await this.delay(typeDelay * 2);
       }
       
       await page.keyboard.type(text[i]);
-      await page.waitForTimeout(delay);
+      await this.delay(typeDelay);
       
       // Occasional pause while typing
       if (Math.random() < 0.02) { // 2% chance of pause
-        await page.waitForTimeout(Math.random() * 500 + 500);
+        await this.delay(Math.random() * 500 + 500);
       }
     }
   }
