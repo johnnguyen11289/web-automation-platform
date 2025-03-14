@@ -37,4 +37,5 @@ export interface BrowserProfile {
   geolocation?: { latitude: number; longitude: number };
   permissions?: string[];
   customJs?: string;
+  businessType?: string;
 } 

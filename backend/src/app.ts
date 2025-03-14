@@ -6,6 +6,7 @@ import browserProfileRoutes from './routes/browserProfiles';
 import executionRoutes from './routes/executions';
 import taskRoutes from './routes/tasks';
 import recordingRoutes from './routes/recording.routes';
+import fileRoutes from './routes/fileRoutes';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/browser-profiles', browserProfileRoutes);
 app.use('/api/executions', executionRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/recording', recordingRoutes);
+app.use('/api/files', fileRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
