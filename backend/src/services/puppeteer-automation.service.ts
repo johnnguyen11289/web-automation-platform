@@ -107,9 +107,15 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           '--start-maximized',
           '--force-device-scale-factor=1',
           '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-infobars',
+          '--window-position=0,0',
+          '--ignore-certifcate-errors',
+          '--ignore-certifcate-errors-spki-list',
           '--remote-debugging-port=9222'
         ],
-        defaultViewport: null
+        defaultViewport: null,
+        ignoreDefaultArgs: ['--enable-automation'],
       };
 
       console.log('[Puppeteer] Launching browser with options:', options);
@@ -121,6 +127,30 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       // Use existing page if available, otherwise create new one
       this.currentPage = pages.length > 0 ? pages[0] : await this.browser.newPage();
       console.log('[Puppeteer] Using page:', pages.length > 0 ? 'existing' : 'new');
+
+      // Apply anti-detection measures
+      await this.currentPage.evaluateOnNewDocument(() => {
+        // Overwrite the navigator.webdriver property
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined
+        });
+
+        // Remove automation-related properties
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+
+        // Modify navigator properties
+        const navigatorProto = Object.getPrototypeOf(navigator);
+        if (navigatorProto.hasOwnProperty('webdriver')) {
+          delete navigatorProto.webdriver;
+        }
+      });
+
+      // Set a more realistic user agent if not provided by profile
+      if (!this.currentProfile?.userAgent) {
+        await this.currentPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      }
       
       // Remove fixed viewport to allow responsive behavior
       await this.currentPage.setViewport({
@@ -224,6 +254,27 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {
     const page = await this.getPage();
     
+    // Apply additional anti-detection measures
+    await page.evaluateOnNewDocument(() => {
+      // Add random mouse movements
+      const originalMouseMove = window.MouseEvent.prototype.movementX;
+      Object.defineProperty(window.MouseEvent.prototype, 'movementX', {
+        get: () => Math.floor(Math.random() * 10) - 5
+      });
+      Object.defineProperty(window.MouseEvent.prototype, 'movementY', {
+        get: () => Math.floor(Math.random() * 10) - 5
+      });
+
+      // Add random screen properties
+      const screenProps = {
+        width: Math.floor(Math.random() * 100) + 1920,
+        height: Math.floor(Math.random() * 100) + 1080,
+        colorDepth: 24,
+        pixelDepth: 24
+      };
+      Object.defineProperties(window.screen, screenProps);
+    });
+
     // Set viewport to auto-resize mode
     await page.setViewport({
       width: 0,
@@ -231,17 +282,19 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       deviceScaleFactor: 1
     });
     
-    // Set user agent if provided
-    if (profile.userAgent) {
-      await page.setUserAgent(profile.userAgent);
-    }
+    // Add random delay before actions
+    await this.waitForTimeout(Math.floor(Math.random() * 1000) + 500);
+    
+    // Set user agent if provided or use a randomized one
+    const userAgent = profile.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+    await page.setUserAgent(userAgent);
 
     // Set viewport if provided, but maintain responsive behavior
     if (profile.viewport) {
       const viewport = {
         ...profile.viewport,
-        width: 0,  // Override width to maintain responsive behavior
-        height: 0, // Override height to maintain responsive behavior
+        width: 0,
+        height: 0,
         deviceScaleFactor: 1
       };
       await page.setViewport(viewport);
@@ -249,7 +302,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
     // Navigate to appropriate login page based on profile name
     const lowerProfileName = profile.name.toLowerCase();
-    let loginUrl = 'https://example.com'; // Default to a real URL instead of about:blank
+    let loginUrl = 'https://example.com';
     if (lowerProfileName.includes('google')) {
       loginUrl = 'https://accounts.google.com';
     } else if (lowerProfileName.includes('facebook')) {
@@ -260,8 +313,14 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       loginUrl = 'https://www.linkedin.com/login';
     }
 
-    // Navigate first
-    await page.goto(loginUrl, { waitUntil: 'networkidle0' });
+    // Add random delay before navigation
+    await this.waitForTimeout(Math.floor(Math.random() * 1000) + 500);
+
+    // Navigate with random timing
+    await page.goto(loginUrl, { 
+      waitUntil: 'networkidle0',
+      timeout: Math.floor(Math.random() * 5000) + 30000 
+    });
 
     // Set permissions after navigation
     if (profile.permissions) {
