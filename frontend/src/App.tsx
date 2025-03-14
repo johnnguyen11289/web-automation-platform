@@ -24,7 +24,7 @@ import { api, Workflow } from './services/api';
 import './App.css';
 import { BrowserProfile } from './types/browser.types';
 import { Execution, ExecutionStats } from './types/execution.types';
-import { Task, TaskFormData } from './types/task.types';
+import { Task, TaskFormData, AlertSeverity } from './types/task.types';
 import WorkflowProfileMatrix from './components/WorkflowProfileMatrix/WorkflowProfileMatrix';
 import ProfileSelectionDialog from './components/ProfileSelectionDialog';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -170,7 +170,7 @@ function App() {
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: 'success' | 'error' | 'info' | 'warning';
+    severity: AlertSeverity;
   }>({
     open: false,
     message: '',
@@ -832,9 +832,8 @@ function App() {
                     description: '',
                     priority: 'medium',
                     schedule: {
-                      type: 'once',
+                      type: 'once' as const,
                       startDate: new Date().toISOString(),
-                      time: new Date().toLocaleTimeString('en-US', { hour12: false })
                     },
                     maxRetries: 3,
                     timeout: 30000,

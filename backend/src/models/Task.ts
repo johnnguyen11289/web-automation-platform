@@ -1,5 +1,39 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, model } from 'mongoose';
 import { TaskStatus, TaskPriority, TaskScheduleType } from '../types/task.types';
+
+interface BaseTaskSchedule {
+  type: TaskScheduleType;
+  startDate: Date;
+  endDate?: Date;
+}
+
+interface OnceSchedule extends BaseTaskSchedule {
+  type: 'once';
+}
+
+interface EverySchedule extends BaseTaskSchedule {
+  type: 'every';
+  interval: number; // hours
+}
+
+interface DailySchedule extends BaseTaskSchedule {
+  type: 'daily';
+  time: string;
+}
+
+interface WeeklySchedule extends BaseTaskSchedule {
+  type: 'weekly';
+  time: string;
+  daysOfWeek: number[];
+}
+
+interface MonthlySchedule extends BaseTaskSchedule {
+  type: 'monthly';
+  time: string;
+  daysOfMonth: number[];
+}
+
+export type TaskSchedule = OnceSchedule | EverySchedule | DailySchedule | WeeklySchedule | MonthlySchedule;
 
 export interface ITask extends Document {
   name: string;
@@ -8,14 +42,7 @@ export interface ITask extends Document {
   profileId: string;
   status: TaskStatus;
   priority: TaskPriority;
-  schedule?: {
-    type: TaskScheduleType;
-    startDate: Date;
-    endDate?: Date;
-    time?: string;
-    daysOfWeek?: number[];
-    daysOfMonth?: number[];
-  };
+  schedule: TaskSchedule;
   maxRetries: number;
   timeout: number;
   parallelExecution: boolean;
@@ -45,13 +72,15 @@ const TaskSchema: Schema = new Schema({
   schedule: {
     type: {
       type: String,
-      enum: ['once', 'daily', 'weekly', 'monthly']
+      enum: ['once', 'every', 'daily', 'weekly', 'monthly'],
+      required: true,
     },
-    startDate: Date,
-    endDate: Date,
-    time: String,
-    daysOfWeek: [Number],
-    daysOfMonth: [Number]
+    startDate: { type: Date, required: true },
+    endDate: { type: Date },
+    time: { type: String },
+    interval: { type: Number },
+    daysOfWeek: [{ type: Number }],
+    daysOfMonth: [{ type: Number }],
   },
   maxRetries: { type: Number, default: 3 },
   timeout: { type: Number, default: 300000 }, // 5 minutes in milliseconds

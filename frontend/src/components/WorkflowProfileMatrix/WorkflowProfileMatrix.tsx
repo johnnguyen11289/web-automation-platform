@@ -33,7 +33,17 @@ import {
 } from '@mui/icons-material';
 import { Workflow } from '../../services/api';
 import { BrowserProfile } from '../../types/browser.types';
-import { TaskFormData, TaskPriority, TaskScheduleType } from '../../types/task.types';
+import { 
+  TaskFormData, 
+  TaskPriority, 
+  TaskScheduleType,
+  TaskSchedule,
+  OnceSchedule,
+  EverySchedule,
+  DailySchedule,
+  WeeklySchedule,
+  MonthlySchedule 
+} from '../../types/task.types';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -75,22 +85,59 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
     schedule: {
       type: 'once',
       startDate: new Date().toISOString(),
-      time: '00:00',
     },
   });
 
   const handleScheduleTypeChange = (type: TaskScheduleType) => {
+    let newSchedule: TaskSchedule;
+
+    switch (type) {
+      case 'once':
+        newSchedule = {
+          type: 'once',
+          startDate: formData.schedule.startDate,
+          endDate: formData.schedule.endDate,
+        };
+        break;
+      case 'every':
+        newSchedule = {
+          type: 'every',
+          startDate: formData.schedule.startDate,
+          endDate: formData.schedule.endDate,
+          interval: 1,
+        };
+        break;
+      case 'daily':
+        newSchedule = {
+          type: 'daily',
+          startDate: formData.schedule.startDate,
+          endDate: formData.schedule.endDate,
+          time: '00:00',
+        };
+        break;
+      case 'weekly':
+        newSchedule = {
+          type: 'weekly',
+          startDate: formData.schedule.startDate,
+          endDate: formData.schedule.endDate,
+          time: '00:00',
+          daysOfWeek: [1],
+        };
+        break;
+      case 'monthly':
+        newSchedule = {
+          type: 'monthly',
+          startDate: formData.schedule.startDate,
+          endDate: formData.schedule.endDate,
+          time: '00:00',
+          daysOfMonth: [1],
+        };
+        break;
+    }
+
     setFormData(prev => ({
       ...prev,
-      schedule: {
-        type,
-        startDate: prev.schedule.startDate instanceof Date 
-          ? prev.schedule.startDate 
-          : new Date(prev.schedule.startDate),
-        time: prev.schedule.time,
-        daysOfWeek: type === 'weekly' ? [1] : undefined,
-        daysOfMonth: type === 'monthly' ? [1] : undefined,
-      },
+      schedule: newSchedule,
     }));
   };
 
@@ -119,33 +166,55 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        time: e.target.value,
-      },
-    }));
+    if (formData.schedule.type !== 'once' && formData.schedule.type !== 'every') {
+      const schedule = formData.schedule as DailySchedule | WeeklySchedule | MonthlySchedule;
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...schedule,
+          time: e.target.value,
+        },
+      }));
+    }
+  };
+
+  const handleIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (formData.schedule.type === 'every') {
+      const schedule = formData.schedule as EverySchedule;
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...schedule,
+          interval: Math.max(1, parseInt(e.target.value) || 1),
+        },
+      }));
+    }
   };
 
   const handleDaysOfWeekChange = (e: SelectChangeEvent<number[]>) => {
-    setFormData(prev => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        daysOfWeek: e.target.value as unknown as number[],
-      },
-    }));
+    if (formData.schedule.type === 'weekly') {
+      const schedule = formData.schedule as WeeklySchedule;
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...schedule,
+          daysOfWeek: e.target.value as number[],
+        },
+      }));
+    }
   };
 
   const handleDaysOfMonthChange = (e: SelectChangeEvent<number[]>) => {
-    setFormData(prev => ({
-      ...prev,
-      schedule: {
-        ...prev.schedule,
-        daysOfMonth: e.target.value as unknown as number[],
-      },
-    }));
+    if (formData.schedule.type === 'monthly') {
+      const schedule = formData.schedule as MonthlySchedule;
+      setFormData(prev => ({
+        ...prev,
+        schedule: {
+          ...schedule,
+          daysOfMonth: e.target.value as number[],
+        },
+      }));
+    }
   };
 
   const handleSubmit = async () => {
@@ -234,23 +303,48 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
                   <InputLabel>Schedule Type</InputLabel>
                   <Select
                     value={formData.schedule.type}
-                    label="Schedule Type"
                     onChange={(e) => handleScheduleTypeChange(e.target.value as TaskScheduleType)}
+                    label="Schedule Type"
                   >
                     <MenuItem value="once">Once</MenuItem>
+                    <MenuItem value="every">Every X Hours</MenuItem>
                     <MenuItem value="daily">Daily</MenuItem>
                     <MenuItem value="weekly">Weekly</MenuItem>
                     <MenuItem value="monthly">Monthly</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
+              {formData.schedule.type === 'every' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Interval (hours)"
+                    value={(formData.schedule as EverySchedule).interval}
+                    onChange={handleIntervalChange}
+                    InputProps={{
+                      inputProps: { min: 1 }
+                    }}
+                  />
+                </Grid>
+              )}
+              {formData.schedule.type !== 'once' && formData.schedule.type !== 'every' && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="time"
+                    label="Time"
+                    value={(formData.schedule as DailySchedule | WeeklySchedule | MonthlySchedule).time}
+                    onChange={handleTimeChange}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              )}
               <Grid item xs={12} sm={6}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label="Start Date"
-                    value={formData.schedule.startDate instanceof Date 
-                      ? formData.schedule.startDate 
-                      : new Date(formData.schedule.startDate)}
+                    value={new Date(formData.schedule.startDate)}
                     onChange={handleStartDateChange}
                     slotProps={{ textField: { fullWidth: true } }}
                   />
@@ -260,37 +354,21 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label="End Date (Optional)"
-                    value={formData.schedule.endDate 
-                      ? (formData.schedule.endDate instanceof Date 
-                        ? formData.schedule.endDate 
-                        : new Date(formData.schedule.endDate))
-                      : null}
+                    value={formData.schedule.endDate ? new Date(formData.schedule.endDate) : null}
                     onChange={handleEndDateChange}
                     slotProps={{ textField: { fullWidth: true } }}
                   />
                 </LocalizationProvider>
               </Grid>
-              {formData.schedule.type !== 'once' && (
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Time"
-                    type="time"
-                    value={formData.schedule.time}
-                    onChange={handleTimeChange}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-              )}
               {formData.schedule.type === 'weekly' && (
                 <Grid item xs={12}>
                   <FormControl fullWidth>
                     <InputLabel>Days of Week</InputLabel>
                     <Select
                       multiple
-                      value={formData.schedule.daysOfWeek || [1]}
-                      label="Days of Week"
+                      value={(formData.schedule as WeeklySchedule).daysOfWeek}
                       onChange={handleDaysOfWeekChange}
+                      label="Days of Week"
                     >
                       <MenuItem value={0}>Sunday</MenuItem>
                       <MenuItem value={1}>Monday</MenuItem>
@@ -309,9 +387,9 @@ const TaskFormDialog: React.FC<TaskFormDialogProps> = ({
                     <InputLabel>Days of Month</InputLabel>
                     <Select
                       multiple
-                      value={formData.schedule.daysOfMonth || [1]}
-                      label="Days of Month"
+                      value={(formData.schedule as MonthlySchedule).daysOfMonth}
                       onChange={handleDaysOfMonthChange}
+                      label="Days of Month"
                     >
                       {Array.from({ length: 31 }, (_, i) => (
                         <MenuItem key={i + 1} value={i + 1}>

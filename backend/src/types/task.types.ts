@@ -1,6 +1,6 @@
 export type TaskStatus = 'pending' | 'scheduled' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskScheduleType = 'once' | 'daily' | 'weekly' | 'monthly';
+export type TaskScheduleType = 'once' | 'daily' | 'weekly' | 'monthly' | 'every';
 
 export interface TaskSchedule {
   type: TaskScheduleType;
@@ -9,6 +9,8 @@ export interface TaskSchedule {
   time?: string;
   daysOfWeek?: number[];
   daysOfMonth?: number[];
+  interval?: number; // Hours between executions for 'every' type
+  lastRun?: Date; // Last execution time for calculating next run
 }
 
 export interface Task {

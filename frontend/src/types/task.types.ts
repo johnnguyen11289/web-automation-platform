@@ -1,18 +1,44 @@
 import { BrowserProfile } from './browser.types';
 import { Workflow } from '../services/api';
 
+export type AlertSeverity = 'success' | 'error' | 'info' | 'warning';
 export type TaskStatus = 'pending' | 'scheduled' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskScheduleType = 'once' | 'daily' | 'weekly' | 'monthly';
+export type TaskScheduleType = 'once' | 'every' | 'daily' | 'weekly' | 'monthly';
 
-export interface TaskSchedule {
+interface BaseTaskSchedule {
   type: TaskScheduleType;
-  startDate: Date | string;  // Allow both Date and string for API compatibility
-  endDate?: Date | string;   // Allow both Date and string for API compatibility
-  time?: string; // HH:mm format
-  daysOfWeek?: number[]; // 0-6 for Sunday-Saturday
-  daysOfMonth?: number[]; // 1-31
+  startDate: string | Date;
+  endDate?: string | Date;
 }
+
+export interface OnceSchedule extends BaseTaskSchedule {
+  type: 'once';
+}
+
+export interface EverySchedule extends BaseTaskSchedule {
+  type: 'every';
+  interval: number; // hours
+}
+
+export interface DailySchedule extends BaseTaskSchedule {
+  type: 'daily';
+  time: string;
+}
+
+export interface WeeklySchedule extends BaseTaskSchedule {
+  type: 'weekly';
+  time: string;
+  daysOfWeek: number[];
+}
+
+export interface MonthlySchedule extends BaseTaskSchedule {
+  type: 'monthly';
+  time: string;
+  daysOfMonth: number[];
+}
+
+export type TaskSchedule = OnceSchedule | EverySchedule | DailySchedule | WeeklySchedule | MonthlySchedule;
 
 export interface Task {
   _id: string;
@@ -49,9 +75,9 @@ export interface TaskFormData {
   workflowId: string;
   profileId: string;
   priority: TaskPriority;
-  schedule: TaskSchedule;
   maxRetries: number;
   timeout: number;
   parallelExecution: boolean;
+  schedule: TaskSchedule;
   dependencies?: string[];
 } 
