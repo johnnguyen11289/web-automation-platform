@@ -1,5 +1,4 @@
 import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions } from 'puppeteer';
-import type { PuppeteerLaunchOptions } from 'puppeteer';
 import { IBrowserAutomation } from '../interfaces/browser-automation.interface';
 import { BrowserProfile } from '../types/browser.types';
 import { AutomationAction, AutomationResult, AutomationStepResult } from '../types/automation.types';
@@ -225,14 +224,27 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {
     const page = await this.getPage();
     
+    // Set viewport to auto-resize mode
+    await page.setViewport({
+      width: 0,
+      height: 0,
+      deviceScaleFactor: 1
+    });
+    
     // Set user agent if provided
     if (profile.userAgent) {
       await page.setUserAgent(profile.userAgent);
     }
 
-    // Set viewport if provided
+    // Set viewport if provided, but maintain responsive behavior
     if (profile.viewport) {
-      await page.setViewport(profile.viewport);
+      const viewport = {
+        ...profile.viewport,
+        width: 0,  // Override width to maintain responsive behavior
+        height: 0, // Override height to maintain responsive behavior
+        deviceScaleFactor: 1
+      };
+      await page.setViewport(viewport);
     }
 
     // Navigate to appropriate login page based on profile name
