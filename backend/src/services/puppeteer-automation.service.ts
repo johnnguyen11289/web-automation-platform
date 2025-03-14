@@ -1,4 +1,5 @@
-import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions, PuppeteerLaunchOptions } from 'puppeteer';
+import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions } from 'puppeteer';
+import type { PuppeteerLaunchOptions } from 'puppeteer';
 import { IBrowserAutomation } from '../interfaces/browser-automation.interface';
 import { BrowserProfile } from '../types/browser.types';
 import { AutomationAction, AutomationResult, AutomationStepResult } from '../types/automation.types';
@@ -95,8 +96,8 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         automationLibrary: this.currentProfile?.automationLibrary
       });
 
-      const options: PuppeteerLaunchOptions = {
-        headless: this.currentProfile?.isHeadless ? "new" : false,
+      const options: LaunchOptions = {
+        headless: this.currentProfile?.isHeadless || false,
         executablePath: this.getChromePath(),
         args: [
           '--no-sandbox',
@@ -104,9 +105,12 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          '--window-size=1920,1080',
+          '--start-maximized',
+          '--force-device-scale-factor=1',
+          '--disable-features=IsolateOrigins,site-per-process',
           '--remote-debugging-port=9222'
-        ]
+        ],
+        defaultViewport: null
       };
 
       console.log('[Puppeteer] Launching browser with options:', options);
@@ -119,12 +123,13 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       this.currentPage = pages.length > 0 ? pages[0] : await this.browser.newPage();
       console.log('[Puppeteer] Using page:', pages.length > 0 ? 'existing' : 'new');
       
-      // Set default viewport
+      // Remove fixed viewport to allow responsive behavior
       await this.currentPage.setViewport({
-        width: 1920,
-        height: 1080
+        width: 0,
+        height: 0,
+        deviceScaleFactor: 1
       });
-      console.log('[Puppeteer] Viewport set to 1920x1080');
+      console.log('[Puppeteer] Viewport set to auto-resize mode');
     } else {
       console.log('[Puppeteer] Browser already initialized');
     }
