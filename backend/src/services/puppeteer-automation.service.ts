@@ -113,8 +113,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       this.browser = await puppeteer.launch(options);
       console.log('[Puppeteer] Browser launched successfully');
       
-      this.currentPage = await this.browser.newPage();
-      console.log('[Puppeteer] New page created');
+      // Get existing pages
+      const pages = await this.browser.pages();
+      // Use existing page if available, otherwise create new one
+      this.currentPage = pages.length > 0 ? pages[0] : await this.browser.newPage();
+      console.log('[Puppeteer] Using page:', pages.length > 0 ? 'existing' : 'new');
       
       // Set default viewport
       await this.currentPage.setViewport({
