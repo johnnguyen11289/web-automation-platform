@@ -130,8 +130,20 @@ class ExecutionService {
     workflow: Workflow, 
     profile: BrowserProfile & { _id?: Types.ObjectId }
   ): Record<string, any> {
+    // Get variables from execution data if they exist
+    const variables = execution.data?._variables || {};
+
+    console.log('[ExecutionService] Creating execution context:', {
+      stepId: step.nodeId,
+      stepType: step.nodeType,
+      currentVariables: variables
+    });
+
     return {
-      data: execution.data || {},
+      data: {
+        ...execution.data || {},
+        _variables: variables  // Ensure variables are available in data._variables
+      },
       loopItem: step.context?.loopItem,
       step: {
         id: step.nodeId,
@@ -212,6 +224,33 @@ class ExecutionService {
     }
 
     switch (node.type) {
+      case 'variableManager':
+        console.log('[ExecutionService] Processing variableManager operations:', {
+          operations: props.operations,
+          rawOperations: node.properties?.operations
+        });
+
+        // For variableManager, we don't create actions, we just initialize the context
+        if (props.operations?.length > 0) {
+          props.operations.forEach((operation: any) => {
+            console.log('[ExecutionService] Initializing variable:', {
+              action: operation.action,
+              key: operation.key,
+              value: operation.value,
+              type: operation.type
+            });
+
+            // Update the context directly instead of creating actions
+            if (!context.data) context.data = {};
+            if (!context.data._variables) context.data._variables = {};
+            
+            context.data._variables[operation.key] = operation.value;
+          });
+
+          console.log('[ExecutionService] Variables initialized in context:', context.data._variables);
+        }
+        break;
+
       case 'openUrl':
         if (props.url) {
           actions.push({
@@ -222,6 +261,21 @@ class ExecutionService {
             stopOnError: props.stopOnError
           });
           console.log('[ExecutionService] Added openUrl action:', props.url);
+        }
+        break;
+
+      case 'filePicker':
+        if (node.properties?.filePath) {
+          actions.push({
+            type: 'filePicker',
+            filePath: node.properties.filePath,
+            fileName: node.properties.fileName,
+            multiple: node.properties.multiple,
+            directory: node.properties.directory,
+            accept: node.properties.accept,
+            variableKey: node.properties.variableKey,
+            stopOnError: node.properties.stopOnError
+          });
         }
         break;
 
@@ -481,25 +535,58 @@ class ExecutionService {
       const variableManagerNode = workflow.nodes.find(node => node.type === 'variableManager');
       let variableManagerContext: Record<string, any> = {};
 
+      console.log('[ExecutionService] Variable Manager Check:', {
+        hasVariableManager: !!variableManagerNode,
+        variableManagerId: variableManagerNode?.id,
+        workflowId: workflow._id
+      });
+
       // If we have a VariableManager node, process it first to initialize variables
       if (variableManagerNode) {
         const variableManagerStep = execution.steps.find(step => step.nodeId === variableManagerNode.id);
+        console.log('[ExecutionService] Processing Variable Manager:', {
+          nodeId: variableManagerNode.id,
+          stepFound: !!variableManagerStep,
+          properties: variableManagerNode.properties
+        });
+
         if (variableManagerStep) {
           const context = this.createExecutionContext(variableManagerStep, execution, workflow, {
             ...plainProfile,
             _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
           });
 
+          console.log('[ExecutionService] Variable Manager Initial Context:', {
+            existingVariables: context.data?._variables || {},
+            stepId: variableManagerStep.nodeId
+          });
+
           // Convert VariableManager node to actions and execute them first
           const variableManagerActions = this.convertNodeToActions(variableManagerNode, context);
+          console.log('[ExecutionService] Variable Manager Actions:', {
+            actionCount: variableManagerActions.length,
+            actions: variableManagerActions
+          });
+
           if (variableManagerActions.length > 0) {
             const result = await this.automationService.performWebAutomation(variableManagerActions);
+            console.log('[ExecutionService] Variable Manager Execution Result:', {
+              success: result.success,
+              extractedData: result.extractedData,
+              variables: result.extractedData?._variables
+            });
+
             if (result.extractedData?._variables) {
               variableManagerContext = result.extractedData._variables;
               // Store variables in execution data
               execution.data = execution.data || {};
               execution.data._variables = variableManagerContext;
               await execution.save();
+
+              console.log('[ExecutionService] Variables Initialized:', {
+                variables: variableManagerContext,
+                executionId: execution._id
+              });
             }
           }
         }
@@ -512,6 +599,10 @@ class ExecutionService {
       for (const step of execution.steps) {
         // Skip the VariableManager node as it's already processed
         if (variableManagerNode && step.nodeId === variableManagerNode.id) {
+          console.log('[ExecutionService] Skipping Variable Manager in main loop:', {
+            stepId: step.nodeId,
+            nodeType: step.nodeType
+          });
           continue;
         }
 
@@ -583,6 +674,15 @@ class ExecutionService {
           // Merge new data with existing variables
           const existingVariables = execution.data._variables || {};
           const newVariables = result.extractedData._variables || {};
+
+          console.log('[ExecutionService] Action results:', {
+            extractedData: result.extractedData,
+            variables: {
+              before: existingVariables,
+              after: newVariables
+            }
+          });
+
           execution.data = {
             ...execution.data,
             ...result.extractedData,
@@ -591,11 +691,19 @@ class ExecutionService {
               ...newVariables
             }
           };
+
+          // Log final state of variables after update
+          console.log('[ExecutionService] Updated execution variables:', execution.data._variables);
           await execution.save();
         }
 
         if (!result.success) {
-          throw new Error(result.results.find(r => !r.success)?.error || 'Automation failed');
+          const failedAction = result.results.find(r => !r.success);
+          console.error('[ExecutionService] Action failed:', {
+            action: failedAction?.action,
+            error: failedAction?.error
+          });
+          throw new Error(failedAction?.error || 'Automation failed');
         }
       }
 

@@ -41,4 +41,5 @@ export interface IBrowserAutomation {
   openUrl(url: string, waitUntil?: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void>;
   uploadFile(selector: string, filePath: string): Promise<void>;
   extract(selector: string, attribute?: string): Promise<string>;
+  pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<string | string[]>;
 } 

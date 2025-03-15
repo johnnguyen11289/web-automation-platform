@@ -1,7 +1,7 @@
 import { BrowserProfile } from './browser.types';
 
 export interface AutomationAction {
-  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl' | 'variableOperation' | 'fileUpload' | 'subtitleToVoice' | 'editVideo';
+  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl' | 'variableOperation' | 'fileUpload' | 'subtitleToVoice' | 'editVideo' | 'filePicker';
   selector?: string;
   value?: string;
   key?: string;
@@ -23,6 +23,11 @@ export interface AutomationAction {
   sourceVariableKey?: string;
   // File upload properties
   filePath?: string;
+  // File picker properties
+  fileName?: string;
+  multiple?: boolean;
+  directory?: boolean;
+  accept?: string;
   // Subtitle to voice properties
   text?: string;
   // Video editing properties

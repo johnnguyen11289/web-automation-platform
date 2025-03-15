@@ -148,6 +148,48 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     return page.screenshot(options);
   }
 
+  public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<string | string[]> {
+    const fs = require('fs');
+    const path = require('path');
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Directory not found: ${filePath}`);
+    }
+
+    const files = fs.readdirSync(filePath);
+    
+    let matchingFiles = files.filter((file: string) => {
+      const fullPath = path.join(filePath, file);
+      const isDirectory = fs.statSync(fullPath).isDirectory();
+      
+      if (options?.directory && !isDirectory) return false;
+      if (!options?.directory && isDirectory) return false;
+      
+      if (options?.fileName) {
+        const pattern = new RegExp(options.fileName.replace(/\*/g, '.*'));
+        if (!pattern.test(file)) return false;
+      }
+      
+      if (options?.accept && !isDirectory) {
+        const extensions = options.accept.split(',').map(ext => ext.trim());
+        const fileExt = path.extname(file).toLowerCase();
+        if (!extensions.some(ext => fileExt.endsWith(ext))) return false;
+      }
+      
+      return true;
+    });
+
+    matchingFiles.sort();
+
+    if (!options?.multiple && matchingFiles.length > 0) {
+      matchingFiles = [matchingFiles[0]];
+    }
+
+    const fullPaths = matchingFiles.map((file: string) => path.join(filePath, file));
+
+    return options?.multiple ? fullPaths : fullPaths[0] || '';
+  }
+
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {
     // Implementation from the original AutomationService
     // ... (copy the implementation from the original file)

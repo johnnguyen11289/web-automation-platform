@@ -234,6 +234,16 @@ export interface VariableManagerNodeProperties extends BaseNodeProperties {
   initializeWith?: Record<string, any>;  // Initial values for variables
 }
 
+export interface FilePickerNodeProperties extends BaseNodeProperties {
+  nodeType: 'filePicker';
+  filePath: string;      // Source path to pick files from
+  fileName?: string;     // Specific file to look for (if empty, takes first file)
+  multiple: boolean;     // Allow multiple file selection
+  directory: boolean;    // Select directory instead of file
+  accept?: string;       // File type filter (e.g., ".pdf,.doc,image/*")
+  variableOperations?: VariableOperation[];  // Store selected file path(s) in variables
+}
+
 export type NodeProperties = 
   | OpenUrlNodeProperties 
   | ClickNodeProperties 
@@ -262,4 +272,5 @@ export type NodeProperties =
   | WalletBalanceNodeProperties
   | WalletApproveNodeProperties
   | WalletSwitchNodeProperties
-  | VariableManagerNodeProperties; 
+  | VariableManagerNodeProperties
+  | FilePickerNodeProperties; 

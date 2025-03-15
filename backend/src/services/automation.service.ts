@@ -190,6 +190,22 @@ export class AutomationService {
             }
             break;
 
+          case 'filePicker':
+            if (action.filePath) {
+              // Implement file picking logic
+              const selectedFile = await this.automation.pickFile(action.filePath, {
+                fileName: action.fileName,
+                multiple: action.multiple,
+                directory: action.directory,
+                accept: action.accept
+              });
+
+              if (action.variableKey) {
+                variables[action.variableKey] = selectedFile;
+              }
+            }
+            break;
+
           default:
             success = false;
             error = `Unknown action type: ${action.type}`;
