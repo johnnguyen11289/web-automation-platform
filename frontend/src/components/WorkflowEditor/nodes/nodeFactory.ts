@@ -11,7 +11,10 @@ import {
   VariableNodeData,
   ExtractNodeData,
   ProfileNodeData,
-  OpenUrlNodeData
+  OpenUrlNodeData,
+  VariableManagerNodeData,
+  SubtitleToVoiceNodeData,
+  EditVideoNodeData
 } from './types';
 
 export const NODE_COLORS = {
@@ -26,6 +29,9 @@ export const NODE_COLORS = {
   extract: '#673ab7',    // Deep Purple
   profile: '#3f51b5',    // Indigo
   openUrl: '#00bcd4',    // Cyan
+  variableManager: '#00acc1', // Light Blue
+  subtitleToVoice: '#ff4081', // Pink A200
+  editVideo: '#7c4dff',  // Deep Purple A200
 };
 
 export const createNode = (
@@ -148,6 +154,41 @@ export const createNode = (
         url: '',
         waitForLoad: true,
         timeout: 30000,
+      };
+      return { id: `${type}-${Date.now()}`, type, position, data };
+    }
+
+    case 'variableManager': {
+      const data: VariableManagerNodeData = {
+        ...baseData,
+        operations: [],
+        scope: 'local',
+        persist: false,
+      };
+      return { id: `${type}-${Date.now()}`, type, position, data };
+    }
+
+    case 'subtitleToVoice': {
+      const data: SubtitleToVoiceNodeData = {
+        ...baseData,
+        language: 'en',
+        speed: 1.0,
+        pitch: 1.0,
+        volume: 1.0,
+        splitByLine: false,
+        preserveTimings: true,
+      };
+      return { id: `${type}-${Date.now()}`, type, position, data };
+    }
+
+    case 'editVideo': {
+      const data: EditVideoNodeData = {
+        ...baseData,
+        inputPath: '',
+        operations: [],
+        format: 'mp4',
+        quality: 100,
+        preserveAudio: true,
       };
       return { id: `${type}-${Date.now()}`, type, position, data };
     }

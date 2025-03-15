@@ -217,6 +217,23 @@ export interface WalletSwitchNodeProperties extends BaseNodeProperties {
   chainId?: number;
 }
 
+export interface VariableOperation {
+  action: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+  key: string;
+  value?: string | number | boolean | null;
+  expression?: string;  // For complex updates using JavaScript expressions
+  type?: 'string' | 'number' | 'boolean' | 'json' | 'array';  // Type casting
+  source?: string;  // Reference another variable as source
+}
+
+export interface VariableManagerNodeProperties extends BaseNodeProperties {
+  nodeType: 'variableManager';
+  operations: VariableOperation[];
+  scope?: 'local' | 'global' | 'flow';  // Variable scope
+  persist?: boolean;  // Whether to persist variables across automation runs
+  initializeWith?: Record<string, any>;  // Initial values for variables
+}
+
 export type NodeProperties = 
   | OpenUrlNodeProperties 
   | ClickNodeProperties 
@@ -244,4 +261,5 @@ export type NodeProperties =
   | WalletSendNodeProperties
   | WalletBalanceNodeProperties
   | WalletApproveNodeProperties
-  | WalletSwitchNodeProperties; 
+  | WalletSwitchNodeProperties
+  | VariableManagerNodeProperties; 

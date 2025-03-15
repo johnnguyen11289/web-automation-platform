@@ -215,6 +215,62 @@ export interface WalletSwitchNodeProperties extends BaseNodeProperties {
   chainId?: number;
 }
 
+export interface VariableOperation {
+  action: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+  key: string;
+  value?: string | number | boolean | null;
+  expression?: string;  // For complex updates using JavaScript expressions
+  type?: 'string' | 'number' | 'boolean' | 'json' | 'array';  // Type casting
+  source?: string;  // Reference another variable as source
+}
+
+export interface VariableManagerNodeProperties extends BaseNodeProperties {
+  nodeType: 'variableManager';
+  operations: VariableOperation[];
+  scope?: 'local' | 'global' | 'flow';  // Variable scope
+  persist?: boolean;  // Whether to persist variables across automation runs
+  initializeWith?: Record<string, any>;  // Initial values for variables
+}
+
+export interface SubtitleToVoiceNodeProperties extends BaseNodeProperties {
+  nodeType: 'subtitleToVoice';
+  subtitleFile?: string;  // Path to subtitle file or content
+  subtitleFormat?: 'srt' | 'vtt' | 'ass';  // Subtitle format
+  language: string;  // Target language for voice
+  voice?: string;  // Voice model/type to use
+  outputPath?: string;  // Where to save the generated audio
+  speed?: number;  // Speech rate (1.0 is normal)
+  pitch?: number;  // Voice pitch adjustment
+  volume?: number;  // Output volume level
+  splitByLine?: boolean;  // Whether to generate separate audio files for each line
+  preserveTimings?: boolean;  // Whether to maintain original subtitle timings
+}
+
+export interface EditVideoNodeProperties extends BaseNodeProperties {
+  nodeType: 'editVideo';
+  inputPath: string;  // Source video file
+  outputPath?: string;  // Output video file
+  operations: Array<{
+    type: 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
+    params: {
+      start?: number;  // Start time for trim
+      end?: number;    // End time for trim
+      width?: number;  // Width for resize/crop
+      height?: number; // Height for resize/crop
+      x?: number;      // X position for crop/overlay
+      y?: number;      // Y position for crop/overlay
+      path?: string;   // Path for overlay/merge/audio files
+      speed?: number;  // Playback speed
+      filter?: string; // Video filter to apply
+      [key: string]: any; // Allow additional parameters
+    };
+  }>;
+  format?: string;  // Output format (mp4, mov, etc.)
+  quality?: number; // Output quality (0-100)
+  preserveAudio?: boolean;  // Whether to keep original audio
+  audioTrack?: string;  // Path to custom audio track
+}
+
 export type NodeProperties = 
   | OpenUrlNodeProperties 
   | ClickNodeProperties 
@@ -242,4 +298,7 @@ export type NodeProperties =
   | WalletSendNodeProperties
   | WalletBalanceNodeProperties
   | WalletApproveNodeProperties
-  | WalletSwitchNodeProperties; 
+  | WalletSwitchNodeProperties
+  | VariableManagerNodeProperties
+  | SubtitleToVoiceNodeProperties
+  | EditVideoNodeProperties; 

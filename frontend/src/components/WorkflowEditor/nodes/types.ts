@@ -131,6 +131,69 @@ export interface OpenUrlNodeData extends NodeDataBase {
   };
 }
 
+export interface VariableManagerNodeData extends NodeDataBase {
+  operations: Array<{
+    action: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+    key: string;
+    value?: string | number | boolean | null;
+    expression?: string;
+    type?: 'string' | 'number' | 'boolean' | 'json' | 'array';
+    source?: string;
+  }>;
+  scope?: 'local' | 'global' | 'flow';
+  persist?: boolean;
+  initializeWith?: Record<string, any>;
+  outputs?: {
+    success: NodeOutput;
+    variables: NodeOutput;
+  };
+}
+
+export interface SubtitleToVoiceNodeData extends NodeDataBase {
+  subtitleFile?: string;
+  subtitleFormat?: 'srt' | 'vtt' | 'ass';
+  language: string;
+  voice?: string;
+  outputPath?: string;
+  speed?: number;
+  pitch?: number;
+  volume?: number;
+  splitByLine?: boolean;
+  preserveTimings?: boolean;
+  outputs?: {
+    success: NodeOutput;
+    outputPath: NodeOutput;
+  };
+}
+
+export interface EditVideoNodeData extends NodeDataBase {
+  inputPath: string;
+  outputPath?: string;
+  operations: Array<{
+    type: 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
+    params: {
+      start?: number;
+      end?: number;
+      width?: number;
+      height?: number;
+      x?: number;
+      y?: number;
+      path?: string;
+      speed?: number;
+      filter?: string;
+      [key: string]: any;
+    };
+  }>;
+  format?: string;
+  quality?: number;
+  preserveAudio?: boolean;
+  audioTrack?: string;
+  outputs?: {
+    success: NodeOutput;
+    outputPath: NodeOutput;
+  };
+}
+
 export type WorkflowNodeData = 
   | ClickNodeData 
   | InputNodeData 
@@ -142,7 +205,10 @@ export type WorkflowNodeData =
   | VariableNodeData 
   | ExtractNodeData 
   | ProfileNodeData
-  | OpenUrlNodeData;
+  | OpenUrlNodeData
+  | VariableManagerNodeData
+  | SubtitleToVoiceNodeData
+  | EditVideoNodeData;
 
 export type WorkflowNode = Node<WorkflowNodeData>;
 

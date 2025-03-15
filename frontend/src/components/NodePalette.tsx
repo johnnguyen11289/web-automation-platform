@@ -24,6 +24,9 @@ import {
   DragIndicator as DragDropIcon,
   NetworkCheck as NetworkIcon,
   AccountBalanceWallet as WalletIcon,
+  DataObject as VariableIcon,
+  RecordVoiceOver as VoiceIcon,
+  VideoSettings as VideoIcon,
 } from '@mui/icons-material';
 import './NodePalette.css';
 
@@ -83,6 +86,14 @@ const nodeGroups = [
     nodes: [
       { type: 'condition', label: 'Condition', color: '#e8eaf6', icon: ConditionIcon },
       { type: 'loop', label: 'Loop', color: '#f1f8e9', icon: LoopIcon },
+      { type: 'variableManager', label: 'Variable Manager', color: '#e0f2f1', icon: VariableIcon },
+    ]
+  },
+  {
+    name: 'Media Operations',
+    nodes: [
+      { type: 'subtitleToVoice', label: 'Subtitle to Voice', color: '#e8f5e9', icon: VoiceIcon },
+      { type: 'editVideo', label: 'Edit Video', color: '#fff3e0', icon: VideoIcon },
     ]
   }
 ];
