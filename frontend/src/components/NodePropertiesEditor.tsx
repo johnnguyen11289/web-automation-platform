@@ -955,6 +955,67 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
           </div>
         );
 
+      case 'filePicker':
+        return (
+          <Box className="node-specific-properties" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>File Picker Properties</Typography>
+            <Stack spacing={2}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={properties.multiple || false}
+                    onChange={(e) => handleNodeSpecificChange('multiple', e.target.checked)}
+                  />
+                }
+                label="Allow Multiple Files"
+              />
+              
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={properties.directory || false}
+                    onChange={(e) => handleNodeSpecificChange('directory', e.target.checked)}
+                  />
+                }
+                label="Select Directory"
+              />
+
+              <TextField
+                fullWidth
+                label="Source Path"
+                value={properties.filePath || ''}
+                onChange={(e) => handleNodeSpecificChange('filePath', e.target.value)}
+                placeholder="Enter path to pick files from"
+                helperText="Directory path where files will be picked from"
+              />
+
+              <TextField
+                fullWidth
+                label="File Name"
+                value={properties.fileName || ''}
+                onChange={(e) => handleNodeSpecificChange('fileName', e.target.value)}
+                placeholder="Leave empty to take first file"
+                helperText="Specify file name to search for, or leave empty to take first file"
+              />
+
+              <TextField
+                fullWidth
+                label="Accept File Types"
+                value={properties.accept || ''}
+                onChange={(e) => handleNodeSpecificChange('accept', e.target.value)}
+                placeholder=".pdf,.doc,.docx,image/*"
+                helperText="Comma-separated file extensions or MIME types"
+              />
+
+              <VariableOperationsEditor
+                operations={properties.variableOperations || []}
+                onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+                availableVariables={availableVariables}
+              />
+            </Stack>
+          </Box>
+        );
+
       case 'variableManager':
         return (
           <Box className="node-specific-properties" sx={{ p: 2 }}>

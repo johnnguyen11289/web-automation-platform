@@ -278,6 +278,16 @@ export interface EditVideoNodeProperties extends BaseNodeProperties {
   variableOperations?: VariableOperation[];
 }
 
+export interface FilePickerNodeProperties extends BaseNodeProperties {
+  nodeType: 'filePicker';
+  multiple: boolean;
+  accept: string;
+  directory: boolean;
+  fileName: string;  // If empty, takes first file. If specified, looks for this file
+  filePath: string | string[];  // Selected file path(s) - string for single file, string[] for multiple files
+  variableOperations?: VariableOperation[];
+}
+
 export type NodeProperties = 
   | OpenUrlNodeProperties 
   | ClickNodeProperties 
@@ -308,4 +318,5 @@ export type NodeProperties =
   | WalletSwitchNodeProperties
   | VariableManagerNodeProperties
   | SubtitleToVoiceNodeProperties
-  | EditVideoNodeProperties; 
+  | EditVideoNodeProperties
+  | FilePickerNodeProperties; 

@@ -27,6 +27,7 @@ import {
   DataObject as VariableIcon,
   RecordVoiceOver as VoiceIcon,
   VideoSettings as VideoIcon,
+  Folder as FilePickerIcon,
 } from '@mui/icons-material';
 import './NodePalette.css';
 
@@ -92,6 +93,7 @@ const nodeGroups = [
     name: 'Operations',
     nodes: [
       { type: 'variableManager', label: 'Variable Manager', color: '#e0f2f1', icon: VariableIcon },
+      { type: 'filePicker', label: 'File Picker', color: '#f3e5f5', icon: FilePickerIcon },
     ]
   },
   {

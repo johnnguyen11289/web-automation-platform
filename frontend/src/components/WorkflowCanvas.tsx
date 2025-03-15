@@ -536,6 +536,16 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
           network: 'ethereum',
           chainId: 1,
         };
+      case 'filePicker':
+        return {
+          ...baseProps,
+          nodeType: 'filePicker' as const,
+          multiple: false,
+          accept: '',
+          directory: false,
+          fileName: '',  // Empty by default, will take first file
+          filePath: '',  // Empty by default, will be set when file is selected
+        };
       default:
         return {
           ...baseProps,
