@@ -1,5 +1,5 @@
-import React from 'react';
-import { NodeProperties } from '../types/node.types';
+import React, { useEffect, useState } from 'react';
+import { NodeProperties, VariableType } from '../types/node.types';
 import './NodePropertiesEditor.css';
 import {
   FormControl,
@@ -24,10 +24,10 @@ interface NodePropertiesEditorProps {
   node: NodeProperties;
   onUpdate: (updatedNode: NodeProperties) => void;
   onClose: () => void;
+  availableVariables?: { key: string; type: VariableType }[];
 }
 
 type VariableAction = 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
-type VariableType = 'string' | 'number' | 'boolean' | 'json' | 'array';
 type VideoOperationType = 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
 type VariableValue = string | number | boolean | null;
 
@@ -35,6 +35,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
   node,
   onUpdate,
   onClose,
+  availableVariables = [],
 }): JSX.Element => {
   const [properties, setProperties] = React.useState<NodeProperties>(node);
 
@@ -234,6 +235,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+              availableVariables={availableVariables}
             />
           </div>
         );
@@ -261,6 +263,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+              availableVariables={availableVariables}
             />
           </div>
         );
@@ -325,6 +328,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+              availableVariables={availableVariables}
             />
           </div>
         );
@@ -635,6 +639,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+              availableVariables={availableVariables}
             />
           </div>
         );
@@ -1203,6 +1208,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <VariableOperationsEditor
                 operations={properties.variableOperations || []}
                 onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+                availableVariables={availableVariables}
               />
             </Stack>
           </Box>
@@ -1492,6 +1498,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+              availableVariables={availableVariables}
             />
           </Box>
         );

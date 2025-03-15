@@ -1,4 +1,5 @@
 export type ErrorHandlingStrategy = 'retry' | 'skip' | 'stop';
+export type VariableType = 'string' | 'number' | 'boolean' | 'json' | 'array';
 
 export interface BaseNodeProperties {
   nodeName: string;

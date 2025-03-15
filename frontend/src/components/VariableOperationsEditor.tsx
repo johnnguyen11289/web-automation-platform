@@ -6,41 +6,42 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  TextField,
-  IconButton,
-  Button,
-  Stack,
+  OutlinedInput,
+  Chip,
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import { VariableOperation } from '../types/node.types';
+import { VariableOperation, VariableType } from '../types/node.types';
 
 interface VariableOperationsEditorProps {
   operations: VariableOperation[];
   onChange: (operations: VariableOperation[]) => void;
   showTitle?: boolean;
+  availableVariables?: { key: string; type: VariableType }[];
 }
 
 const VariableOperationsEditor: React.FC<VariableOperationsEditorProps> = ({
   operations = [],
   onChange,
   showTitle = true,
+  availableVariables = [],
 }) => {
-  const handleOperationChange = (index: number, field: keyof VariableOperation, value: any) => {
-    const newOps = [...operations];
-    newOps[index] = { ...newOps[index], [field]: value };
-    onChange(newOps);
-  };
-
-  const handleAddOperation = () => {
-    onChange([
-      ...operations,
-      { action: 'set', key: '', value: '', type: 'string' }
-    ]);
-  };
-
-  const handleDeleteOperation = (index: number) => {
-    onChange(operations.filter((_, i) => i !== index));
+  const handleVariableSelect = (event: any) => {
+    const selectedKeys = event.target.value as string[];
+    const newOperations = selectedKeys.map(key => {
+      // Try to find existing operation for this key
+      const existingOp = operations.find(op => op.key === key);
+      if (existingOp) {
+        return existingOp;
+      }
+      // Create new operation for this key
+      const variable = availableVariables.find(v => v.key === key);
+      return {
+        action: 'set' as const,
+        key,
+        value: '',
+        type: (variable?.type || 'string') as VariableType
+      } satisfies VariableOperation;
+    });
+    onChange(newOperations);
   };
 
   return (
@@ -48,91 +49,39 @@ const VariableOperationsEditor: React.FC<VariableOperationsEditorProps> = ({
       {showTitle && (
         <Typography variant="subtitle1" sx={{ mb: 1 }}>Variable Operations</Typography>
       )}
-      <Stack spacing={2}>
-        {operations.map((op, index) => (
-          <Box
-            key={index}
-            sx={{
-              p: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              bgcolor: 'background.paper',
-            }}
-          >
-            <Stack direction="row" spacing={2} alignItems="center">
-              <FormControl sx={{ width: 150 }} size="small">
-                <InputLabel>Action</InputLabel>
-                <Select
-                  value={op.action}
-                  label="Action"
-                  onChange={(e) => handleOperationChange(index, 'action', e.target.value)}
-                >
-                  <MenuItem value="set">Set</MenuItem>
-                  <MenuItem value="update">Update</MenuItem>
-                  <MenuItem value="delete">Delete</MenuItem>
-                  <MenuItem value="increment">Increment</MenuItem>
-                  <MenuItem value="decrement">Decrement</MenuItem>
-                  <MenuItem value="concat">Concatenate</MenuItem>
-                  <MenuItem value="clear">Clear</MenuItem>
-                </Select>
-              </FormControl>
-
-              <TextField
-                label="Variable Key"
-                value={op.key}
-                onChange={(e) => handleOperationChange(index, 'key', e.target.value)}
-                size="small"
-                sx={{ flexGrow: 1 }}
-              />
-
-              {op.action !== 'delete' && op.action !== 'clear' && (
-                <>
-                  <TextField
-                    label="Value"
-                    value={String(op.value || '')}
-                    onChange={(e) => handleOperationChange(index, 'value', e.target.value)}
-                    size="small"
-                    sx={{ flexGrow: 1 }}
-                  />
-
-                  <FormControl sx={{ width: 150 }} size="small">
-                    <InputLabel>Type</InputLabel>
-                    <Select
-                      value={op.type || 'string'}
-                      label="Type"
-                      onChange={(e) => handleOperationChange(index, 'type', e.target.value)}
-                    >
-                      <MenuItem value="string">String</MenuItem>
-                      <MenuItem value="number">Number</MenuItem>
-                      <MenuItem value="boolean">Boolean</MenuItem>
-                      <MenuItem value="json">JSON</MenuItem>
-                      <MenuItem value="array">Array</MenuItem>
-                    </Select>
-                  </FormControl>
-                </>
-              )}
-
-              <IconButton
-                onClick={() => handleDeleteOperation(index)}
-                color="error"
-                size="small"
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Stack>
-          </Box>
-        ))}
-
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={handleAddOperation}
-          sx={{ mt: 1 }}
+      <FormControl fullWidth>
+        <InputLabel id="variable-select-label">Select Variables</InputLabel>
+        <Select
+          labelId="variable-select-label"
+          multiple
+          value={operations.map(op => op.key)}
+          onChange={handleVariableSelect}
+          input={<OutlinedInput label="Select Variables" />}
+          renderValue={(selected) => (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {selected.map((key) => (
+                <Chip 
+                  key={key} 
+                  label={key} 
+                  size="small"
+                  sx={{ 
+                    backgroundColor: '#e3f2fd',
+                    '& .MuiChip-label': {
+                      color: '#1976d2'
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          )}
         >
-          Add Operation
-        </Button>
-      </Stack>
+          {availableVariables.map((variable) => (
+            <MenuItem key={variable.key} value={variable.key}>
+              {variable.key} ({variable.type})
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
     </Box>
   );
 };

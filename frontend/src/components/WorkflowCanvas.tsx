@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NodeProperties } from '../types/node.types';
+import { NodeProperties, VariableManagerNodeProperties, VariableType } from '../types/node.types';
 import NodePropertiesEditor from './NodePropertiesEditor';
 import { ZoomIn, ZoomOut, Save, FiberManualRecord } from '@mui/icons-material';
 import { IconButton, Button, Snackbar, Alert } from '@mui/material';
@@ -43,6 +43,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
   const [showVariableManagerError, setShowVariableManagerError] = useState(false);
+  const [workflowVariables, setWorkflowVariables] = useState<{ key: string; type: VariableType }[]>([]);
 
   // Load initial workflow data when it changes
   useEffect(() => {
@@ -84,6 +85,21 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       setConnectingNode(null);
     }
   }, [initialWorkflow]);
+
+  // Update workflowVariables whenever nodes change
+  useEffect(() => {
+    const variableManagerNode = nodes.find(node => node.type === 'variableManager');
+    if (variableManagerNode) {
+      const variableManagerProps = variableManagerNode.properties as VariableManagerNodeProperties;
+      if (variableManagerProps.operations) {
+        const variables = variableManagerProps.operations.map(op => ({
+          key: op.key,
+          type: (op.type || 'string') as VariableType
+        }));
+        setWorkflowVariables(variables);
+      }
+    }
+  }, [nodes]);
 
   const handleZoomIn = () => {
     setScale(prev => Math.min(prev + 0.1, 2));
@@ -521,18 +537,17 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     }
   };
 
-  const handleNodeUpdate = (updatedProperties: NodeProperties) => {
-    if (selectedNode) {
-      setNodes(prev =>
-        prev.map(node =>
-          node.id === selectedNode.id
-            ? { ...node, properties: updatedProperties, position: node.position }
-            : node
-        )
+  const handleNodeUpdate = (updatedNode: NodeProperties) => {
+    setNodes(prevNodes => {
+      const newNodes = prevNodes.map(node =>
+        node.id === selectedNode?.id
+          ? { ...node, properties: updatedNode }
+          : node
       );
-      setSelectedNode(null);
-      setIsEditing(false);
-    }
+      return newNodes;
+    });
+    setSelectedNode(null);
+    setIsEditing(false);
   };
 
   const getNodeSelector = (properties: NodeProperties): string | undefined => {
@@ -904,9 +919,10 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
           node={selectedNode.properties}
           onUpdate={handleNodeUpdate}
           onClose={() => {
-            setIsEditing(false);
             setSelectedNode(null);
+            setIsEditing(false);
           }}
+          availableVariables={workflowVariables}
         />
       )}
 
