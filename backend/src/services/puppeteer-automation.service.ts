@@ -300,11 +300,18 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     const fs = require('fs');
     const path = require('path');
 
+    console.log('[FilePicker] Starting file picking process:', {
+      filePath,
+      options
+    });
+
     if (!fs.existsSync(filePath)) {
+      console.error('[FilePicker] Directory not found:', filePath);
       throw new Error(`Directory not found: ${filePath}`);
     }
 
     const files = fs.readdirSync(filePath);
+    console.log('[FilePicker] Found files in directory:', files.length);
     
     let matchingFiles = files.filter((file: string) => {
       const fullPath = path.join(filePath, file);
@@ -327,13 +334,17 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       return true;
     });
 
+    console.log('[FilePicker] Matching files after filtering:', matchingFiles.length);
+
     matchingFiles.sort();
 
     if (!options?.multiple && matchingFiles.length > 0) {
       matchingFiles = [matchingFiles[0]];
+      console.log('[FilePicker] Selected single file:', matchingFiles[0]);
     }
 
     const fullPaths = matchingFiles.map((file: string) => path.join(filePath, file));
+    console.log('[FilePicker] Final selected file(s):', fullPaths);
 
     return options?.multiple ? fullPaths : fullPaths[0] || '';
   }
@@ -489,73 +500,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     }, fingerprint);
   }
 
-  public async filePicker(options: {
-    filePath: string;
-    fileName?: string;
-    multiple?: boolean;
-    directory?: boolean;
-    accept?: string;
-  }): Promise<string | string[]> {
-    const { filePath, fileName, multiple, directory, accept } = options;
-    
-    try {
-      // Ensure the path exists
-      if (!fs.existsSync(filePath)) {
-        throw new Error(`Path does not exist: ${filePath}`);
-      }
-
-      // If directory is true, check if the path is a directory
-      if (directory && !fs.statSync(filePath).isDirectory()) {
-        throw new Error(`Path is not a directory: ${filePath}`);
-      }
-
-      // If fileName is specified, look for that specific file
-      if (fileName) {
-        const fullPath = path.join(filePath, fileName);
-        if (!fs.existsSync(fullPath)) {
-          throw new Error(`File not found: ${fullPath}`);
-        }
-        return fullPath;
-      }
-
-      // Get all files in the directory
-      const files = fs.readdirSync(filePath)
-        .filter(file => {
-          // If accept pattern is provided, filter files by extension
-          if (accept) {
-            const extensions = accept.split(',').map(ext => ext.trim());
-            return extensions.some(ext => {
-              if (ext.startsWith('.')) {
-                return file.endsWith(ext);
-              } else if (ext.includes('/*')) {
-                const mimeType = ext.split('/')[0];
-                // Simple mime type check based on common extensions
-                const mimeMap: Record<string, string[]> = {
-                  'image': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'],
-                  'video': ['.mp4', '.webm', '.ogg', '.mov'],
-                  'audio': ['.mp3', '.wav', '.ogg', '.m4a'],
-                };
-                return mimeMap[mimeType]?.some(ext => file.toLowerCase().endsWith(ext)) || false;
-              }
-              return false;
-            });
-          }
-          return true;
-        })
-        .map(file => path.join(filePath, file));
-
-      if (files.length === 0) {
-        throw new Error(`No matching files found in: ${filePath}`);
-      }
-
-      // Return either all files or just the first one based on multiple flag
-      return multiple ? files : files[0];
-    } catch (error) {
-      console.error('File picker error:', error);
-      throw error;
-    }
-  }
-
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
     console.log('[Puppeteer] Starting web automation with profile:', {
       isHeadless: this.currentProfile?.isHeadless,
@@ -688,13 +632,15 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               console.log(`[Puppeteer] Hovered over element: ${action.selector}`);
               break;
             case 'filePicker':
-              const pickedFiles = await this.filePicker({
-                filePath: action.filePath || '',
-                fileName: action.fileName,
-                multiple: action.multiple,
-                directory: action.directory,
-                accept: action.accept
-              });
+              const pickedFiles = await this.pickFile(
+                action.filePath || '',
+                {
+                  fileName: action.fileName,
+                  multiple: action.multiple,
+                  directory: action.directory,
+                  accept: action.accept
+                }
+              );
               
               // Store the result in variables if specified
               if (action.variableKey) {

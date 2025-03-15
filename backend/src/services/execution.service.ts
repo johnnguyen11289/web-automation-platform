@@ -202,12 +202,6 @@ class ExecutionService {
       uuid: () => crypto.randomUUID()
     });
 
-    console.log('[ExecutionService] Converting node to actions:', {
-      nodeType: node.type,
-      nodeId: node.id,
-      properties: props
-    });
-
     // Handle variable operations first if they exist
     if (props.variableOperations?.length > 0) {
       props.variableOperations.forEach((operation: any) => {
@@ -225,29 +219,38 @@ class ExecutionService {
 
     switch (node.type) {
       case 'variableManager':
-        console.log('[ExecutionService] Processing variableManager operations:', {
-          operations: props.operations,
-          rawOperations: node.properties?.operations
-        });
-
-        // For variableManager, we don't create actions, we just initialize the context
         if (props.operations?.length > 0) {
           props.operations.forEach((operation: any) => {
-            console.log('[ExecutionService] Initializing variable:', {
-              action: operation.action,
-              key: operation.key,
-              value: operation.value,
-              type: operation.type
-            });
-
-            // Update the context directly instead of creating actions
             if (!context.data) context.data = {};
             if (!context.data._variables) context.data._variables = {};
-            
             context.data._variables[operation.key] = operation.value;
           });
+        }
+        break;
 
-          console.log('[ExecutionService] Variables initialized in context:', context.data._variables);
+      case 'filePicker':
+        if (node.properties?.filePath) {
+          console.log('[FilePicker] Processing filePicker node:', {
+            filePath: node.properties.filePath,
+            fileName: node.properties.fileName,
+            multiple: node.properties.multiple,
+            directory: node.properties.directory,
+            accept: node.properties.accept,
+            variableKey: node.properties.variableKey
+          });
+
+          actions.push({
+            type: 'filePicker',
+            filePath: node.properties.filePath,
+            fileName: node.properties.fileName,
+            multiple: node.properties.multiple,
+            directory: node.properties.directory,
+            accept: node.properties.accept,
+            variableKey: node.properties.variableKey,
+            stopOnError: node.properties.stopOnError
+          });
+
+          console.log('[FilePicker] Added filePicker action');
         }
         break;
 
@@ -260,36 +263,11 @@ class ExecutionService {
             timeout: props.timeout || 30000,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added openUrl action:', props.url);
-        }
-        break;
-
-      case 'filePicker':
-        if (node.properties?.filePath) {
-          actions.push({
-            type: 'filePicker',
-            filePath: node.properties.filePath,
-            fileName: node.properties.fileName,
-            multiple: node.properties.multiple,
-            directory: node.properties.directory,
-            accept: node.properties.accept,
-            variableKey: node.properties.variableKey,
-            stopOnError: node.properties.stopOnError
-          });
         }
         break;
 
       case 'click':
         if (props.selector) {
-          const clickAction: AutomationAction = {
-            type: 'click',
-            selector: props.selector,
-            button: props.button || 'left',
-            clickCount: props.clickCount || 1,
-            delay: props.delay,
-            stopOnError: props.stopOnError
-          };
-
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
@@ -298,8 +276,14 @@ class ExecutionService {
             });
           }
 
-          actions.push(clickAction);
-          console.log('[ExecutionService] Added click action:', props.selector);
+          actions.push({
+            type: 'click',
+            selector: props.selector,
+            button: props.button || 'left',
+            clickCount: props.clickCount || 1,
+            delay: props.delay,
+            stopOnError: props.stopOnError
+          });
 
           if (props.waitForNavigation) {
             actions.push({
@@ -327,7 +311,6 @@ class ExecutionService {
             delay: props.delay,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added type action:', props.selector);
         }
         break;
 
@@ -347,27 +330,6 @@ class ExecutionService {
             value: props.value,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added select action:', props.selector);
-        }
-        break;
-
-      case 'fileUpload':
-        if (props.selector && props.filePath) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: props.selector,
-              timeout: props.timeout || 5000
-            });
-          }
-
-          actions.push({
-            type: 'fileUpload',
-            selector: props.selector,
-            filePath: props.filePath,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added fileUpload action:', props.selector);
         }
         break;
 
@@ -388,29 +350,6 @@ class ExecutionService {
             key: props.key || props.name || props.selector,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added extract action:', props.selector);
-        }
-        break;
-
-      case 'subtitleToVoice':
-        if (props.text) {
-          actions.push({
-            type: 'subtitleToVoice',
-            text: props.text,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added subtitleToVoice action:', props.text);
-        }
-        break;
-
-      case 'editVideo':
-        if (props.videoPath) {
-          actions.push({
-            type: 'editVideo',
-            videoPath: props.videoPath,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added editVideo action:', props.videoPath);
         }
         break;
 
@@ -535,60 +474,22 @@ class ExecutionService {
       const variableManagerNode = workflow.nodes.find(node => node.type === 'variableManager');
       let variableManagerContext: Record<string, any> = {};
 
-      console.log('[ExecutionService] Variable Manager Check:', {
-        hasVariableManager: !!variableManagerNode,
-        variableManagerId: variableManagerNode?.id,
-        workflowId: workflow._id
-      });
-
       // If we have a VariableManager node, process it first to initialize variables
       if (variableManagerNode) {
         const variableManagerStep = execution.steps.find(step => step.nodeId === variableManagerNode.id);
-        console.log('[ExecutionService] Processing Variable Manager:', {
-          nodeId: variableManagerNode.id,
-          stepFound: !!variableManagerStep,
-          properties: variableManagerNode.properties
-        });
-
         if (variableManagerStep) {
           const context = this.createExecutionContext(variableManagerStep, execution, workflow, {
             ...plainProfile,
             _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
           });
 
-          console.log('[ExecutionService] Variable Manager Initial Context:', {
-            existingVariables: context.data?._variables || {},
-            stepId: variableManagerStep.nodeId
-          });
-
           // Convert VariableManager node to actions and execute them first
-          const variableManagerActions = this.convertNodeToActions(variableManagerNode, context);
-          console.log('[ExecutionService] Variable Manager Actions:', {
-            actionCount: variableManagerActions.length,
-            actions: variableManagerActions
-          });
+          this.convertNodeToActions(variableManagerNode, context);
 
-          if (variableManagerActions.length > 0) {
-            const result = await this.automationService.performWebAutomation(variableManagerActions);
-            console.log('[ExecutionService] Variable Manager Execution Result:', {
-              success: result.success,
-              extractedData: result.extractedData,
-              variables: result.extractedData?._variables
-            });
-
-            if (result.extractedData?._variables) {
-              variableManagerContext = result.extractedData._variables;
-              // Store variables in execution data
-              execution.data = execution.data || {};
-              execution.data._variables = variableManagerContext;
-              await execution.save();
-
-              console.log('[ExecutionService] Variables Initialized:', {
-                variables: variableManagerContext,
-                executionId: execution._id
-              });
-            }
-          }
+          // Store variables in execution data
+          execution.data = execution.data || {};
+          execution.data._variables = context.data?._variables || {};
+          await execution.save();
         }
       }
 
