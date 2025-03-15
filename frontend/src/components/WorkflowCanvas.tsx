@@ -42,6 +42,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
+  const [showVariableManagerError, setShowVariableManagerError] = useState(false);
 
   // Load initial workflow data when it changes
   useEffect(() => {
@@ -136,12 +137,14 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
         y: e.clientY
       });
     }
-    // Only handle node movement if not connecting
+
+    // Handle node dragging
     if (isDraggingNode && draggedNode && !connectingNode) {
       handleNodeMouseMove(e);
     }
-    // Update temporary connection line position
-    if (connectingNode && tempConnection) {
+
+    // Update temporary connection line
+    if (connectingNode) {
       const canvasRect = e.currentTarget.getBoundingClientRect();
       if (!canvasRect) return;
       
@@ -167,18 +170,12 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     if ((e.target as HTMLElement).closest('.delete-node-button')) {
       return;
     }
-    
-    const currentTime = new Date().getTime();
-    if (currentTime - lastClickTime < 300) { // If double click detected
-      e.preventDefault();
-      e.stopPropagation();
-      setSelectedNode(node);
-      setIsEditing(true);
-      setLastClickTime(0); // Reset last click time
-      return;
-    }
 
-    if (e.shiftKey) {
+    const currentTime = new Date().getTime();
+
+    // Start connection mode with Shift + Left Click
+    if (e.shiftKey && e.button === 0) {
+      e.preventDefault();
       // Start connection mode
       setConnectingNode(node);
       const canvasRect = e.currentTarget.parentElement?.getBoundingClientRect();
@@ -188,17 +185,23 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       const mouseX = (e.clientX - canvasRect.left) / scale;
       const mouseY = (e.clientY - canvasRect.top) / scale;
       setTempConnection({ x: mouseX, y: mouseY });
-      setLastClickTime(currentTime); // Update last click time
       return;
     }
-    
-    // Clear any existing connection state when starting to drag
-    setConnectingNode(null);
-    setTempConnection(null);
+
+    if (currentTime - lastClickTime < 300) {
+      // Double click detected
+      e.stopPropagation();
+      setSelectedNode(node);
+      setIsEditing(true);
+      setLastClickTime(0);
+      return;
+    }
+
+    // Handle dragging
     setIsDraggingNode(true);
     setDraggedNode(node);
-    setLastClickTime(currentTime); // Update last click time
-    
+    setLastClickTime(currentTime);
+
     const rect = e.currentTarget.getBoundingClientRect();
     const canvasRect = e.currentTarget.parentElement?.getBoundingClientRect();
     if (!canvasRect) return;
@@ -244,13 +247,22 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   };
 
   const handleNodeMouseUp = (e: React.MouseEvent, targetNode: WorkflowNode) => {
-    // Only create connection if we're in connection mode and not dragging
-    if (connectingNode && connectingNode.id !== targetNode.id && !isDraggingNode) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Handle connection creation
+    if (connectingNode && connectingNode.id !== targetNode.id) {
+      // Prevent connections to/from VariableManager nodes
+      if (connectingNode.type === 'variableManager' || targetNode.type === 'variableManager') {
+        setConnectingNode(null);
+        setTempConnection(null);
+        return;
+      }
+
       // Check if connection already exists
       const connectionExists = connectingNode.connections.includes(targetNode.id);
       
       if (!connectionExists) {
-        // Create connection
         setNodes(prev => prev.map(node => {
           if (node.id === connectingNode.id) {
             return {
@@ -262,13 +274,12 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
         }));
       }
     }
-    
+
     // Clear all states
     setConnectingNode(null);
     setTempConnection(null);
     setIsDraggingNode(false);
     setDraggedNode(null);
-    setLastClickTime(0); // Reset last click time
   };
 
   const handleNodeClick = (e: React.MouseEvent, node: WorkflowNode) => {
@@ -536,6 +547,15 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     const nodeType = e.dataTransfer.getData('nodeType');
     if (!nodeType) return;
 
+    // Check if trying to add a VariableManager node when one already exists
+    if (nodeType === 'variableManager') {
+      const existingVariableManager = nodes.find(node => node.type === 'variableManager');
+      if (existingVariableManager) {
+        setShowVariableManagerError(true);
+        return;
+      }
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const position = snapToGrid({
       x: (e.clientX - rect.left) / scale - offset.x,
@@ -735,6 +755,13 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     }
   };
 
+  // Add context menu prevention
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (connectingNode) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div className="workflow-canvas">
       <div className="workflow-header">
@@ -804,6 +831,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
         onWheel={handleWheel}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
+        onContextMenu={handleContextMenu}
         onMouseUp={(e) => {
           handleCanvasMouseUp(e);
           if (connectingNode) {
@@ -901,6 +929,17 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       >
         <Alert severity="error" onClose={() => setShowSaveError(false)}>
           Error saving workflow. Please try again.
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={showVariableManagerError}
+        autoHideDuration={3000}
+        onClose={() => setShowVariableManagerError(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="warning" onClose={() => setShowVariableManagerError(false)}>
+          Only one Variable Manager node is allowed per workflow.
         </Alert>
       </Snackbar>
     </div>

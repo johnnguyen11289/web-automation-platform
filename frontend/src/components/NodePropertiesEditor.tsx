@@ -1,12 +1,34 @@
 import React from 'react';
 import { NodeProperties } from '../types/node.types';
 import './NodePropertiesEditor.css';
+import {
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Button,
+  IconButton,
+  Stack,
+  Box,
+  Typography,
+  Divider,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 
 interface NodePropertiesEditorProps {
   node: NodeProperties;
   onUpdate: (updatedNode: NodeProperties) => void;
   onClose: () => void;
 }
+
+type VariableAction = 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+type VariableType = 'string' | 'number' | 'boolean' | 'json' | 'array';
+type VideoOperationType = 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
+type VariableValue = string | number | boolean | null;
 
 const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
   node,
@@ -901,6 +923,543 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               />
             </div>
           </div>
+        );
+
+      case 'variableManager':
+        return (
+          <Box className="node-specific-properties" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Variable Manager Properties</Typography>
+            
+            <Stack spacing={3}>
+              <FormControl fullWidth>
+                <InputLabel id="scope-label">Scope</InputLabel>
+                <Select
+                  labelId="scope-label"
+                  value={properties.scope || 'local'}
+                  label="Scope"
+                  onChange={(e) => handleNodeSpecificChange('scope', e.target.value)}
+                >
+                  <MenuItem value="local">Local</MenuItem>
+                  <MenuItem value="global">Global</MenuItem>
+                  <MenuItem value="flow">Flow</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={properties.persist || false}
+                    onChange={(e) => handleNodeSpecificChange('persist', e.target.checked)}
+                  />
+                }
+                label="Persist Variables"
+              />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>Operations</Typography>
+                <Stack spacing={2}>
+                  {(properties.operations || []).map((op, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        p: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                      }}
+                    >
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <FormControl sx={{ width: 150 }} size="small">
+                          <InputLabel id={`action-label-${index}`}>Action</InputLabel>
+                          <Select
+                            labelId={`action-label-${index}`}
+                            value={op.action}
+                            label="Action"
+                            onChange={(e) => {
+                              const newOps = [...(properties.operations || [])];
+                              newOps[index] = { ...op, action: e.target.value as VariableAction };
+                              handleNodeSpecificChange('operations', newOps);
+                            }}
+                          >
+                            <MenuItem value="set">Set</MenuItem>
+                            <MenuItem value="update">Update</MenuItem>
+                            <MenuItem value="delete">Delete</MenuItem>
+                            <MenuItem value="increment">Increment</MenuItem>
+                            <MenuItem value="decrement">Decrement</MenuItem>
+                            <MenuItem value="concat">Concatenate</MenuItem>
+                            <MenuItem value="clear">Clear</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <TextField
+                          label="Variable Key"
+                          value={op.key}
+                          onChange={(e) => {
+                            const newOps = [...(properties.operations || [])];
+                            newOps[index] = { ...op, key: e.target.value };
+                            handleNodeSpecificChange('operations', newOps);
+                          }}
+                          size="small"
+                          sx={{ flexGrow: 1 }}
+                        />
+
+                        {op.action !== 'delete' && op.action !== 'clear' && (
+                          <>
+                            <TextField
+                              label="Value"
+                              value={String(op.value || '')}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = { ...op, value: e.target.value as VariableValue };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                              sx={{ flexGrow: 1 }}
+                            />
+
+                            <FormControl sx={{ width: 150 }} size="small">
+                              <InputLabel id={`type-label-${index}`}>Type</InputLabel>
+                              <Select
+                                labelId={`type-label-${index}`}
+                                value={op.type || 'string'}
+                                label="Type"
+                                onChange={(e) => {
+                                  const newOps = [...(properties.operations || [])];
+                                  newOps[index] = { ...op, type: e.target.value as VariableType };
+                                  handleNodeSpecificChange('operations', newOps);
+                                }}
+                              >
+                                <MenuItem value="string">String</MenuItem>
+                                <MenuItem value="number">Number</MenuItem>
+                                <MenuItem value="boolean">Boolean</MenuItem>
+                                <MenuItem value="json">JSON</MenuItem>
+                                <MenuItem value="array">Array</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </>
+                        )}
+
+                        <IconButton
+                          onClick={() => {
+                            const newOps = (properties.operations || []).filter((_, i) => i !== index);
+                            handleNodeSpecificChange('operations', newOps);
+                          }}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </Box>
+                  ))}
+
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      const newOps = [
+                        ...(properties.operations || []),
+                        { action: 'set' as VariableAction, key: '', value: '', type: 'string' as VariableType }
+                      ];
+                      handleNodeSpecificChange('operations', newOps);
+                    }}
+                    sx={{ mt: 1 }}
+                  >
+                    Add Operation
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          </Box>
+        );
+
+      case 'subtitleToVoice':
+        return (
+          <div className="node-specific-properties">
+            <h3>Subtitle to Voice Properties</h3>
+            <div className="form-group">
+              <label>Subtitle File:</label>
+              <input
+                type="text"
+                value={properties.subtitleFile || ''}
+                onChange={(e) => handleNodeSpecificChange('subtitleFile', e.target.value)}
+                placeholder="Enter subtitle file path"
+              />
+            </div>
+            <div className="form-group">
+              <label>Format:</label>
+              <select
+                value={properties.subtitleFormat || 'srt'}
+                onChange={(e) => handleNodeSpecificChange('subtitleFormat', e.target.value)}
+              >
+                <option value="srt">SRT</option>
+                <option value="vtt">VTT</option>
+                <option value="ass">ASS</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Language:</label>
+              <input
+                type="text"
+                value={properties.language}
+                onChange={(e) => handleNodeSpecificChange('language', e.target.value)}
+                placeholder="Enter target language"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Voice:</label>
+              <input
+                type="text"
+                value={properties.voice || ''}
+                onChange={(e) => handleNodeSpecificChange('voice', e.target.value)}
+                placeholder="Enter voice model/type"
+              />
+            </div>
+            <div className="form-group">
+              <label>Output Path:</label>
+              <input
+                type="text"
+                value={properties.outputPath || ''}
+                onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
+                placeholder="Enter output file path"
+              />
+            </div>
+            <div className="form-group">
+              <label>Speed:</label>
+              <input
+                type="number"
+                value={properties.speed || 1.0}
+                onChange={(e) => handleNodeSpecificChange('speed', parseFloat(e.target.value))}
+                step="0.1"
+                min="0.5"
+                max="2.0"
+              />
+            </div>
+            <div className="form-group">
+              <label>Pitch:</label>
+              <input
+                type="number"
+                value={properties.pitch || 1.0}
+                onChange={(e) => handleNodeSpecificChange('pitch', parseFloat(e.target.value))}
+                step="0.1"
+                min="0.5"
+                max="2.0"
+              />
+            </div>
+            <div className="form-group">
+              <label>Volume:</label>
+              <input
+                type="number"
+                value={properties.volume || 1.0}
+                onChange={(e) => handleNodeSpecificChange('volume', parseFloat(e.target.value))}
+                step="0.1"
+                min="0.0"
+                max="1.0"
+              />
+            </div>
+            <div className="form-group">
+              <label>Split by Line:</label>
+              <input
+                type="checkbox"
+                checked={properties.splitByLine || false}
+                onChange={(e) => handleNodeSpecificChange('splitByLine', e.target.checked)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Preserve Timings:</label>
+              <input
+                type="checkbox"
+                checked={properties.preserveTimings || false}
+                onChange={(e) => handleNodeSpecificChange('preserveTimings', e.target.checked)}
+              />
+            </div>
+          </div>
+        );
+
+      case 'editVideo':
+        return (
+          <Box className="node-specific-properties" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Video Editor Properties</Typography>
+            
+            <Stack spacing={3}>
+              <TextField
+                fullWidth
+                label="Input Path"
+                value={properties.inputPath}
+                onChange={(e) => handleNodeSpecificChange('inputPath', e.target.value)}
+                placeholder="Enter input video path"
+                required
+              />
+
+              <TextField
+                fullWidth
+                label="Output Path"
+                value={properties.outputPath || ''}
+                onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
+                placeholder="Enter output video path"
+              />
+
+              <FormControl fullWidth>
+                <InputLabel id="format-label">Format</InputLabel>
+                <Select
+                  labelId="format-label"
+                  value={properties.format || 'mp4'}
+                  label="Format"
+                  onChange={(e) => handleNodeSpecificChange('format', e.target.value)}
+                >
+                  <MenuItem value="mp4">MP4</MenuItem>
+                  <MenuItem value="mov">MOV</MenuItem>
+                  <MenuItem value="avi">AVI</MenuItem>
+                  <MenuItem value="webm">WebM</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                type="number"
+                label="Quality"
+                value={properties.quality || 100}
+                onChange={(e) => handleNodeSpecificChange('quality', parseInt(e.target.value))}
+                inputProps={{ min: 0, max: 100 }}
+              />
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={properties.preserveAudio || false}
+                    onChange={(e) => handleNodeSpecificChange('preserveAudio', e.target.checked)}
+                  />
+                }
+                label="Preserve Audio"
+              />
+
+              <TextField
+                fullWidth
+                label="Audio Track"
+                value={properties.audioTrack || ''}
+                onChange={(e) => handleNodeSpecificChange('audioTrack', e.target.value)}
+                placeholder="Enter custom audio track path"
+              />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>Operations</Typography>
+                <Stack spacing={2}>
+                  {(properties.operations || []).map((op, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        p: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                      }}
+                    >
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <FormControl sx={{ width: 150 }} size="small">
+                          <InputLabel id={`video-op-type-${index}`}>Operation</InputLabel>
+                          <Select
+                            labelId={`video-op-type-${index}`}
+                            value={op.type}
+                            label="Operation"
+                            onChange={(e) => {
+                              const newOps = [...(properties.operations || [])];
+                              newOps[index] = { type: e.target.value as VideoOperationType, params: {} };
+                              handleNodeSpecificChange('operations', newOps);
+                            }}
+                          >
+                            <MenuItem value="trim">Trim</MenuItem>
+                            <MenuItem value="crop">Crop</MenuItem>
+                            <MenuItem value="resize">Resize</MenuItem>
+                            <MenuItem value="overlay">Overlay</MenuItem>
+                            <MenuItem value="merge">Merge</MenuItem>
+                            <MenuItem value="addAudio">Add Audio</MenuItem>
+                            <MenuItem value="speed">Speed</MenuItem>
+                            <MenuItem value="filter">Filter</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        {op.type === 'trim' && (
+                          <>
+                            <TextField
+                              label="Start Time (s)"
+                              type="number"
+                              value={op.params.start || 0}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, start: parseFloat(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                            <TextField
+                              label="End Time (s)"
+                              type="number"
+                              value={op.params.end || 0}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, end: parseFloat(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                          </>
+                        )}
+
+                        {(op.type === 'crop' || op.type === 'resize') && (
+                          <>
+                            <TextField
+                              label="Width"
+                              type="number"
+                              value={op.params.width || ''}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, width: parseInt(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                            <TextField
+                              label="Height"
+                              type="number"
+                              value={op.params.height || ''}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, height: parseInt(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                          </>
+                        )}
+
+                        {op.type === 'overlay' && (
+                          <>
+                            <TextField
+                              label="Overlay File"
+                              value={op.params.path || ''}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, path: e.target.value }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                              sx={{ flexGrow: 1 }}
+                            />
+                            <TextField
+                              label="X Position"
+                              type="number"
+                              value={op.params.x || 0}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, x: parseInt(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                            <TextField
+                              label="Y Position"
+                              type="number"
+                              value={op.params.y || 0}
+                              onChange={(e) => {
+                                const newOps = [...(properties.operations || [])];
+                                newOps[index] = {
+                                  ...op,
+                                  params: { ...op.params, y: parseInt(e.target.value) }
+                                };
+                                handleNodeSpecificChange('operations', newOps);
+                              }}
+                              size="small"
+                            />
+                          </>
+                        )}
+
+                        {op.type === 'speed' && (
+                          <TextField
+                            label="Speed"
+                            type="number"
+                            value={op.params.speed || 1.0}
+                            onChange={(e) => {
+                              const newOps = [...(properties.operations || [])];
+                              newOps[index] = {
+                                ...op,
+                                params: { ...op.params, speed: parseFloat(e.target.value) }
+                              };
+                              handleNodeSpecificChange('operations', newOps);
+                            }}
+                            size="small"
+                            inputProps={{ step: 0.1, min: 0.1, max: 10.0 }}
+                          />
+                        )}
+
+                        {op.type === 'filter' && (
+                          <TextField
+                            label="Filter Parameters"
+                            value={op.params.filter || ''}
+                            onChange={(e) => {
+                              const newOps = [...(properties.operations || [])];
+                              newOps[index] = {
+                                ...op,
+                                params: { ...op.params, filter: e.target.value }
+                              };
+                              handleNodeSpecificChange('operations', newOps);
+                            }}
+                            size="small"
+                            sx={{ flexGrow: 1 }}
+                          />
+                        )}
+
+                        <IconButton
+                          onClick={() => {
+                            const newOps = (properties.operations || []).filter((_, i) => i !== index);
+                            handleNodeSpecificChange('operations', newOps);
+                          }}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Stack>
+                    </Box>
+                  ))}
+
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddIcon />}
+                    onClick={() => {
+                      const newOps = [
+                        ...(properties.operations || []),
+                        { type: 'trim' as VideoOperationType, params: { start: 0, end: 0 } }
+                      ];
+                      handleNodeSpecificChange('operations', newOps);
+                    }}
+                    sx={{ mt: 1 }}
+                  >
+                    Add Operation
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          </Box>
         );
 
       default:
