@@ -24,7 +24,7 @@ interface NodePropertiesEditorProps {
   node: NodeProperties;
   onUpdate: (updatedNode: NodeProperties) => void;
   onClose: () => void;
-  availableVariables?: { key: string; type: VariableType }[];
+  availableVariables?: { key: string; type: VariableType; value: string | number | boolean | null }[];
 }
 
 type VariableAction = 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';

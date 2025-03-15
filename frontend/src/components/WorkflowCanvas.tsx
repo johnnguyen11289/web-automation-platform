@@ -14,6 +14,12 @@ interface WorkflowNode {
   connections: string[]; // Array of node IDs this node connects to
 }
 
+interface WorkflowVariable {
+  key: string;
+  type: VariableType;
+  value: string | number | boolean | null;
+}
+
 interface WorkflowCanvasProps {
   workflow: Workflow | null;
   onSave: (workflow: { nodes: any[]; name: string; description?: string }) => Promise<boolean>;
@@ -43,7 +49,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showSaveError, setShowSaveError] = useState(false);
   const [showVariableManagerError, setShowVariableManagerError] = useState(false);
-  const [workflowVariables, setWorkflowVariables] = useState<{ key: string; type: VariableType }[]>([]);
+  const [workflowVariables, setWorkflowVariables] = useState<WorkflowVariable[]>([]);
 
   // Load initial workflow data when it changes
   useEffect(() => {
@@ -94,7 +100,8 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       if (variableManagerProps.operations) {
         const variables = variableManagerProps.operations.map(op => ({
           key: op.key,
-          type: (op.type || 'string') as VariableType
+          type: (op.type || 'string') as VariableType,
+          value: op.value || ''
         }));
         setWorkflowVariables(variables);
       }

@@ -15,7 +15,7 @@ interface VariableOperationsEditorProps {
   operations: VariableOperation[];
   onChange: (operations: VariableOperation[]) => void;
   showTitle?: boolean;
-  availableVariables?: { key: string; type: VariableType }[];
+  availableVariables?: { key: string; type: VariableType; value: string | number | boolean | null }[];
 }
 
 const VariableOperationsEditor: React.FC<VariableOperationsEditorProps> = ({
@@ -34,13 +34,14 @@ const VariableOperationsEditor: React.FC<VariableOperationsEditorProps> = ({
       }
       // Create new operation for this key
       const variable = availableVariables.find(v => v.key === key);
+      if (!variable) return null;
       return {
         action: 'set' as const,
         key,
-        value: '',
-        type: (variable?.type || 'string') as VariableType
+        value: variable.value,
+        type: variable.type
       } satisfies VariableOperation;
-    });
+    }).filter((op): op is VariableOperation => op !== null);
     onChange(newOperations);
   };
 
@@ -59,25 +60,28 @@ const VariableOperationsEditor: React.FC<VariableOperationsEditorProps> = ({
           input={<OutlinedInput label="Select Variables" />}
           renderValue={(selected) => (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {selected.map((key) => (
-                <Chip 
-                  key={key} 
-                  label={key} 
-                  size="small"
-                  sx={{ 
-                    backgroundColor: '#e3f2fd',
-                    '& .MuiChip-label': {
-                      color: '#1976d2'
-                    }
-                  }}
-                />
-              ))}
+              {selected.map((key) => {
+                const variable = availableVariables.find(v => v.key === key);
+                return (
+                  <Chip 
+                    key={key} 
+                    label={`${key} = ${variable?.value}`} 
+                    size="small"
+                    sx={{ 
+                      backgroundColor: '#e3f2fd',
+                      '& .MuiChip-label': {
+                        color: '#1976d2'
+                      }
+                    }}
+                  />
+                );
+              })}
             </Box>
           )}
         >
           {availableVariables.map((variable) => (
             <MenuItem key={variable.key} value={variable.key}>
-              {variable.key} ({variable.type})
+              {variable.key} = {variable.value} ({variable.type})
             </MenuItem>
           ))}
         </Select>
