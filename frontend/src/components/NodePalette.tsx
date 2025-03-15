@@ -86,6 +86,11 @@ const nodeGroups = [
     nodes: [
       { type: 'condition', label: 'Condition', color: '#e8eaf6', icon: ConditionIcon },
       { type: 'loop', label: 'Loop', color: '#f1f8e9', icon: LoopIcon },
+    ]
+  },
+  {
+    name: 'Operations',
+    nodes: [
       { type: 'variableManager', label: 'Variable Manager', color: '#e0f2f1', icon: VariableIcon },
     ]
   },
@@ -103,6 +108,11 @@ const NodePalette: React.FC = () => {
   const handleDragStart = (e: React.DragEvent, nodeType: string) => {
     e.dataTransfer.setData('nodeType', nodeType);
     e.dataTransfer.effectAllowed = 'move';
+  };
+
+  // Function to determine if a group should be expanded by default
+  const isGroupExpandedByDefault = (groupName: string) => {
+    return groupName === 'Media Operations' || groupName === 'Operations';
   };
 
   return (
@@ -153,7 +163,7 @@ const NodePalette: React.FC = () => {
         {nodeGroups.map((group) => (
           <Accordion 
             key={group.name} 
-            defaultExpanded
+            defaultExpanded={isGroupExpandedByDefault(group.name)}
             sx={{
               '&:before': {
                 display: 'none',
