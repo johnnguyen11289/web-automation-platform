@@ -176,6 +176,21 @@ class ExecutionService {
       properties: props
     });
 
+    // Handle variable operations first if they exist
+    if (props.variableOperations?.length > 0) {
+      props.variableOperations.forEach((operation: any) => {
+        actions.push({
+          type: 'variableOperation',
+          operationType: operation.type,
+          variableKey: operation.key,
+          variableValue: operation.value,
+          variableType: operation.valueType,
+          sourceVariableKey: operation.sourceKey,
+          stopOnError: props.stopOnError
+        });
+      });
+    }
+
     switch (node.type) {
       case 'openUrl':
         if (props.url) {
@@ -221,32 +236,13 @@ class ExecutionService {
         }
         break;
 
-      case 'input':
+      case 'type':
         if (props.selector) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
               selector: props.selector,
               timeout: props.timeout || 5000
-            });
-          }
-
-          if (props.focus) {
-            actions.push({
-              type: 'focus',
-              selector: props.selector
-            });
-          }
-
-          if (props.clearFirst) {
-            actions.push({
-              type: 'click',
-              selector: props.selector,
-              clickCount: 3
-            });
-            actions.push({
-              type: 'keyboard',
-              key: 'Backspace'
             });
           }
 
@@ -258,18 +254,11 @@ class ExecutionService {
             stopOnError: props.stopOnError
           });
           console.log('[ExecutionService] Added type action:', props.selector);
-
-          if (props.pressEnter) {
-            actions.push({
-              type: 'keyboard',
-              key: 'Enter'
-            });
-          }
         }
         break;
 
       case 'select':
-        if (props.selector) {
+        if (props.selector && props.value) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
@@ -288,22 +277,23 @@ class ExecutionService {
         }
         break;
 
-      case 'wait':
-        if (props.condition === 'delay' && props.delay) {
+      case 'fileUpload':
+        if (props.selector && props.filePath) {
+          if (props.waitForSelector) {
+            actions.push({
+              type: 'wait',
+              selector: props.selector,
+              timeout: props.timeout || 5000
+            });
+          }
+
           actions.push({
-            type: 'wait',
-            delay: props.delay,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added delay wait action:', props.delay);
-        } else if (props.selector) {
-          actions.push({
-            type: 'wait',
+            type: 'fileUpload',
             selector: props.selector,
-            timeout: props.timeout || 5000,
+            filePath: props.filePath,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added selector wait action:', props.selector);
+          console.log('[ExecutionService] Added fileUpload action:', props.selector);
         }
         break;
 
@@ -328,115 +318,32 @@ class ExecutionService {
         }
         break;
 
-      case 'keyboard':
-        if (props.key) {
+      case 'subtitleToVoice':
+        if (props.text) {
           actions.push({
-            type: 'keyboard',
-            key: props.key,
+            type: 'subtitleToVoice',
+            text: props.text,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added keyboard action:', props.key);
+          console.log('[ExecutionService] Added subtitleToVoice action:', props.text);
         }
         break;
 
-      case 'hover':
-        if (props.selector) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: props.selector,
-              timeout: props.timeout || 5000
-            });
-          }
-
+      case 'editVideo':
+        if (props.videoPath) {
           actions.push({
-            type: 'hover',
-            selector: props.selector,
+            type: 'editVideo',
+            videoPath: props.videoPath,
             stopOnError: props.stopOnError
           });
-          console.log('[ExecutionService] Added hover action:', props.selector);
+          console.log('[ExecutionService] Added editVideo action:', props.videoPath);
         }
-        break;
-
-      case 'screenshot':
-        const screenshotAction: AutomationAction = {
-          type: 'screenshot',
-          value: props.path || `screenshot-${Date.now()}.png`,
-          stopOnError: props.stopOnError
-        };
-
-        if (props.selector) {
-          screenshotAction.selector = props.selector;
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: props.selector,
-              timeout: props.timeout || 5000
-            });
-          }
-        }
-
-        actions.push(screenshotAction);
-        console.log('[ExecutionService] Added screenshot action:', screenshotAction.value);
-        break;
-
-      case 'evaluate':
-        if (props.script) {
-          actions.push({
-            type: 'evaluate',
-            script: props.script,
-            key: props.key || props.name,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added evaluate action');
-        }
-        break;
-
-      case 'focus':
-        if (props.selector) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: props.selector,
-              timeout: props.timeout || 5000
-            });
-          }
-
-          actions.push({
-            type: 'focus',
-            selector: props.selector,
-            stopOnError: props.stopOnError
-          });
-          console.log('[ExecutionService] Added focus action:', props.selector);
-        }
-        break;
-
-      case 'condition':
-      case 'loop':
-        // These are handled by executeStep method
         break;
 
       default:
-        // For custom node types, try to extract actions from properties
-        if (props.actions && Array.isArray(props.actions)) {
-          actions.push(...props.actions);
-          console.log('[ExecutionService] Added custom actions:', props.actions.length);
-        }
-        break;
+        console.warn(`Unknown node type: ${node.type}`);
     }
 
-    // Add any post-action waits
-    if (props.waitAfter) {
-      if (typeof props.waitAfter === 'number') {
-        actions.push({
-          type: 'wait',
-          delay: props.waitAfter
-        });
-        console.log('[ExecutionService] Added post-action delay:', props.waitAfter);
-      }
-    }
-
-    console.log('[ExecutionService] Generated actions:', actions);
     return actions;
   }
 

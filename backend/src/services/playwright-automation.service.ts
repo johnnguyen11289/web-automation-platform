@@ -303,4 +303,28 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     const newFingerprint = this.fingerprintService.getRandomFingerprint();
     await this.injectAntiDetection();
   }
+
+  public async openUrl(url: string, waitUntil?: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void> {
+    await this.goto(url, { waitUntil });
+  }
+
+  public async uploadFile(selector: string, filePath: string): Promise<void> {
+    const page = await this.getPage();
+    const input = await page.$(selector);
+    if (!input) {
+      throw new Error(`File input element not found: ${selector}`);
+    }
+    await input.setInputFiles(filePath);
+  }
+
+  public async extract(selector: string, attribute?: string): Promise<string> {
+    const page = await this.getPage();
+    if (attribute === 'text' || !attribute) {
+      const text = await page.$eval(selector, el => el.textContent || '');
+      return text.trim();
+    } else {
+      const value = await page.$eval(selector, (el, attr) => el.getAttribute(attr) || '', attribute);
+      return value;
+    }
+  }
 } 

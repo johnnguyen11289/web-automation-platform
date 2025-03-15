@@ -36,4 +36,9 @@ export interface IBrowserAutomation {
   
   // Automation
   performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult>;
+
+  // New methods from the code block
+  openUrl(url: string, waitUntil?: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void>;
+  uploadFile(selector: string, filePath: string): Promise<void>;
+  extract(selector: string, attribute?: string): Promise<string>;
 } 

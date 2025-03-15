@@ -35,6 +35,7 @@ export interface TypeNodeProperties extends BaseNodeProperties {
   clearFirst?: boolean;
   waitForSelector?: boolean;
   pressEnter?: boolean;
+  variableOperations?: VariableOperation[];
 }
 
 export interface SelectNodeProperties extends BaseNodeProperties {
@@ -42,6 +43,7 @@ export interface SelectNodeProperties extends BaseNodeProperties {
   selector: string;
   value: string;
   waitForSelector?: boolean;
+  variableOperations?: VariableOperation[];
 }
 
 export interface WaitNodeProperties extends BaseNodeProperties {
@@ -58,6 +60,7 @@ export interface ExtractNodeProperties extends BaseNodeProperties {
   attribute?: string;
   key?: string;
   waitForSelector?: boolean;
+  variableOperations?: VariableOperation[];
 }
 
 export interface EvaluateNodeProperties extends BaseNodeProperties {
@@ -148,6 +151,7 @@ export interface FileUploadNodeProperties extends BaseNodeProperties {
   selector: string;
   filePath: string;
   waitForSelector?: boolean;
+  variableOperations?: VariableOperation[];
 }
 
 export interface DragDropNodeProperties extends BaseNodeProperties {
@@ -234,41 +238,43 @@ export interface VariableManagerNodeProperties extends BaseNodeProperties {
 
 export interface SubtitleToVoiceNodeProperties extends BaseNodeProperties {
   nodeType: 'subtitleToVoice';
-  subtitleFile?: string;  // Path to subtitle file or content
-  subtitleFormat?: 'srt' | 'vtt' | 'ass';  // Subtitle format
-  language: string;  // Target language for voice
-  voice?: string;  // Voice model/type to use
-  outputPath?: string;  // Where to save the generated audio
-  speed?: number;  // Speech rate (1.0 is normal)
-  pitch?: number;  // Voice pitch adjustment
-  volume?: number;  // Output volume level
-  splitByLine?: boolean;  // Whether to generate separate audio files for each line
-  preserveTimings?: boolean;  // Whether to maintain original subtitle timings
+  subtitleFile?: string;
+  subtitleFormat?: 'srt' | 'vtt' | 'ass';
+  language: string;
+  voice?: string;
+  outputPath?: string;
+  speed?: number;
+  pitch?: number;
+  volume?: number;
+  splitByLine?: boolean;
+  preserveTimings?: boolean;
+  variableOperations?: VariableOperation[];
 }
 
 export interface EditVideoNodeProperties extends BaseNodeProperties {
   nodeType: 'editVideo';
-  inputPath: string;  // Source video file
-  outputPath?: string;  // Output video file
+  inputPath: string;
+  outputPath?: string;
   operations: Array<{
     type: 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
     params: {
-      start?: number;  // Start time for trim
-      end?: number;    // End time for trim
-      width?: number;  // Width for resize/crop
-      height?: number; // Height for resize/crop
-      x?: number;      // X position for crop/overlay
-      y?: number;      // Y position for crop/overlay
-      path?: string;   // Path for overlay/merge/audio files
-      speed?: number;  // Playback speed
-      filter?: string; // Video filter to apply
-      [key: string]: any; // Allow additional parameters
+      start?: number;
+      end?: number;
+      width?: number;
+      height?: number;
+      x?: number;
+      y?: number;
+      path?: string;
+      speed?: number;
+      filter?: string;
+      [key: string]: any;
     };
   }>;
-  format?: string;  // Output format (mp4, mov, etc.)
-  quality?: number; // Output quality (0-100)
-  preserveAudio?: boolean;  // Whether to keep original audio
-  audioTrack?: string;  // Path to custom audio track
+  format?: string;
+  quality?: number;
+  preserveAudio?: boolean;
+  audioTrack?: string;
+  variableOperations?: VariableOperation[];
 }
 
 export type NodeProperties = 

@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions } from 'puppeteer';
+import puppeteer, { Browser, Page, PuppeteerLifeCycleEvent, Permission, KeyInput, LaunchOptions, ElementHandle } from 'puppeteer';
 import { IBrowserAutomation } from '../interfaces/browser-automation.interface';
 import { BrowserProfile } from '../types/browser.types';
 import { AutomationAction, AutomationResult, AutomationStepResult } from '../types/automation.types';
@@ -606,5 +606,32 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   private async rotateFingerprint(page: Page): Promise<void> {
     const newFingerprint = this.fingerprintService.getRandomFingerprint();
     await this.injectAntiDetection();
+  }
+
+  public async openUrl(url: string, waitUntil?: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void> {
+    const page = await this.getPage();
+    const waitUntilOption = waitUntil === 'networkidle' ? 'networkidle0' : waitUntil;
+    await page.goto(url, { waitUntil: waitUntilOption as 'load' | 'domcontentloaded' | 'networkidle0' });
+  }
+
+  public async uploadFile(selector: string, filePath: string): Promise<void> {
+    const page = await this.getPage();
+    const elementHandle = await page.$(selector);
+    if (!elementHandle) {
+      throw new Error(`File input element not found: ${selector}`);
+    }
+    const input = elementHandle as unknown as ElementHandle<HTMLInputElement>;
+    await input.uploadFile(filePath);
+  }
+
+  public async extract(selector: string, attribute?: string): Promise<string> {
+    const page = await this.getPage();
+    if (attribute === 'text' || !attribute) {
+      const text = await page.$eval(selector, (el: Element) => el.textContent || '');
+      return text.trim();
+    } else {
+      const value = await page.$eval(selector, (el: Element, attr: string) => el.getAttribute(attr) || '', attribute);
+      return value;
+    }
   }
 } 

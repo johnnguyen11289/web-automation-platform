@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import VariableOperationsEditor from './VariableOperationsEditor';
 
 interface NodePropertiesEditorProps {
   node: NodeProperties;
@@ -230,6 +231,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 onChange={(e) => handleNodeSpecificChange('pressEnter', e.target.checked)}
               />
             </div>
+            <VariableOperationsEditor
+              operations={properties.variableOperations || []}
+              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+            />
           </div>
         );
 
@@ -253,6 +258,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 onChange={(e) => handleNodeSpecificChange('value', e.target.value)}
               />
             </div>
+            <VariableOperationsEditor
+              operations={properties.variableOperations || []}
+              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+            />
           </div>
         );
 
@@ -297,14 +306,6 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               />
             </div>
             <div className="form-group">
-              <label>Key:</label>
-              <input
-                type="text"
-                value={properties.key}
-                onChange={(e) => handleNodeSpecificChange('key', e.target.value)}
-              />
-            </div>
-            <div className="form-group">
               <label>Attribute:</label>
               <input
                 type="text"
@@ -313,6 +314,18 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 placeholder="textContent, href, etc."
               />
             </div>
+            <div className="form-group">
+              <label>Key:</label>
+              <input
+                type="text"
+                value={properties.key}
+                onChange={(e) => handleNodeSpecificChange('key', e.target.value)}
+              />
+            </div>
+            <VariableOperationsEditor
+              operations={properties.variableOperations || []}
+              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+            />
           </div>
         );
 
@@ -619,6 +632,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 onChange={(e) => handleNodeSpecificChange('filePath', e.target.value)}
               />
             </div>
+            <VariableOperationsEditor
+              operations={properties.variableOperations || []}
+              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+            />
           </div>
         );
 
@@ -1084,106 +1101,111 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
 
       case 'subtitleToVoice':
         return (
-          <div className="node-specific-properties">
-            <h3>Subtitle to Voice Properties</h3>
-            <div className="form-group">
-              <label>Subtitle File:</label>
-              <input
-                type="text"
+          <Box className="node-specific-properties" sx={{ p: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>Subtitle to Voice Properties</Typography>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Subtitle File"
                 value={properties.subtitleFile || ''}
                 onChange={(e) => handleNodeSpecificChange('subtitleFile', e.target.value)}
                 placeholder="Enter subtitle file path"
               />
-            </div>
-            <div className="form-group">
-              <label>Format:</label>
-              <select
-                value={properties.subtitleFormat || 'srt'}
-                onChange={(e) => handleNodeSpecificChange('subtitleFormat', e.target.value)}
-              >
-                <option value="srt">SRT</option>
-                <option value="vtt">VTT</option>
-                <option value="ass">ASS</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Language:</label>
-              <input
-                type="text"
-                value={properties.language}
-                onChange={(e) => handleNodeSpecificChange('language', e.target.value)}
-                placeholder="Enter target language"
-                required
+              <FormControl fullWidth>
+                <InputLabel>Format</InputLabel>
+                <Select
+                  value={properties.subtitleFormat || 'srt'}
+                  label="Format"
+                  onChange={(e) => handleNodeSpecificChange('subtitleFormat', e.target.value)}
+                >
+                  <MenuItem value="srt">SRT</MenuItem>
+                  <MenuItem value="vtt">VTT</MenuItem>
+                  <MenuItem value="ass">ASS</MenuItem>
+                </Select>
+              </FormControl>
+              <div className="form-group">
+                <label>Language:</label>
+                <input
+                  type="text"
+                  value={properties.language}
+                  onChange={(e) => handleNodeSpecificChange('language', e.target.value)}
+                  placeholder="Enter target language"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Voice:</label>
+                <input
+                  type="text"
+                  value={properties.voice || ''}
+                  onChange={(e) => handleNodeSpecificChange('voice', e.target.value)}
+                  placeholder="Enter voice model/type"
+                />
+              </div>
+              <div className="form-group">
+                <label>Output Path:</label>
+                <input
+                  type="text"
+                  value={properties.outputPath || ''}
+                  onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
+                  placeholder="Enter output file path"
+                />
+              </div>
+              <div className="form-group">
+                <label>Speed:</label>
+                <input
+                  type="number"
+                  value={properties.speed || 1.0}
+                  onChange={(e) => handleNodeSpecificChange('speed', parseFloat(e.target.value))}
+                  step="0.1"
+                  min="0.5"
+                  max="2.0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Pitch:</label>
+                <input
+                  type="number"
+                  value={properties.pitch || 1.0}
+                  onChange={(e) => handleNodeSpecificChange('pitch', parseFloat(e.target.value))}
+                  step="0.1"
+                  min="0.5"
+                  max="2.0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Volume:</label>
+                <input
+                  type="number"
+                  value={properties.volume || 1.0}
+                  onChange={(e) => handleNodeSpecificChange('volume', parseFloat(e.target.value))}
+                  step="0.1"
+                  min="0.0"
+                  max="1.0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Split by Line:</label>
+                <input
+                  type="checkbox"
+                  checked={properties.splitByLine || false}
+                  onChange={(e) => handleNodeSpecificChange('splitByLine', e.target.checked)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Preserve Timings:</label>
+                <input
+                  type="checkbox"
+                  checked={properties.preserveTimings || false}
+                  onChange={(e) => handleNodeSpecificChange('preserveTimings', e.target.checked)}
+                />
+              </div>
+              <VariableOperationsEditor
+                operations={properties.variableOperations || []}
+                onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
               />
-            </div>
-            <div className="form-group">
-              <label>Voice:</label>
-              <input
-                type="text"
-                value={properties.voice || ''}
-                onChange={(e) => handleNodeSpecificChange('voice', e.target.value)}
-                placeholder="Enter voice model/type"
-              />
-            </div>
-            <div className="form-group">
-              <label>Output Path:</label>
-              <input
-                type="text"
-                value={properties.outputPath || ''}
-                onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
-                placeholder="Enter output file path"
-              />
-            </div>
-            <div className="form-group">
-              <label>Speed:</label>
-              <input
-                type="number"
-                value={properties.speed || 1.0}
-                onChange={(e) => handleNodeSpecificChange('speed', parseFloat(e.target.value))}
-                step="0.1"
-                min="0.5"
-                max="2.0"
-              />
-            </div>
-            <div className="form-group">
-              <label>Pitch:</label>
-              <input
-                type="number"
-                value={properties.pitch || 1.0}
-                onChange={(e) => handleNodeSpecificChange('pitch', parseFloat(e.target.value))}
-                step="0.1"
-                min="0.5"
-                max="2.0"
-              />
-            </div>
-            <div className="form-group">
-              <label>Volume:</label>
-              <input
-                type="number"
-                value={properties.volume || 1.0}
-                onChange={(e) => handleNodeSpecificChange('volume', parseFloat(e.target.value))}
-                step="0.1"
-                min="0.0"
-                max="1.0"
-              />
-            </div>
-            <div className="form-group">
-              <label>Split by Line:</label>
-              <input
-                type="checkbox"
-                checked={properties.splitByLine || false}
-                onChange={(e) => handleNodeSpecificChange('splitByLine', e.target.checked)}
-              />
-            </div>
-            <div className="form-group">
-              <label>Preserve Timings:</label>
-              <input
-                type="checkbox"
-                checked={properties.preserveTimings || false}
-                onChange={(e) => handleNodeSpecificChange('preserveTimings', e.target.checked)}
-              />
-            </div>
-          </div>
+            </Stack>
+          </Box>
         );
 
       case 'editVideo':
@@ -1467,6 +1489,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 </Stack>
               </Box>
             </Stack>
+            <VariableOperationsEditor
+              operations={properties.variableOperations || []}
+              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
+            />
           </Box>
         );
 

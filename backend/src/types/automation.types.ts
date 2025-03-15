@@ -1,7 +1,7 @@
 import { BrowserProfile } from './browser.types';
 
 export interface AutomationAction {
-  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl';
+  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl' | 'variableOperation' | 'fileUpload' | 'subtitleToVoice' | 'editVideo';
   selector?: string;
   value?: string;
   key?: string;
@@ -15,6 +15,18 @@ export interface AutomationAction {
   clearFirst?: boolean;
   stopOnError?: boolean;
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  // Variable operation properties
+  operationType?: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+  variableKey?: string;
+  variableValue?: any;
+  variableType?: 'string' | 'number' | 'boolean' | 'object' | 'array';
+  sourceVariableKey?: string;
+  // File upload properties
+  filePath?: string;
+  // Subtitle to voice properties
+  text?: string;
+  // Video editing properties
+  videoPath?: string;
 }
 
 export interface AutomationStepResult {
