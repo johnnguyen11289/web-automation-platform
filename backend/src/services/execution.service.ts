@@ -62,7 +62,27 @@ class ExecutionService {
       return value.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
         try {
           const trimmedPath = path.trim();
-          // Handle array indexing and nested properties
+          // Check if this is a variable reference
+          if (trimmedPath.startsWith('variables.')) {
+            const variablePath = trimmedPath.substring(10); // Remove 'variables.' prefix
+            const variables = context.data?._variables || {};
+            const resolvedValue = variablePath.split('.').reduce((obj: any, key: string) => {
+              if (obj === undefined) return undefined;
+              // Handle array indexing
+              const arrayMatch = key.match(/(\w+)\[(\d+)\]/);
+              if (arrayMatch) {
+                const [, arrayKey, index] = arrayMatch;
+                return obj[arrayKey]?.[parseInt(index)];
+              }
+              return obj[key];
+            }, variables);
+
+            if (resolvedValue === undefined) return match;
+            if (typeof resolvedValue === 'object') return JSON.stringify(resolvedValue);
+            return String(resolvedValue);
+          }
+
+          // Handle other context paths
           const resolvedValue = trimmedPath.split('.').reduce((obj: any, key: string) => {
             if (obj === undefined) return undefined;
             // Handle array indexing
@@ -457,11 +477,44 @@ class ExecutionService {
         }))
       });
 
-      // Collect all actions and contexts first
+      // Find the VariableManager node first
+      const variableManagerNode = workflow.nodes.find(node => node.type === 'variableManager');
+      let variableManagerContext: Record<string, any> = {};
+
+      // If we have a VariableManager node, process it first to initialize variables
+      if (variableManagerNode) {
+        const variableManagerStep = execution.steps.find(step => step.nodeId === variableManagerNode.id);
+        if (variableManagerStep) {
+          const context = this.createExecutionContext(variableManagerStep, execution, workflow, {
+            ...plainProfile,
+            _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
+          });
+
+          // Convert VariableManager node to actions and execute them first
+          const variableManagerActions = this.convertNodeToActions(variableManagerNode, context);
+          if (variableManagerActions.length > 0) {
+            const result = await this.automationService.performWebAutomation(variableManagerActions);
+            if (result.extractedData?._variables) {
+              variableManagerContext = result.extractedData._variables;
+              // Store variables in execution data
+              execution.data = execution.data || {};
+              execution.data._variables = variableManagerContext;
+              await execution.save();
+            }
+          }
+        }
+      }
+
+      // Collect all actions and contexts for other nodes
       const allActions: AutomationAction[] = [];
       const contexts: Record<string, any>[] = [];
 
       for (const step of execution.steps) {
+        // Skip the VariableManager node as it's already processed
+        if (variableManagerNode && step.nodeId === variableManagerNode.id) {
+          continue;
+        }
+
         if (execution.status !== 'running') {
           break;
         }
@@ -472,12 +525,18 @@ class ExecutionService {
         await execution.save();
 
         try {
-          // Create execution context
+          // Create execution context with VariableManager variables
           const profileObj = profile.toObject();
           const context = this.createExecutionContext(step, execution, workflow, {
             ...profileObj,
             _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
           });
+
+          // Add VariableManager variables to context
+          context.data = {
+            ...context.data,
+            _variables: variableManagerContext
+          };
 
           // Find the node configuration from workflow
           const node = workflow.nodes.find(n => n.id === step.nodeId);
@@ -521,7 +580,17 @@ class ExecutionService {
         // Handle results and update execution data
         if (result.extractedData && Object.keys(result.extractedData).length > 0) {
           execution.data = execution.data || {};
-          Object.assign(execution.data, result.extractedData);
+          // Merge new data with existing variables
+          const existingVariables = execution.data._variables || {};
+          const newVariables = result.extractedData._variables || {};
+          execution.data = {
+            ...execution.data,
+            ...result.extractedData,
+            _variables: {
+              ...existingVariables,
+              ...newVariables
+            }
+          };
           await execution.save();
         }
 
