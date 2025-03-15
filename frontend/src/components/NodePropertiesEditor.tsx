@@ -57,35 +57,43 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
     onClose();
   };
 
-  const renderCommonProperties = () => (
-    <div className="common-properties">
-      <h3>Common Properties</h3>
-      <div className="form-group">
-        <label>Node Name:</label>
-        <input
-          type="text"
-          value={properties.nodeName}
-          onChange={(e) => handleBasePropertyChange('nodeName', e.target.value)}
-        />
+  const shouldShowCommonProperties = () => {
+    return properties.nodeType !== 'variableManager';
+  };
+
+  const renderCommonProperties = () => {
+    if (!shouldShowCommonProperties()) return null;
+    
+    return (
+      <div className="common-properties">
+        <h3>Common Properties</h3>
+        <div className="form-group">
+          <label>Node Name:</label>
+          <input
+            type="text"
+            value={properties.nodeName}
+            onChange={(e) => handleBasePropertyChange('nodeName', e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <label>Timeout (ms):</label>
+          <input
+            type="number"
+            value={properties.timeout}
+            onChange={(e) => handleBasePropertyChange('timeout', parseInt(e.target.value))}
+          />
+        </div>
+        <div className="form-group">
+          <label>Stop on Error:</label>
+          <input
+            type="checkbox"
+            checked={properties.stopOnError}
+            onChange={(e) => handleBasePropertyChange('stopOnError', e.target.checked)}
+          />
+        </div>
       </div>
-      <div className="form-group">
-        <label>Timeout (ms):</label>
-        <input
-          type="number"
-          value={properties.timeout}
-          onChange={(e) => handleBasePropertyChange('timeout', parseInt(e.target.value))}
-        />
-      </div>
-      <div className="form-group">
-        <label>Stop on Error:</label>
-        <input
-          type="checkbox"
-          checked={properties.stopOnError}
-          onChange={(e) => handleBasePropertyChange('stopOnError', e.target.checked)}
-        />
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderNodeSpecificProperties = () => {
     switch (properties.nodeType) {

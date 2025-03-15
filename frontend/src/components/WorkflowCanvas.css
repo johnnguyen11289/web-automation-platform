@@ -277,4 +277,50 @@
 
 .workflow-node[data-type="profile"] {
   border-color: #009688;
+}
+
+/* VariableManager specific styles */
+.workflow-node[data-type="variableManager"] {
+  border-radius: 8px;
+  border: 2px dashed #1976d2;
+  background-color: #fff;
+  box-shadow: 0 3px 10px rgba(25, 118, 210, 0.15);
+  width: 120px;  /* Restore standard size */
+  height: 120px;  /* Restore standard size */
+  padding: 12px;
+}
+
+.workflow-node[data-type="variableManager"]::before {
+  display: none;  /* Hide the name */
+}
+
+.workflow-node[data-type="variableManager"] .node-type {
+  font-weight: 600;
+  color: #1976d2;
+  font-size: 0.7em;  /* Make text 30% smaller */
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+  transform: scale(0.7);  /* Additional size reduction */
+  margin: -8px 0;  /* Compensate for scale transform */
+}
+
+.workflow-node[data-type="variableManager"]:hover {
+  border-color: #2196f3;
+  background-color: #f3f8ff;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.25);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+.workflow-node[data-type="variableManager"].connecting {
+  border: 2.5px dashed #2196f3;
+  background-color: #e3f2fd;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+
+.workflow-node[data-type="variableManager"].dragging {
+  opacity: 0.9;
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
 } 
