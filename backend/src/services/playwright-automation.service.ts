@@ -35,19 +35,12 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
   }
 
   private async cleanup() {
-    console.log('Cleaning up browser resources...');
     await this.close();
     PlaywrightAutomationService.instance = null;
   }
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
-      console.log('[Playwright] Initializing browser with profile:', {
-        isHeadless: this.currentProfile?.isHeadless,
-        browserType: this.currentProfile?.browserType,
-        automationLibrary: this.currentProfile?.automationLibrary
-      });
-
       const options = {
         headless: this.currentProfile?.isHeadless ?? false,
         args: [
@@ -60,21 +53,14 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
         ]
       };
 
-      console.log('[Playwright] Launching browser with options:', options);
       this.browser = await chromium.launch(options);
-      console.log('[Playwright] Browser launched successfully');
-      
       this.currentPage = await this.browser.newPage();
-      console.log('[Playwright] New page created');
       
       // Set default viewport
       await this.currentPage.setViewportSize({
         width: 1920,
         height: 1080
       });
-      console.log('[Playwright] Viewport set to 1920x1080');
-    } else {
-      console.log('[Playwright] Browser already initialized');
     }
   }
 
@@ -148,7 +134,7 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     return page.screenshot(options);
   }
 
-  public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<string | string[]> {
+  public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<{ paths: string | string[], variableKey?: string }> {
     const fs = require('fs');
     const path = require('path');
 
@@ -157,6 +143,7 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     }
 
     const files = fs.readdirSync(filePath);
+    let variableKey: string | undefined;
     
     let matchingFiles = files.filter((file: string) => {
       const fullPath = path.join(filePath, file);
@@ -166,7 +153,20 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
       if (!options?.directory && isDirectory) return false;
       
       if (options?.fileName) {
-        const pattern = new RegExp(options.fileName.replace(/\*/g, '.*'));
+        // Extract variable name if fileName is a pure variable pattern
+        const variableMatch = options.fileName.match(/^\{(\w+)\}$/);
+        if (variableMatch) {
+          variableKey = variableMatch[1];
+          return true; // Match any file if it's a pure variable
+        }
+
+        // For exact match with Chinese characters, use direct comparison
+        if (file === options.fileName) {
+          return true;
+        }
+        // For pattern matching, escape special regex characters
+        const escapedPattern = options.fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        const pattern = new RegExp(escapedPattern);
         if (!pattern.test(file)) return false;
       }
       
@@ -187,7 +187,10 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
 
     const fullPaths = matchingFiles.map((file: string) => path.join(filePath, file));
 
-    return options?.multiple ? fullPaths : fullPaths[0] || '';
+    return {
+      paths: options?.multiple ? fullPaths : fullPaths[0] || '',
+      variableKey
+    };
   }
 
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {
@@ -207,34 +210,18 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
   }
 
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
-    console.log('[Playwright] Starting web automation with profile:', {
-      isHeadless: this.currentProfile?.isHeadless,
-      browserType: this.currentProfile?.browserType,
-      automationLibrary: this.currentProfile?.automationLibrary
-    });
-
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      console.log(`[Playwright] Starting automation with ${actions.length} actions`);
-      
       for (const [index, action] of actions.entries()) {
         try {
-          console.log(`[Playwright] Executing action ${index + 1}/${actions.length}:`, {
-            type: action.type,
-            selector: action.selector,
-            value: action.value
-          });
-          
           switch (action.type) {
             case 'openUrl':
               if (action.value) {
-                console.log(`[Playwright] Navigating to URL: ${action.value}`);
                 await this.goto(action.value, { waitUntil: 'networkidle', timeout: 30000 });
-                console.log('[Playwright] Navigation completed');
                 await this.humanBehaviorService.randomDelay(page, 1000, 2000);
               }
               break;
@@ -317,10 +304,29 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
                 await this.screenshot({ path: action.value });
               }
               break;
+            case 'filePicker':
+              const pickResult = await this.pickFile(
+                action.filePath || '',
+                {
+                  fileName: action.fileName,
+                  multiple: action.multiple,
+                  directory: action.directory,
+                  accept: action.accept
+                }
+              );
+              
+              // Store the result in variables if specified
+              const variableKey = pickResult.variableKey || action.variableKey;
+              if (variableKey) {
+                extractedData[variableKey] = pickResult.paths;
+                // Also store in _variables for backward compatibility
+                extractedData._variables = extractedData._variables || {};
+                extractedData._variables[variableKey] = pickResult.paths;
+              }
+              break;
           }
           results.push({ action, success: true });
         } catch (error) {
-          console.error('Action failed:', error);
           results.push({
             action,
             success: false,
@@ -334,7 +340,6 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
         await this.humanBehaviorService.randomDelay(page, 500, 1500);
       }
     } catch (error) {
-      console.error('Automation failed:', error);
       success = false;
     }
 

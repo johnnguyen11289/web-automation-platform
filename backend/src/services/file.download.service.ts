@@ -41,11 +41,31 @@ export class FileDownloadService {
     }
 
     private sanitizeFilename(filename: string): string {
+        // Remove emojis and icons
+        filename = filename.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+        
         // Remove invalid characters but keep Chinese characters
-        return filename
+        filename = filename
             .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+            .replace(/[\u2000-\u200F\u2028-\u202F\u205F-\u206F\uFEFF]/g, '') // Remove invisible characters
             .replace(/\s+/g, '_')         // Replace spaces with underscores
+            .replace(/_{2,}/g, '_')       // Replace multiple underscores with single underscore
             .trim();                      // Remove leading/trailing spaces
+
+        // Ensure filename is not empty after sanitization
+        if (!filename) {
+            filename = `video_${Date.now()}`;
+        }
+
+        // Limit filename length to 255 characters (Windows limit)
+        if (filename.length > 255) {
+            const ext = path.extname(filename);
+            const nameWithoutExt = filename.slice(0, -(ext.length));
+            filename = nameWithoutExt.slice(0, 255 - ext.length) + ext;
+        }
+
+        return filename;
     }
 
     public startDownloadFileInterval(): void {
@@ -179,11 +199,13 @@ export class FileDownloadService {
                     Category: 'Video'
                 }, ['-overwrite_original']);
             } catch (metadataError) {
+                // Keep this warning as it's important for debugging metadata issues
                 console.warn('[FileDownload] Could not set file metadata:', metadataError);
             }
             
             return filePath;
         } catch (error) {
+            // Keep this error log as it's critical for debugging file saving issues
             console.error('[FileDownload] Error saving file:', error);
             throw error;
         }

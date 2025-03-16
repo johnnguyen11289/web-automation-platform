@@ -192,16 +192,22 @@ export class AutomationService {
 
           case 'filePicker':
             if (action.filePath) {
-              // Implement file picking logic
-              const selectedFile = await this.automation.pickFile(action.filePath, {
+              // Extract variableKey from fileName pattern if present
+              const variableMatch = action.fileName?.match(/\{(\w+)\}/);
+              if (variableMatch) {
+                action.variableKey = variableMatch[1];
+              }
+
+              const selectedFiles = await this.automation.pickFile(action.filePath, {
                 fileName: action.fileName,
                 multiple: action.multiple,
                 directory: action.directory,
                 accept: action.accept
               });
-
+              
+              // Use the extracted variableKey from the pattern
               if (action.variableKey) {
-                variables[action.variableKey] = selectedFile;
+                variables[action.variableKey] = selectedFiles.paths;
               }
             }
             break;

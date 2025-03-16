@@ -36,7 +36,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   }
 
   private async cleanup() {
-    console.log('Cleaning up browser resources...');
     await this.close();
     PuppeteerAutomationService.instance = null;
   }
@@ -89,12 +88,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
-      console.log('[Puppeteer] Initializing browser with profile:', {
-        isHeadless: this.currentProfile?.isHeadless,
-        browserType: this.currentProfile?.browserType,
-        automationLibrary: this.currentProfile?.automationLibrary
-      });
-
       const options: LaunchOptions = {
         headless: this.currentProfile?.isHeadless || false,
         executablePath: this.getChromePath(),
@@ -126,15 +119,12 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         pipe: true
       };
 
-      console.log('[Puppeteer] Launching browser with options:', options);
       this.browser = await puppeteer.launch(options);
-      console.log('[Puppeteer] Browser launched successfully');
       
       // Get existing pages
       const pages = await this.browser.pages();
       // Use existing page if available, otherwise create new one
       this.currentPage = pages.length > 0 ? pages[0] : await this.browser.newPage();
-      console.log('[Puppeteer] Using page:', pages.length > 0 ? 'existing' : 'new');
 
       // Apply anti-detection measures using CDP
       await this.currentPage.evaluateOnNewDocument(() => {
@@ -146,7 +136,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         // Override the chrome property
         (window as any).chrome = {
           runtime: {},
-          // Add other chrome properties as needed
         };
 
         // Override navigator permissions
@@ -190,9 +179,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         height: 0,
         deviceScaleFactor: 1
       });
-      console.log('[Puppeteer] Viewport set to auto-resize mode');
-    } else {
-      console.log('[Puppeteer] Browser already initialized');
     }
   }
 
@@ -296,22 +282,16 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     return Buffer.from(screenshot);
   }
 
-  public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<string | string[]> {
+  public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<{ paths: string | string[], variableKey?: string }> {
     const fs = require('fs');
     const path = require('path');
 
-    console.log('[FilePicker] Starting file picking process:', {
-      filePath,
-      options
-    });
-
     if (!fs.existsSync(filePath)) {
-      console.error('[FilePicker] Directory not found:', filePath);
       throw new Error(`Directory not found: ${filePath}`);
     }
 
     const files = fs.readdirSync(filePath);
-    console.log('[FilePicker] Found files in directory:', files.length);
+    let variableKey: string | undefined;
     
     let matchingFiles = files.filter((file: string) => {
       const fullPath = path.join(filePath, file);
@@ -321,7 +301,20 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       if (!options?.directory && isDirectory) return false;
       
       if (options?.fileName) {
-        const pattern = new RegExp(options.fileName.replace(/\*/g, '.*'));
+        // Extract variable name if fileName is a pure variable pattern
+        const variableMatch = options.fileName.match(/^\{(\w+)\}$/);
+        if (variableMatch) {
+          variableKey = variableMatch[1];
+          return true; // Match any file if it's a pure variable
+        }
+
+        // For exact match with Chinese characters, use direct comparison
+        if (file === options.fileName) {
+          return true;
+        }
+        // For pattern matching, escape special regex characters
+        const escapedPattern = options.fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        const pattern = new RegExp(escapedPattern);
         if (!pattern.test(file)) return false;
       }
       
@@ -334,19 +327,18 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       return true;
     });
 
-    console.log('[FilePicker] Matching files after filtering:', matchingFiles.length);
-
     matchingFiles.sort();
 
     if (!options?.multiple && matchingFiles.length > 0) {
       matchingFiles = [matchingFiles[0]];
-      console.log('[FilePicker] Selected single file:', matchingFiles[0]);
     }
 
     const fullPaths = matchingFiles.map((file: string) => path.join(filePath, file));
-    console.log('[FilePicker] Final selected file(s):', fullPaths);
 
-    return options?.multiple ? fullPaths : fullPaths[0] || '';
+    return {
+      paths: options?.multiple ? fullPaths : fullPaths[0] || '',
+      variableKey
+    };
   }
 
   public async openProfileForSetup(profile: BrowserProfile): Promise<void> {
@@ -501,37 +493,21 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   }
 
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
-    console.log('[Puppeteer] Starting web automation with profile:', {
-      isHeadless: this.currentProfile?.isHeadless,
-      browserType: this.currentProfile?.browserType,
-      automationLibrary: this.currentProfile?.automationLibrary
-    });
-
     const page = await this.getPage();
     const results: AutomationStepResult[] = [];
     let success = true;
     let extractedData: Record<string, any> = {};
 
     try {
-      console.log(`[Puppeteer] Starting automation with ${actions.length} actions`);
-      
       for (const [index, action] of actions.entries()) {
         try {
-          console.log(`[Puppeteer] Executing action ${index + 1}/${actions.length}:`, {
-            type: action.type,
-            selector: action.selector,
-            value: action.value
-          });
-          
           switch (action.type) {
             case 'openUrl':
               if (action.value) {
-                console.log(`[Puppeteer] Navigating to URL: ${action.value}`);
                 await this.goto(action.value, { 
                   waitUntil: action.waitUntil || 'networkidle0',
                   timeout: action.timeout || 30000 
                 });
-                console.log('[Puppeteer] Navigation completed');
                 await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
               }
               break;
@@ -544,7 +520,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                   clickCount: action.clickCount || 1,
                   delay: action.delay || Math.floor(Math.random() * 100) + 50
                 });
-                console.log(`[Puppeteer] Clicked element: ${action.selector}`);
               }
               break;
             case 'type':
@@ -556,23 +531,18 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                   await page.keyboard.press('Backspace');
                 }
                 await this.humanBehaviorService.humanType(page as any, action.selector, action.value);
-                console.log(`[Puppeteer] Typed into element: ${action.selector}`);
               }
               break;
             case 'screenshot':
               const screenshotPath = action.value || `screenshot-${Date.now()}.png`;
               await this.screenshot({ path: screenshotPath });
-              console.log(`[Puppeteer] Screenshot saved: ${screenshotPath}`);
               break;
             case 'wait':
               if (action.condition === 'networkIdle') {
-                console.log('[Puppeteer] Waiting for network idle');
                 await this.waitForLoadState('networkidle');
               } else if (action.condition === 'delay' && action.delay) {
-                console.log(`[Puppeteer] Waiting for ${action.delay}ms`);
                 await this.waitForTimeout(action.delay);
               } else if (action.selector) {
-                console.log(`[Puppeteer] Waiting for selector: ${action.selector}`);
                 await this.waitForSelector(action.selector, { timeout: action.timeout });
               }
               break;
@@ -590,7 +560,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               }
               if (action.key) {
                 extractedData[action.key] = extractedValue;
-                console.log(`[Puppeteer] Extracted data for key "${action.key}": ${extractedValue}`);
               }
               break;
             case 'evaluate':
@@ -600,7 +569,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               const result = await this.evaluate(action.script);
               if (action.key) {
                 extractedData[action.key] = result;
-                console.log(`[Puppeteer] Evaluated script result for key "${action.key}": ${result}`);
               }
               break;
             case 'keyboard':
@@ -608,31 +576,27 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
                 throw new Error('Key is required for keyboard action');
               }
               await page.keyboard.press(action.key as KeyInput);
-              console.log(`[Puppeteer] Pressed key: ${action.key}`);
               break;
             case 'select':
               if (!action.selector || !action.value) {
                 throw new Error('Selector and value are required for select action');
               }
               await this.select(action.selector, action.value);
-              console.log(`[Puppeteer] Selected value "${action.value}" for element: ${action.selector}`);
               break;
             case 'focus':
               if (!action.selector) {
                 throw new Error('Selector is required for focus action');
               }
               await this.focus(action.selector);
-              console.log(`[Puppeteer] Focused element: ${action.selector}`);
               break;
             case 'hover':
               if (!action.selector) {
                 throw new Error('Selector is required for hover action');
               }
               await this.hover(action.selector);
-              console.log(`[Puppeteer] Hovered over element: ${action.selector}`);
               break;
             case 'filePicker':
-              const pickedFiles = await this.pickFile(
+              const pickResult = await this.pickFile(
                 action.filePath || '',
                 {
                   fileName: action.fileName,
@@ -643,14 +607,17 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               );
               
               // Store the result in variables if specified
-              if (action.variableKey) {
-                extractedData[action.variableKey] = pickedFiles;
+              const variableKey = pickResult.variableKey || action.variableKey;
+              if (variableKey) {
+                extractedData[variableKey] = pickResult.paths;
+                // Also store in _variables for backward compatibility
+                extractedData._variables = extractedData._variables || {};
+                extractedData._variables[variableKey] = pickResult.paths;
               }
               break;
           }
           results.push({ action, success: true });
         } catch (error) {
-          console.error(`[Puppeteer] Action failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
           results.push({
             action,
             success: false,
@@ -664,11 +631,9 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
         await this.humanBehaviorService.randomDelay(page as any, 500, 1500);
       }
     } catch (error) {
-      console.error(`[Puppeteer] Automation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       success = false;
     }
 
-    console.log(`[Puppeteer] Automation completed. Success: ${success}`);
     return { success, results, extractedData };
   }
 

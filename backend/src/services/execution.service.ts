@@ -568,7 +568,7 @@ class ExecutionService {
       // Perform automation with all collected actions
       if (execution.status === 'running' && allActions.length > 0) {
         const result = await this.automationService.performWebAutomation(allActions);
-
+        console.log("result", result);
         // Handle results and update execution data
         if (result.extractedData && Object.keys(result.extractedData).length > 0) {
           execution.data = execution.data || {};
