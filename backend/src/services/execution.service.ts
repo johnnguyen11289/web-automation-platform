@@ -133,6 +133,11 @@ class ExecutionService {
     // Get variables from execution data if they exist
     const variables = execution.data?._variables || {};
 
+    // Initialize businessType from profile if not already set
+    if (profile.businessType && !variables.businessType) {
+      variables.businessType = profile.businessType;
+    }
+
     console.log('[ExecutionService] Creating execution context:', {
       stepId: step.nodeId,
       stepType: step.nodeType,

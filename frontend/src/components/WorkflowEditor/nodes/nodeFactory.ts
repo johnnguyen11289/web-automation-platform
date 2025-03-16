@@ -161,9 +161,19 @@ export const createNode = (
     case 'variableManager': {
       const data: VariableManagerNodeData = {
         ...baseData,
-        operations: [],
+        operations: [
+          {
+            action: 'set',
+            key: 'businessType',
+            value: '',
+            type: 'string'
+          }
+        ],
         scope: 'local',
         persist: false,
+        initializeWith: {
+          businessType: ''  // Will be populated from BrowserProfile
+        }
       };
       return { id: `${type}-${Date.now()}`, type, position, data };
     }

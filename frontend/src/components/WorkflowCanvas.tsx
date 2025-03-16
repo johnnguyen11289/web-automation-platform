@@ -546,6 +546,21 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
           fileName: '',  // Empty by default, will take first file
           filePath: '',  // Empty by default, will be set when file is selected
         };
+      case 'variableManager':
+        return {
+          ...baseProps,
+          nodeType: 'variableManager' as const,
+          operations: [
+            {
+              action: 'set',
+              key: 'businessType',
+              value: '',
+              type: 'string'
+            }
+          ],
+          scope: 'local',
+          persist: false
+        };
       default:
         return {
           ...baseProps,
