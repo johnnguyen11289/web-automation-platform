@@ -56,10 +56,40 @@ class ExecutionService {
     }
   }
 
+  private normalizePath(path: string): string {
+    // Replace forward slashes with backslashes for Windows paths
+    // But only if the path starts with a drive letter (e.g., D:/)
+    if (/^[A-Za-z]:/i.test(path)) {
+      return path.replace(/\//g, '\\');
+    }
+    return path;
+  }
+
   private resolveValue(value: any, context: Record<string, any>): any {
-    if (typeof value === 'string' && value.includes('{{') && value.includes('}}')) {
-      // Support array indexing and nested properties
-      return value.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+    if (typeof value !== 'string') return value;
+
+    let result = value;
+
+    // Handle simple {variableName} format first
+    if (result.includes('{') && result.includes('}')) {
+      result = result.replace(/\{([^{}]+)\}/g, (match, variableName) => {
+        try {
+          const variables = context.data?._variables || {};
+          const resolvedValue = variables[variableName.trim()];
+          
+          if (resolvedValue === undefined) return match;
+          if (typeof resolvedValue === 'object') return JSON.stringify(resolvedValue);
+          return String(resolvedValue);
+        } catch (error) {
+          console.warn(`Error resolving simple variable ${variableName}:`, error);
+          return match;
+        }
+      });
+    }
+
+    // Handle {{variables.xxx}} format
+    if (result.includes('{{') && result.includes('}}')) {
+      result = result.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
         try {
           const trimmedPath = path.trim();
           // Check if this is a variable reference
@@ -103,7 +133,13 @@ class ExecutionService {
         }
       });
     }
-    return value;
+
+    // Normalize Windows paths after all variables are resolved
+    if (/^[A-Za-z]:/i.test(result) || result.includes('/')) {
+      result = this.normalizePath(result);
+    }
+
+    return result;
   }
 
   private resolveNodeProperties(props: any, context: Record<string, any>): any {
@@ -137,12 +173,6 @@ class ExecutionService {
     if (profile.businessType && !variables.businessType) {
       variables.businessType = profile.businessType;
     }
-
-    console.log('[ExecutionService] Creating execution context:', {
-      stepId: step.nodeId,
-      stepType: step.nodeType,
-      currentVariables: variables
-    });
 
     return {
       data: {
@@ -234,28 +264,25 @@ class ExecutionService {
         break;
 
       case 'filePicker':
-        if (node.properties?.filePath) {
-          console.log('[FilePicker] Processing filePicker node:', {
-            filePath: node.properties.filePath,
-            fileName: node.properties.fileName,
-            multiple: node.properties.multiple,
-            directory: node.properties.directory,
-            accept: node.properties.accept,
-            variableKey: node.properties.variableKey
-          });
+        if (props.filePath) {
+          // Resolve variable patterns in filePath and fileName
+          const resolvedFilePath = this.resolveValue(props.filePath, context);
+          const resolvedFileName = props.fileName ? this.resolveValue(props.fileName, context) : undefined;
+
+          // Normalize paths
+          const normalizedFilePath = this.normalizePath(resolvedFilePath);
+          const normalizedFileName = resolvedFileName ? this.normalizePath(resolvedFileName) : undefined;
 
           actions.push({
             type: 'filePicker',
-            filePath: node.properties.filePath,
-            fileName: node.properties.fileName,
-            multiple: node.properties.multiple,
-            directory: node.properties.directory,
-            accept: node.properties.accept,
-            variableKey: node.properties.variableKey,
-            stopOnError: node.properties.stopOnError
+            filePath: normalizedFilePath,
+            fileName: normalizedFileName,
+            multiple: props.multiple,
+            directory: props.directory,
+            accept: props.accept,
+            variableKey: props.variableKey,
+            stopOnError: props.stopOnError
           });
-
-          console.log('[FilePicker] Added filePicker action');
         }
         break;
 
@@ -304,15 +331,16 @@ class ExecutionService {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: props.selector,
+              selector: this.resolveValue(props.selector, context),
               timeout: props.timeout || 5000
             });
           }
 
+          const resolvedValue = this.resolveValue(props.value, context);
           actions.push({
             type: 'type',
-            selector: props.selector,
-            value: props.value || '',
+            selector: this.resolveValue(props.selector, context),
+            value: resolvedValue || '',
             delay: props.delay,
             stopOnError: props.stopOnError
           });
@@ -320,19 +348,20 @@ class ExecutionService {
         break;
 
       case 'select':
-        if (props.selector && props.value) {
+        if (props.selector) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: props.selector,
+              selector: this.resolveValue(props.selector, context),
               timeout: props.timeout || 5000
             });
           }
 
+          const resolvedSelectValue = this.resolveValue(props.value, context);
           actions.push({
             type: 'select',
-            selector: props.selector,
-            value: props.value,
+            selector: this.resolveValue(props.selector, context),
+            value: resolvedSelectValue,
             stopOnError: props.stopOnError
           });
         }
@@ -360,10 +389,11 @@ class ExecutionService {
 
       case 'fileUpload':
         if (props.inputSelector && props.filePath) {
+          const resolvedFilePath = this.resolveValue(props.filePath, context);
           actions.push({
             type: 'fileUpload',
-            selector: props.inputSelector,
-            filePath: props.filePath,
+            selector: this.resolveValue(props.inputSelector, context),
+            filePath: resolvedFilePath,
             stopOnError: props.stopOnError
           });
         }
@@ -371,11 +401,15 @@ class ExecutionService {
 
       case 'subtitleToVoice':
         if (props.inputPath && props.outputPath) {
+          const resolvedInputPath = this.resolveValue(props.inputPath, context);
+          const resolvedOutputPath = this.resolveValue(props.outputPath, context);
+          const resolvedLanguage = this.resolveValue(props.language, context);
+
           actions.push({
             type: 'subtitleToVoice',
-            inputPath: props.inputPath,
-            outputPath: props.outputPath,
-            language: props.language || 'en',
+            inputPath: resolvedInputPath,
+            outputPath: resolvedOutputPath,
+            language: resolvedLanguage || 'en',
             options: props.options || {},
             stopOnError: props.stopOnError
           });
@@ -384,14 +418,18 @@ class ExecutionService {
 
       case 'editVideo':
         if (props.inputPath && props.outputPath && props.operations) {
+          const resolvedInputPath = this.resolveValue(props.inputPath, context);
+          const resolvedOutputPath = this.resolveValue(props.outputPath, context);
+          const resolvedOperations = props.operations.map((op: any) => ({
+            ...op,
+            value: this.resolveValue(op.value, context)
+          }));
+
           actions.push({
             type: 'editVideo',
-            inputPath: props.inputPath,
-            outputPath: props.outputPath,
-            operations: props.operations.map((op: any) => ({
-              ...op,
-              value: this.resolveValue(op.value, context)
-            })),
+            inputPath: resolvedInputPath,
+            outputPath: resolvedOutputPath,
+            operations: resolvedOperations,
             options: props.options || {},
             stopOnError: props.stopOnError
           });
@@ -434,9 +472,173 @@ class ExecutionService {
     }
   }
 
-  private async executeStep(step: IExecutionStep, execution: IExecution): Promise<void> {
-    // This method is now deprecated as we collect all actions first
-    throw new Error('executeStep is deprecated. Actions are now collected in startExecution.');
+  private async processVariableManagerNode(
+    variableManagerNode: DbWorkflowNode,
+    execution: IExecution,
+    workflow: Workflow,
+    profile: BrowserProfile & { _id: Types.ObjectId }
+  ): Promise<void> {
+    const variableManagerStep = execution.steps.find(step => step.nodeId === variableManagerNode.id);
+    if (!variableManagerStep) return;
+
+    const context = this.createExecutionContext(variableManagerStep, execution, workflow, profile);
+    this.convertNodeToActions(variableManagerNode, context);
+
+    // Store variables in execution data
+    execution.data = execution.data || {};
+    execution.data._variables = context.data?._variables || {};
+    await execution.save();
+  }
+
+  private async processWorkflowStep(
+    step: IExecutionStep,
+    node: DbWorkflowNode,
+    execution: IExecution,
+    workflow: Workflow,
+    profile: BrowserProfile & { _id: Types.ObjectId },
+    variableManagerContext: Record<string, any>
+  ): Promise<AutomationAction[]> {
+    execution.currentStep = step;
+    step.status = 'running';
+    step.startTime = new Date();
+    await execution.save();
+
+    try {
+      const context = this.createExecutionContext(step, execution, workflow, profile);
+      context.data = {
+        ...context.data,
+        _variables: variableManagerContext
+      };
+
+      const actions = this.convertNodeToActions(node, context);
+      step.status = 'completed';
+      step.endTime = new Date();
+      return actions;
+    } catch (err) {
+      const error = err as Error;
+      step.status = 'failed';
+      step.endTime = new Date();
+      step.error = error.message;
+      execution.errorLogs.push(`Step ${step.nodeId} failed: ${error.message}`);
+      execution.status = 'failed';
+      throw error;
+    } finally {
+      await execution.save();
+    }
+  }
+
+  private async executeAutomationActions(
+    actions: AutomationAction[],
+    execution: IExecution
+  ): Promise<void> {
+    if (execution.status !== 'running' || actions.length === 0) return;
+
+    const result = await this.automationService.performWebAutomation(actions);
+
+    if (result.extractedData && Object.keys(result.extractedData).length > 0) {
+      execution.data = execution.data || {};
+      const existingVariables = execution.data._variables || {};
+      const newVariables = result.extractedData._variables || {};
+
+      execution.data = {
+        ...execution.data,
+        ...result.extractedData,
+        _variables: {
+          ...existingVariables,
+          ...newVariables
+        }
+      };
+
+      await execution.save();
+    }
+
+    if (!result.success) {
+      const failedAction = result.results.find(r => !r.success);
+      console.error('[ExecutionService] Action failed:', {
+        action: failedAction?.action,
+        error: failedAction?.error
+      });
+      throw new Error(failedAction?.error || 'Automation failed');
+    }
+  }
+
+  public async startExecution(executionId: string): Promise<void> {
+    const execution = await Execution.findById(executionId);
+    if (!execution) throw new Error('Execution not found');
+
+    this.runningExecutions.add(executionId);
+    execution.status = 'running';
+    execution.queuePosition = undefined;
+    await execution.save();
+
+    try {
+      // Get and validate required data
+      const [profile, workflow] = await Promise.all([
+        BrowserProfileModel.findById(execution.profileId),
+        WorkflowModel.findById(execution.workflowId)
+      ]);
+
+      if (!profile) throw new Error('Browser profile not found');
+      if (!workflow) throw new Error('Workflow not found');
+
+      const plainProfile = profile.toObject();
+      const profileWithId = {
+        ...plainProfile,
+        _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
+      };
+
+      // Apply profile settings
+      await this.automationService.applyProfile({
+        ...plainProfile,
+        _id: plainProfile._id.toString(),
+        name: plainProfile.name
+      });
+
+      // Process VariableManager node first
+      const variableManagerNode = workflow.nodes.find(node => node.type === 'variableManager');
+      if (variableManagerNode) {
+        await this.processVariableManagerNode(variableManagerNode, execution, workflow, profileWithId);
+      }
+
+      // Process all other nodes
+      const allActions: AutomationAction[] = [];
+      for (const step of execution.steps) {
+        if (step.nodeId === variableManagerNode?.id) continue;
+        if (execution.status !== 'running') break;
+
+        const node = workflow.nodes.find(n => n.id === step.nodeId);
+        if (!node) {
+          throw new Error(`Node ${step.nodeId} not found in workflow`);
+        }
+
+        const actions = await this.processWorkflowStep(
+          step,
+          node,
+          execution,
+          workflow,
+          profileWithId,
+          execution.data?._variables || {}
+        );
+        allActions.push(...actions);
+      }
+
+      // Execute all collected actions
+      await this.executeAutomationActions(allActions, execution);
+
+      if (execution.status === 'running') {
+        execution.status = 'completed';
+      }
+    } catch (err) {
+      const error = err as Error;
+      execution.status = 'failed';
+      execution.errorLogs.push(`Execution failed: ${error.message}`);
+    } finally {
+      await this.cleanupExecution(executionId);
+      execution.endTime = new Date();
+      await execution.save();
+      this.runningExecutions.delete(executionId);
+      this.eventEmitter.emit('executionComplete', execution);
+    }
   }
 
   public async queueExecution(workflowId: string, profileId: string, parallel: boolean = false): Promise<IExecution> {
@@ -478,196 +680,6 @@ class ExecutionService {
     }
 
     return execution;
-  }
-
-  public async startExecution(executionId: string): Promise<void> {
-    const execution = await Execution.findById(executionId);
-    if (!execution) throw new Error('Execution not found');
-
-    this.runningExecutions.add(executionId);
-    execution.status = 'running';
-    execution.queuePosition = undefined;
-    await execution.save();
-
-    try {
-      // Get the profile and apply it once at the start
-      const profile = await BrowserProfileModel.findById(execution.profileId);
-      if (!profile) throw new Error('Browser profile not found');
-
-      const plainProfile = profile.toObject() as any;
-      await this.automationService.applyProfile({
-        ...plainProfile,
-        _id: plainProfile._id.toString(),
-        name: plainProfile.name
-      });
-
-      // Get workflow data
-      const workflow = await WorkflowModel.findById(execution.workflowId);
-      if (!workflow) throw new Error('Workflow not found');
-
-      console.log('[ExecutionService] Loaded workflow:', {
-        id: workflow._id,
-        name: workflow.name,
-        nodes: workflow.nodes.map(node => ({
-          id: node.id,
-          type: node.type,
-          properties: node.properties
-        }))
-      });
-
-      // Find the VariableManager node first
-      const variableManagerNode = workflow.nodes.find(node => node.type === 'variableManager');
-      let variableManagerContext: Record<string, any> = {};
-
-      // If we have a VariableManager node, process it first to initialize variables
-      if (variableManagerNode) {
-        const variableManagerStep = execution.steps.find(step => step.nodeId === variableManagerNode.id);
-        if (variableManagerStep) {
-          const context = this.createExecutionContext(variableManagerStep, execution, workflow, {
-            ...plainProfile,
-            _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
-          });
-
-          // Convert VariableManager node to actions and execute them first
-          this.convertNodeToActions(variableManagerNode, context);
-
-          // Store variables in execution data
-          execution.data = execution.data || {};
-          execution.data._variables = context.data?._variables || {};
-          await execution.save();
-        }
-      }
-
-      // Collect all actions and contexts for other nodes
-      const allActions: AutomationAction[] = [];
-      const contexts: Record<string, any>[] = [];
-
-      for (const step of execution.steps) {
-        // Skip the VariableManager node as it's already processed
-        if (variableManagerNode && step.nodeId === variableManagerNode.id) {
-          console.log('[ExecutionService] Skipping Variable Manager in main loop:', {
-            stepId: step.nodeId,
-            nodeType: step.nodeType
-          });
-          continue;
-        }
-
-        if (execution.status !== 'running') {
-          break;
-        }
-
-        execution.currentStep = step;
-        step.status = 'running';
-        step.startTime = new Date();
-        await execution.save();
-
-        try {
-          // Create execution context with VariableManager variables
-          const profileObj = profile.toObject();
-          const context = this.createExecutionContext(step, execution, workflow, {
-            ...profileObj,
-            _id: profile._id instanceof Types.ObjectId ? profile._id : new Types.ObjectId(profile._id as string)
-          });
-
-          // Add VariableManager variables to context
-          context.data = {
-            ...context.data,
-            _variables: variableManagerContext
-          };
-
-          // Find the node configuration from workflow
-          const node = workflow.nodes.find(n => n.id === step.nodeId);
-          if (!node) {
-            throw new Error(`Node ${step.nodeId} not found in workflow`);
-          }
-
-          console.log('[ExecutionService] Processing node:', {
-            nodeId: node.id,
-            nodeType: node.type,
-            properties: node.properties
-          });
-
-          // Convert workflow node to automation actions with context
-          const actions = this.convertNodeToActions(node, context);
-          
-          // Store actions and context
-          allActions.push(...actions);
-          contexts.push(context);
-
-          step.status = 'completed';
-          step.endTime = new Date();
-        } catch (err) {
-          const error = err as Error;
-          step.status = 'failed';
-          step.endTime = new Date();
-          step.error = error.message;
-          execution.errorLogs.push(`Step ${step.nodeId} failed: ${error.message}`);
-          execution.status = 'failed';
-          break;
-        }
-
-        await execution.save();
-      }
-
-      console.log('[ExecutionService] Generated actions:', allActions);
-      // Perform automation with all collected actions
-      if (execution.status === 'running' && allActions.length > 0) {
-        const result = await this.automationService.performWebAutomation(allActions);
-        console.log("result", result);
-        // Handle results and update execution data
-        if (result.extractedData && Object.keys(result.extractedData).length > 0) {
-          execution.data = execution.data || {};
-          // Merge new data with existing variables
-          const existingVariables = execution.data._variables || {};
-          const newVariables = result.extractedData._variables || {};
-
-          console.log('[ExecutionService] Action results:', {
-            extractedData: result.extractedData,
-            variables: {
-              before: existingVariables,
-              after: newVariables
-            }
-          });
-
-          execution.data = {
-            ...execution.data,
-            ...result.extractedData,
-            _variables: {
-              ...existingVariables,
-              ...newVariables
-            }
-          };
-
-          // Log final state of variables after update
-          console.log('[ExecutionService] Updated execution variables:', execution.data._variables);
-          await execution.save();
-        }
-
-        if (!result.success) {
-          const failedAction = result.results.find(r => !r.success);
-          console.error('[ExecutionService] Action failed:', {
-            action: failedAction?.action,
-            error: failedAction?.error
-          });
-          throw new Error(failedAction?.error || 'Automation failed');
-        }
-      }
-
-      if (execution.status === 'running') {
-        execution.status = 'completed';
-      }
-    } catch (err) {
-      const error = err as Error;
-      execution.status = 'failed';
-      execution.errorLogs.push(`Execution failed: ${error.message}`);
-    } finally {
-      await this.cleanupExecution(executionId);
-    }
-
-    execution.endTime = new Date();
-    await execution.save();
-    this.runningExecutions.delete(executionId);
-    this.eventEmitter.emit('executionComplete', execution);
   }
 
   public async pauseExecution(executionId: string): Promise<IExecution> {

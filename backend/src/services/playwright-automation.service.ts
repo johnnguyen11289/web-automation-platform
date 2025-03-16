@@ -204,7 +204,6 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     await this.websiteEvasionsService.applyEvasions(page);
     
     if (this.fingerprintService.shouldRotateFingerprint()) {
-      console.log('Rotating browser fingerprint...');
       await this.rotateFingerprint(page);
     }
   }

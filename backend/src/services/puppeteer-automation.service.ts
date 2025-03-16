@@ -206,7 +206,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('net::ERR_CERT_')) {
-        console.warn('[Puppeteer] Certificate error encountered, retrying with security bypass...');
         // Handle certificate errors by continuing anyway
         await page.goto(url, {
           waitUntil: (options?.waitUntil === 'networkidle' ? 'networkidle0' : options?.waitUntil) as PuppeteerLifeCycleEvent,
@@ -418,7 +417,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       try {
         await context.overridePermissions(loginUrl, profile.permissions as Permission[]);
       } catch (error) {
-        console.warn('Failed to set permissions:', error);
         // Continue without permissions if they can't be set
       }
     }
@@ -428,7 +426,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       try {
         await page.setGeolocation(profile.geolocation);
       } catch (error) {
-        console.warn('Failed to set geolocation:', error);
         // Continue without geolocation if it can't be set
       }
     }
@@ -438,7 +435,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       try {
         await page.setCookie(...profile.cookies);
       } catch (error) {
-        console.warn('Failed to set cookies:', error);
         // Continue without cookies if they can't be set
       }
     }
@@ -448,12 +444,9 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       try {
         await page.evaluate(profile.customJs);
       } catch (error) {
-        console.warn('Failed to apply custom JavaScript:', error);
         // Continue without custom JS if it can't be applied
       }
     }
-
-    console.log('Profile opened for manual setup. Please perform any necessary logins or configurations.');
   }
 
   public async injectAntiDetection(): Promise<void> {

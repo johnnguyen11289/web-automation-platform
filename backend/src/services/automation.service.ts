@@ -49,7 +49,6 @@ export class AutomationService {
       this.automation = this.getAutomationLibrary(profile);
       await this.initialize();
     } catch (error) {
-      console.error('Failed to apply profile:', error);
       throw error;
     }
   }
@@ -64,14 +63,13 @@ export class AutomationService {
 
       if (profile) {
         await this.applyProfile(profile);
-              } else {
+      } else {
         // If no profile provided, default to Puppeteer
         this.automation = PuppeteerAutomationService.getInstance();
         await this.initialize();
       }
       return true;
     } catch (error) {
-      console.error('Failed to initialize browser:', error);
       return false;
     }
   }
@@ -178,7 +176,6 @@ export class AutomationService {
             if (action.text) {
               // Implement subtitle to voice conversion
               // This is a placeholder - implement actual logic
-              console.log('Converting subtitle to voice:', action.text);
             }
             break;
 
@@ -186,7 +183,6 @@ export class AutomationService {
             if (action.videoPath) {
               // Implement video editing
               // This is a placeholder - implement actual logic
-              console.log('Editing video:', action.videoPath);
             }
             break;
 
