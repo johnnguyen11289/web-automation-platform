@@ -272,7 +272,6 @@ class ExecutionService {
           // Normalize paths
           const normalizedFilePath = this.normalizePath(resolvedFilePath);
           const normalizedFileName = resolvedFileName ? this.normalizePath(resolvedFileName) : undefined;
-
           actions.push({
             type: 'filePicker',
             filePath: normalizedFilePath,
@@ -280,7 +279,7 @@ class ExecutionService {
             multiple: props.multiple,
             directory: props.directory,
             accept: props.accept,
-            variableKey: props.variableKey,
+            variableKey: props.variableOperations[0].key,
             stopOnError: props.stopOnError
           });
         }

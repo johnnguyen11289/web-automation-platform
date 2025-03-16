@@ -173,14 +173,14 @@ export class AutomationService {
             break;
 
           case 'subtitleToVoice':
-            if (action.text) {
+            if (action.inputPath && action.outputPath) {
               // Implement subtitle to voice conversion
               // This is a placeholder - implement actual logic
             }
             break;
 
           case 'editVideo':
-            if (action.videoPath) {
+            if (action.inputPath && action.outputPath && action.operations) {
               // Implement video editing
               // This is a placeholder - implement actual logic
             }
@@ -188,23 +188,17 @@ export class AutomationService {
 
           case 'filePicker':
             if (action.filePath) {
-              // Extract variableKey from fileName pattern if present
-              const variableMatch = action.fileName?.match(/\{(\w+)\}/);
-              if (variableMatch) {
-                action.variableKey = variableMatch[1];
-              }
-
               const selectedFiles = await this.automation.pickFile(action.filePath, {
                 fileName: action.fileName,
                 multiple: action.multiple,
                 directory: action.directory,
                 accept: action.accept
               });
-              
-              // Use the extracted variableKey from the pattern
+
               if (action.variableKey) {
                 variables[action.variableKey] = selectedFiles.paths;
               }
+              console.log("variables", variables)
             }
             break;
 

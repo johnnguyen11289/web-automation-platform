@@ -333,7 +333,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     }
 
     const fullPaths = matchingFiles.map((file: string) => path.join(filePath, file));
-
     return {
       paths: options?.multiple ? fullPaths : fullPaths[0] || '',
       variableKey
