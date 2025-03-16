@@ -15,9 +15,10 @@ export interface AutomationAction {
   clearFirst?: boolean;
   stopOnError?: boolean;
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  // Common properties for actions that store results
+  variableKey?: string;
   // Variable operation properties
   operationType?: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
-  variableKey?: string;
   variableValue?: any;
   variableType?: 'string' | 'number' | 'boolean' | 'object' | 'array';
   sourceVariableKey?: string;
