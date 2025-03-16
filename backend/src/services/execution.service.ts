@@ -358,6 +358,46 @@ class ExecutionService {
         }
         break;
 
+      case 'fileUpload':
+        if (props.inputSelector && props.filePath) {
+          actions.push({
+            type: 'fileUpload',
+            selector: props.inputSelector,
+            filePath: props.filePath,
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'subtitleToVoice':
+        if (props.inputPath && props.outputPath) {
+          actions.push({
+            type: 'subtitleToVoice',
+            inputPath: props.inputPath,
+            outputPath: props.outputPath,
+            language: props.language || 'en',
+            options: props.options || {},
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'editVideo':
+        if (props.inputPath && props.outputPath && props.operations) {
+          actions.push({
+            type: 'editVideo',
+            inputPath: props.inputPath,
+            outputPath: props.outputPath,
+            operations: props.operations.map((op: any) => ({
+              ...op,
+              value: this.resolveValue(op.value, context)
+            })),
+            options: props.options || {},
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
       default:
         console.warn(`Unknown node type: ${node.type}`);
     }

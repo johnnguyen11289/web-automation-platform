@@ -30,9 +30,15 @@ export interface AutomationAction {
   directory?: boolean;
   accept?: string;
   // Subtitle to voice properties
-  text?: string;
+  inputPath?: string;
+  outputPath?: string;
+  language?: string;
+  options?: Record<string, any>;
   // Video editing properties
-  videoPath?: string;
+  operations?: Array<{
+    type: string;
+    value: string | number;
+  }>;
 }
 
 export interface AutomationStepResult {
