@@ -6,6 +6,8 @@ import { HtmlScraperService } from './html.scraper.service';
 import { BrowserProfile } from '../types/browser.types';
 import { BrowserProfileModel } from '../models/BrowserProfile';
 import axios from 'axios';
+import fsExtra from 'fs-extra';
+import { exiftool } from 'exiftool-vendored';
 
 
 export class FileDownloadService {
@@ -55,7 +57,6 @@ export class FileDownloadService {
                 const filteredProfiles = browserProfiles.filter((profile: BrowserProfile) => 
                     profile.businessType && profile.businessType !== ''
                 );
-
                 for (const profile of filteredProfiles) {
                     try {
                         const businessType = profile.businessType;
@@ -95,7 +96,7 @@ export class FileDownloadService {
                                     }
 
                                     if (selectedStream?.masterUrl) {
-                                        const videoDesc = noteDetail.note?.desc || noteDetail.note?.title || 'untitled';
+                                        const videoDesc = noteDetail.note?.title || noteDetail.note?.desc || 'untitled';
                                         const sanitizedDesc = this.sanitizeFilename(videoDesc);
                                         const filename = `${sanitizedDesc}.mp4`;
                                         
@@ -103,7 +104,17 @@ export class FileDownloadService {
                                             responseType: 'arraybuffer'
                                         });
                                         
-                                        await this.saveFile(response.data, filename, businessType);
+                                        // Get additional metadata for description
+                                        const description = {
+                                            title: noteDetail.note?.title || '',
+                                            desc: noteDetail.note?.desc || '',
+                                            type: noteDetail.note?.type || '',
+                                            tags: noteDetail.note?.tags || [],
+                                            user: noteDetail.note?.user?.nickname || '',
+                                            timestamp: new Date().toISOString()
+                                        };
+                                        
+                                        await this.saveFile(response.data, filename, businessType, JSON.stringify(description, null, 2));
                                     }
                                 } catch (feedError) {
                                     continue;
@@ -117,7 +128,7 @@ export class FileDownloadService {
             } catch (error) {
                 // Silent error handling
             }
-        }, 20 * 60 * 1000);
+        }, 20* 60 * 1000);
     }
 
     public stopDownloadFileInterval(): void {
@@ -148,13 +159,32 @@ export class FileDownloadService {
         }
     }
 
-    public async saveFile(fileBuffer: Buffer, filename: string, businessType: string): Promise<string> {
+    public async saveFile(fileBuffer: Buffer, filename: string, businessType: string, description?: string): Promise<string> {
         try {
             const businessTypeDir = this.ensureBusinessTypeDirectory(businessType);
             const filePath = path.join(businessTypeDir, filename);
+            
+            // Save the video file
             await fs.promises.writeFile(filePath, fileBuffer);
+
+            // Add file metadata using exiftool
+            try {
+                const parsedDescription = description ? JSON.parse(description) : {};
+                await exiftool.write(filePath, {
+                    Title: parsedDescription.title || filename,
+                    Comment: parsedDescription.desc || '',
+                    Keywords: parsedDescription.tags?.join(';') || '',
+                    Artist: parsedDescription.user || '',
+                    Subject: businessType,
+                    Category: 'Video'
+                }, ['-overwrite_original']);
+            } catch (metadataError) {
+                console.warn('[FileDownload] Could not set file metadata:', metadataError);
+            }
+            
             return filePath;
         } catch (error) {
+            console.error('[FileDownload] Error saving file:', error);
             throw error;
         }
     }
