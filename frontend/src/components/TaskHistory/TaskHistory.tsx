@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -17,6 +17,14 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  TablePagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  SelectChangeEvent,
+  TextField,
 } from '@mui/material';
 import {
   KeyboardArrowDown,
@@ -25,6 +33,10 @@ import {
   Download,
 } from '@mui/icons-material';
 import { Execution, ExecutionStatus } from '../../types/execution.types';
+import { format } from 'date-fns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 interface TaskLog {
   timestamp: string;
@@ -44,9 +56,31 @@ interface TaskExecution {
 
 interface TaskHistoryProps {
   executions: Execution[];
-  onRefresh: () => Promise<void>;
+  total: number;
+  onRefresh: (page: number, pageSize: number, filters: {
+    status?: ExecutionStatus;
+    startDate?: string;
+    endDate?: string;
+  }) => void;
   onExportLogs: (taskId: string) => void;
 }
+
+const getStatusColor = (status: ExecutionStatus) => {
+  switch (status) {
+    case 'completed':
+      return 'success';
+    case 'failed':
+      return 'error';
+    case 'stopped':
+      return 'warning';
+    case 'running':
+      return 'info';
+    case 'paused':
+      return 'default';
+    default:
+      return 'default';
+  }
+};
 
 interface RowProps {
   execution: Execution;
@@ -56,19 +90,6 @@ interface RowProps {
 const Row: React.FC<RowProps> = ({ execution, onExportLogs }) => {
   const [open, setOpen] = useState(false);
   const [showFullLogs, setShowFullLogs] = useState(false);
-
-  const getStatusColor = (status: ExecutionStatus) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'failed':
-        return 'error';
-      case 'stopped':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
 
   const getLogColor = (level: 'info' | 'error' | 'warning') => {
     switch (level) {
@@ -197,45 +218,221 @@ const Row: React.FC<RowProps> = ({ execution, onExportLogs }) => {
 };
 
 const TaskHistory: React.FC<TaskHistoryProps> = ({
-  executions,
+  executions = [],
+  total = 0,
   onRefresh,
   onExportLogs,
 }) => {
-  return (
-    <Paper elevation={2}>
-      <Box p={2}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Task History</Typography>
-          <Button startIcon={<Refresh />} onClick={onRefresh}>
-            Refresh
-          </Button>
-        </Box>
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<ExecutionStatus | ''>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
 
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell />
-                <TableCell>Workflow</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Start Time</TableCell>
-                <TableCell>Duration</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {executions.map((execution) => (
-                <Row
-                  key={execution._id}
-                  execution={execution}
-                  onExportLogs={onExportLogs}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        console.log('TaskHistory: Loading data with params:', {
+          page: page + 1,
+          rowsPerPage,
+          statusFilter,
+          startDate,
+          endDate
+        });
+        await onRefresh(page + 1, rowsPerPage, {
+          status: statusFilter || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        });
+      } catch (error) {
+        console.error('TaskHistory: Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [page, rowsPerPage, statusFilter, startDate, endDate]);
+
+  // Add debug logging for executions prop
+  useEffect(() => {
+    console.log('TaskHistory: Received executions:', executions);
+  }, [executions]);
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleStatusChange = (event: SelectChangeEvent<ExecutionStatus | ''>) => {
+    setStatusFilter(event.target.value as ExecutionStatus | '');
+    setPage(0);
+  };
+
+  const handleStartDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDate(event.target.value);
+    setPage(0);
+  };
+
+  const handleEndDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDate(event.target.value);
+    setPage(0);
+  };
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await onRefresh(page + 1, rowsPerPage, {
+        status: statusFilter || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h6">Task History</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={handleRefresh}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </Box>
-    </Paper>
+
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={statusFilter}
+              label="Status"
+              onChange={handleStatusChange}
+              disabled={isLoading}
+            >
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="running">Running</MenuItem>
+              <MenuItem value="completed">Completed</MenuItem>
+              <MenuItem value="failed">Failed</MenuItem>
+              <MenuItem value="stopped">Stopped</MenuItem>
+              <MenuItem value="paused">Paused</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            type="date"
+            label="Start Date"
+            value={startDate}
+            onChange={handleStartDateChange}
+            InputLabelProps={{ shrink: true }}
+            disabled={isLoading}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            type="date"
+            label="End Date"
+            value={endDate}
+            onChange={handleEndDateChange}
+            InputLabelProps={{ shrink: true }}
+            disabled={isLoading}
+          />
+        </Grid>
+      </Grid>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>ID</TableCell>
+              <TableCell>Workflow</TableCell>
+              <TableCell>Profile</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Start Time</TableCell>
+              <TableCell>End Time</TableCell>
+              <TableCell>Duration</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography>Loading executions...</Typography>
+                </TableCell>
+              </TableRow>
+            ) : !executions || executions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography>No executions found</Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              executions.map((execution) => (
+                <TableRow key={execution._id}>
+                  <TableCell>{execution._id}</TableCell>
+                  <TableCell>{execution.workflowId}</TableCell>
+                  <TableCell>{execution.profileId}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={execution.status}
+                      color={getStatusColor(execution.status)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>{new Date(execution.startTime).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {execution.endTime ? new Date(execution.endTime).toLocaleString() : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {execution.endTime
+                      ? `${Math.round(
+                          (new Date(execution.endTime).getTime() -
+                            new Date(execution.startTime).getTime()) /
+                            1000
+                        )}s`
+                      : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton
+                      size="small"
+                      onClick={() => onExportLogs(execution._id)}
+                    >
+                      <Download />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={total}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        disabled={isLoading}
+      />
+    </Box>
   );
 };
 

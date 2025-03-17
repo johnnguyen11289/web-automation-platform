@@ -23,7 +23,7 @@ import NodePalette from './components/NodePalette';
 import { api, Workflow } from './services/api';
 import './App.css';
 import { BrowserProfile } from './types/browser.types';
-import { Execution, ExecutionStats } from './types/execution.types';
+import { Execution, ExecutionStats, ExecutionStatus } from './types/execution.types';
 import { Task, TaskFormData, AlertSeverity } from './types/task.types';
 import WorkflowProfileMatrix from './components/WorkflowProfileMatrix/WorkflowProfileMatrix';
 import ProfileSelectionDialog from './components/ProfileSelectionDialog';
@@ -162,6 +162,7 @@ function App() {
     failedExecutions: 0,
     averageDuration: 0,
   });
+  const [totalExecutions, setTotalExecutions] = useState(0);
   const [taskHistory, setTaskHistory] = useState([]);
   const [browserProfiles, setBrowserProfiles] = useState<BrowserProfile[]>([]);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
@@ -205,13 +206,92 @@ function App() {
     }
   };
 
-  const loadExecutions = async () => {
+  const loadExecutions = async (page: number = 1, pageSize: number = 10, filters: {
+    status?: ExecutionStatus;
+    workflowId?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {}) => {
     try {
-      const data = await api.getExecutions();
-      setExecutions(data);
-      updateExecutionStats(data);
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        ...(filters.status && { status: filters.status }),
+        ...(filters.workflowId && { workflowId: filters.workflowId }),
+        ...(filters.startDate && { startDate: filters.startDate }),
+        ...(filters.endDate && { endDate: filters.endDate }),
+      });
+
+      console.log('Loading executions with params:', queryParams.toString());
+      const response = await fetch(`http://localhost:5000/api/executions?${queryParams}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to load executions: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Received executions data:', data);
+
+      if (!data) {
+        throw new Error('No data received from API');
+      }
+
+      // Handle both direct array response and paginated response
+      let executions: Execution[];
+      let total: number;
+
+      if (Array.isArray(data)) {
+        // Direct array response - implement frontend pagination
+        executions = data;
+        total = data.length;
+      } else if (data.executions && Array.isArray(data.executions)) {
+        // Paginated response
+        executions = data.executions;
+        total = data.total || data.executions.length;
+      } else {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response format: expected array or paginated response');
+      }
+
+      // Apply frontend pagination if needed
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      const paginatedExecutions = executions.slice(startIndex, endIndex);
+
+      // Ensure we have valid data before updating state
+      const validExecutions = paginatedExecutions.filter((execution: unknown) => 
+        execution && 
+        typeof execution === 'object' && 
+        '_id' in execution
+      );
+
+      console.log('Valid executions to display:', validExecutions);
+      
+      setExecutions(validExecutions);
+      setTotalExecutions(total);
+      updateExecutionStats(executions); // Use full dataset for stats
     } catch (error) {
       console.error('Failed to load executions:', error);
+      setExecutions([]);
+      setTotalExecutions(0);
+      setExecutionStats({
+        totalExecutions: 0,
+        runningExecutions: 0,
+        completedExecutions: 0,
+        failedExecutions: 0,
+        averageDuration: 0,
+      });
+      setSnackbar({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to load executions',
+        severity: 'error'
+      });
     }
   };
 
@@ -795,6 +875,7 @@ function App() {
             <TabPanel value={currentTab} index={1}>
               <TaskManager
                 tasks={tasks}
+                total={tasks.length}
                 workflows={workflows}
                 profiles={browserProfiles}
                 onAdd={handleTaskAdd}
@@ -809,6 +890,7 @@ function App() {
             <TabPanel value={currentTab} index={2}>
               <ExecutionPanel
                 executions={executions}
+                total={totalExecutions}
                 stats={executionStats}
                 onStart={handleExecutionStart}
                 onPause={handleExecutionPause}
@@ -820,6 +902,7 @@ function App() {
             <TabPanel value={currentTab} index={3}>
               <TaskHistory
                 executions={executions}
+                total={totalExecutions}
                 onRefresh={loadExecutions}
                 onExportLogs={async (taskId) => {
                   // Implement export logs functionality

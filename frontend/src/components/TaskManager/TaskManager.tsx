@@ -25,6 +25,7 @@ import {
   FormControlLabel,
   Switch,
   Tooltip,
+  TablePagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -62,6 +63,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 
 interface TaskManagerProps {
   tasks: Task[];
+  total: number;
   workflows: Workflow[];
   profiles: BrowserProfile[];
   onAdd: (task: TaskFormData) => Promise<void>;
@@ -70,7 +72,7 @@ interface TaskManagerProps {
   onStart: (id: string) => Promise<void>;
   onPause: (id: string) => Promise<void>;
   onStop: (id: string) => Promise<void>;
-  onRefresh: () => Promise<void>;
+  onRefresh: (page: number, pageSize: number, filters: any) => Promise<void>;
 }
 
 const getStatusColor = (status: TaskStatus) => {
@@ -96,6 +98,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({
   workflows,
   profiles,
   tasks: propTasks,
+  total,
   onAdd,
   onEdit,
   onDelete,
@@ -138,10 +141,24 @@ const TaskManager: React.FC<TaskManagerProps> = ({
       startDate: new Date().toISOString(),
     },
   });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('');
+  const [workflowFilter, setWorkflowFilter] = useState<string>('');
 
   useEffect(() => {
     updateStats(propTasks);
   }, [propTasks]);
+
+  useEffect(() => {
+    const filters = {
+      status: statusFilter || undefined,
+      priority: priorityFilter || undefined,
+      workflowId: workflowFilter || undefined,
+    };
+    onRefresh(page + 1, rowsPerPage, filters);
+  }, [page, rowsPerPage, statusFilter, priorityFilter, workflowFilter]);
 
   const updateStats = (tasks: Task[]) => {
     const stats: TaskStats = {
@@ -435,190 +452,105 @@ const TaskManager: React.FC<TaskManagerProps> = ({
     }));
   };
 
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleStatusChange = (event: SelectChangeEvent<TaskStatus | ''>) => {
+    setStatusFilter(event.target.value as TaskStatus | '');
+    setPage(0);
+  };
+
+  const handlePriorityChange = (event: SelectChangeEvent<TaskPriority | ''>) => {
+    setPriorityFilter(event.target.value as TaskPriority | '');
+    setPage(0);
+  };
+
+  const handleWorkflowChange = (event: SelectChangeEvent<string>) => {
+    setWorkflowFilter(event.target.value);
+    setPage(0);
+  };
+
   return (
-    <Box sx={{ p: 2 }}>
-      {/* Stats Section */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6">Total Tasks</Typography>
-            <Typography variant="h4">{stats.totalTasks}</Typography>
-          </Paper>
+    <Paper elevation={2}>
+      <Box p={2}>
+        {/* Stats Section */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="h6">Total Tasks</Typography>
+              <Typography variant="h4">{stats.totalTasks}</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="h6">Running</Typography>
+              <Typography variant="h4" color="success.main">{stats.runningTasks}</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="h6">Scheduled</Typography>
+              <Typography variant="h4" color="info.main">{stats.scheduledTasks}</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Paper sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="h6">Failed</Typography>
+              <Typography variant="h4" color="error.main">{stats.failedTasks}</Typography>
+            </Paper>
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6">Running</Typography>
-            <Typography variant="h4" color="success.main">{stats.runningTasks}</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6">Scheduled</Typography>
-            <Typography variant="h4" color="info.main">{stats.scheduledTasks}</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h6">Failed</Typography>
-            <Typography variant="h4" color="error.main">{stats.failedTasks}</Typography>
-          </Paper>
-        </Grid>
-      </Grid>
 
-      {/* Actions */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          New Task
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={onRefresh}
-        >
-          Refresh
-        </Button>
-      </Box>
-
-      {/* Tasks Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Workflow</TableCell>
-              <TableCell>Profile</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Priority</TableCell>
-              <TableCell>Schedule</TableCell>
-              <TableCell>Next Run</TableCell>
-              <TableCell>Last Run</TableCell>
-              <TableCell>Duration</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {propTasks.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9}>
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No Tasks Yet
-                    </Typography>
-                    <Typography color="text.secondary" paragraph>
-                      Create your first task to start automating workflows.
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<AddIcon />}
-                      onClick={() => handleOpenDialog()}
-                    >
-                      Create Task
-                    </Button>
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ) : (
-              propTasks.map((task) => (
-                <TableRow key={task._id}>
-                  <TableCell>{task.name}</TableCell>
-                  <TableCell>
-                    {workflows.find(w => w._id === task.workflowId)?.name || task.workflowId}
-                  </TableCell>
-                  <TableCell>
-                    {profiles.find(p => p._id === task.profileId)?.name || task.profileId}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={task.status}
-                      color={getStatusColor(task.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={task.priority}
-                      color={task.priority === 'high' ? 'error' : task.priority === 'medium' ? 'warning' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {task.schedule && renderScheduleDetails(task)}
-                  </TableCell>
-                  <TableCell>
-                    {task.nextRun ? format(new Date(task.nextRun), 'PPp') : 'Not scheduled'}
-                  </TableCell>
-                  <TableCell>
-                    {task.lastRun ? format(new Date(task.lastRun), 'PPp') : 'Never'}
-                  </TableCell>
-                  <TableCell>
-                    {task.lastRun && task.status !== 'running' ? formatDuration(task.lastRun, task.updatedAt) : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(task)}
-                      color="primary"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDelete(task._id)}
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                    {task.errorLogs && task.errorLogs.length > 0 && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleErrorClick(task)}
-                        color="error"
-                      >
-                        <ErrorIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {/* Task Form Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{selectedTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+        {/* Actions and Filters */}
+        <Box sx={{ mb: 2 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={statusFilter}
+                  onChange={handleStatusChange}
+                  label="Status"
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="running">Running</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="failed">Failed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                multiline
-                rows={2}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth>
+                <InputLabel>Priority</InputLabel>
+                <Select
+                  value={priorityFilter}
+                  onChange={handlePriorityChange}
+                  label="Priority"
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={4}>
               <FormControl fullWidth>
                 <InputLabel>Workflow</InputLabel>
                 <Select
-                  value={formData.workflowId}
+                  value={workflowFilter}
+                  onChange={handleWorkflowChange}
                   label="Workflow"
-                  onChange={(e) => setFormData({ ...formData, workflowId: e.target.value })}
                 >
+                  <MenuItem value="">All</MenuItem>
                   {workflows.map((workflow) => (
                     <MenuItem key={workflow._id} value={workflow._id}>
                       {workflow.name}
@@ -627,201 +559,373 @@ const TaskManager: React.FC<TaskManagerProps> = ({
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Browser Profile</InputLabel>
-                <Select
-                  value={formData.profileId}
-                  label="Browser Profile"
-                  onChange={(e) => setFormData({ ...formData, profileId: e.target.value })}
-                >
-                  {profiles.map((profile) => (
-                    <MenuItem key={profile._id} value={profile._id}>
-                      {profile.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Priority</InputLabel>
-                <Select
-                  value={formData.priority}
-                  label="Priority"
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
-                >
-                  <MenuItem value="low">Low</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Max Retries"
-                value={formData.maxRetries}
-                onChange={(e) => setFormData({ ...formData, maxRetries: parseInt(e.target.value) })}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Timeout (ms)"
-                value={formData.timeout}
-                onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.parallelExecution}
-                    onChange={(e) => setFormData({ ...formData, parallelExecution: e.target.checked })}
-                  />
-                }
-                label="Parallel Execution"
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom>
-                Schedule
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Schedule Type</InputLabel>
-                    <Select
-                      value={formData.schedule.type}
-                      onChange={(e) => handleScheduleTypeChange(e.target.value as TaskScheduleType)}
-                      label="Schedule Type"
-                    >
-                      <MenuItem value="once">Once</MenuItem>
-                      <MenuItem value="every">Every X Hours</MenuItem>
-                      <MenuItem value="daily">Daily</MenuItem>
-                      <MenuItem value="weekly">Weekly</MenuItem>
-                      <MenuItem value="monthly">Monthly</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                {formData.schedule.type === 'every' && (
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Interval (hours)"
-                      value={(formData.schedule as EverySchedule).interval}
-                      onChange={handleIntervalChange}
-                      InputProps={{
-                        inputProps: { min: 1 }
-                      }}
-                    />
-                  </Grid>
-                )}
-                {formData.schedule.type !== 'once' && formData.schedule.type !== 'every' && (
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      type="time"
-                      label="Time"
-                      value={(formData.schedule as DailySchedule | WeeklySchedule | MonthlySchedule).time}
-                      onChange={handleTimeChange}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                )}
-                <Grid item xs={12} sm={6}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DateTimePicker
-                      label="Start Date"
-                      value={new Date(formData.schedule.startDate)}
-                      onChange={handleStartDateChange}
-                      slotProps={{ textField: { fullWidth: true } }}
-                    />
-                  </LocalizationProvider>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DateTimePicker
-                      label="End Date (Optional)"
-                      value={formData.schedule.endDate ? new Date(formData.schedule.endDate) : null}
-                      onChange={handleEndDateChange}
-                      slotProps={{ textField: { fullWidth: true } }}
-                    />
-                  </LocalizationProvider>
-                </Grid>
-                {formData.schedule.type === 'weekly' && (
-                  <Grid item xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel>Days of Week</InputLabel>
-                      <Select
-                        multiple
-                        value={(formData.schedule as WeeklySchedule).daysOfWeek}
-                        onChange={handleDaysOfWeekChange}
-                        label="Days of Week"
-                      >
-                        <MenuItem value={0}>Sunday</MenuItem>
-                        <MenuItem value={1}>Monday</MenuItem>
-                        <MenuItem value={2}>Tuesday</MenuItem>
-                        <MenuItem value={3}>Wednesday</MenuItem>
-                        <MenuItem value={4}>Thursday</MenuItem>
-                        <MenuItem value={5}>Friday</MenuItem>
-                        <MenuItem value={6}>Saturday</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
-                {formData.schedule.type === 'monthly' && (
-                  <Grid item xs={12}>
-                    <FormControl fullWidth>
-                      <InputLabel>Days of Month</InputLabel>
-                      <Select
-                        multiple
-                        value={(formData.schedule as MonthlySchedule).daysOfMonth}
-                        onChange={handleDaysOfMonthChange}
-                        label="Days of Month"
-                      >
-                        {Array.from({ length: 31 }, (_, i) => (
-                          <MenuItem key={i + 1} value={i + 1}>
-                            {i + 1}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
-              </Grid>
+            <Grid item xs={12} sm={12} sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog()}
+              >
+                New Task
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => onRefresh(page + 1, rowsPerPage, {})}
+              >
+                Refresh
+              </Button>
             </Grid>
           </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
-            {selectedTask ? 'Update Task' : 'Create Task'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
 
-      {/* Error Dialog */}
-      <Dialog open={errorDialogOpen} onClose={handleCloseErrorDialog} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>
-          Error Logs
-        </DialogTitle>
-        <DialogContent>
-          {selectedTask?.errorLogs?.map((error, index) => (
-            <Typography key={index} sx={{ mb: 1 }}>
-              {error}
-            </Typography>
-          ))}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseErrorDialog}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        {/* Tasks Table */}
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Workflow</TableCell>
+                <TableCell>Profile</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Schedule</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {propTasks
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((task) => (
+                  <TableRow key={task._id}>
+                    <TableCell>{task.name}</TableCell>
+                    <TableCell>
+                      {workflows.find(w => w._id === task.workflowId)?.name || task.workflowId}
+                    </TableCell>
+                    <TableCell>
+                      {profiles.find(p => p._id === task.profileId)?.name || task.profileId}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={task.status}
+                        color={getStatusColor(task.status)}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>{renderScheduleDetails(task)}</TableCell>
+                    <TableCell>
+                      <Box display="flex" gap={1}>
+                        {task.status === 'pending' && (
+                          <Tooltip title="Start">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleStart(task._id)}
+                              color="success"
+                            >
+                              <PlayIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {task.status === 'running' && (
+                          <>
+                            <Tooltip title="Pause">
+                              <IconButton
+                                size="small"
+                                onClick={() => handlePause(task._id)}
+                                color="warning"
+                              >
+                                <PauseIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Stop">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleStop(task._id)}
+                                color="error"
+                              >
+                                <StopIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(task)}
+                            color="primary"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(task._id)}
+                            color="error"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {task.errorLogs && task.errorLogs.length > 0 && (
+                          <Tooltip title="View Error">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleErrorClick(task)}
+                              color="error"
+                            >
+                              <ErrorIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          component="div"
+          count={total}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
+
+        {/* Task Form Dialog */}
+        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+          <DialogTitle>{selectedTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  multiline
+                  rows={2}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Workflow</InputLabel>
+                  <Select
+                    value={formData.workflowId}
+                    label="Workflow"
+                    onChange={(e) => setFormData({ ...formData, workflowId: e.target.value })}
+                  >
+                    {workflows.map((workflow) => (
+                      <MenuItem key={workflow._id} value={workflow._id}>
+                        {workflow.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Browser Profile</InputLabel>
+                  <Select
+                    value={formData.profileId}
+                    label="Browser Profile"
+                    onChange={(e) => setFormData({ ...formData, profileId: e.target.value })}
+                  >
+                    {profiles.map((profile) => (
+                      <MenuItem key={profile._id} value={profile._id}>
+                        {profile.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Priority</InputLabel>
+                  <Select
+                    value={formData.priority}
+                    label="Priority"
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
+                  >
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Max Retries"
+                  value={formData.maxRetries}
+                  onChange={(e) => setFormData({ ...formData, maxRetries: parseInt(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Timeout (ms)"
+                  value={formData.timeout}
+                  onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.parallelExecution}
+                      onChange={(e) => setFormData({ ...formData, parallelExecution: e.target.checked })}
+                    />
+                  }
+                  label="Parallel Execution"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Schedule
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Schedule Type</InputLabel>
+                      <Select
+                        value={formData.schedule.type}
+                        onChange={(e) => handleScheduleTypeChange(e.target.value as TaskScheduleType)}
+                        label="Schedule Type"
+                      >
+                        <MenuItem value="once">Once</MenuItem>
+                        <MenuItem value="every">Every X Hours</MenuItem>
+                        <MenuItem value="daily">Daily</MenuItem>
+                        <MenuItem value="weekly">Weekly</MenuItem>
+                        <MenuItem value="monthly">Monthly</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  {formData.schedule.type === 'every' && (
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Interval (hours)"
+                        value={(formData.schedule as EverySchedule).interval}
+                        onChange={handleIntervalChange}
+                        InputProps={{
+                          inputProps: { min: 1 }
+                        }}
+                      />
+                    </Grid>
+                  )}
+                  {formData.schedule.type !== 'once' && formData.schedule.type !== 'every' && (
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        type="time"
+                        label="Time"
+                        value={(formData.schedule as DailySchedule | WeeklySchedule | MonthlySchedule).time}
+                        onChange={handleTimeChange}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                  )}
+                  <Grid item xs={12} sm={6}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DateTimePicker
+                        label="Start Date"
+                        value={new Date(formData.schedule.startDate)}
+                        onChange={handleStartDateChange}
+                        slotProps={{ textField: { fullWidth: true } }}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DateTimePicker
+                        label="End Date (Optional)"
+                        value={formData.schedule.endDate ? new Date(formData.schedule.endDate) : null}
+                        onChange={handleEndDateChange}
+                        slotProps={{ textField: { fullWidth: true } }}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+                  {formData.schedule.type === 'weekly' && (
+                    <Grid item xs={12}>
+                      <FormControl fullWidth>
+                        <InputLabel>Days of Week</InputLabel>
+                        <Select
+                          multiple
+                          value={(formData.schedule as WeeklySchedule).daysOfWeek}
+                          onChange={handleDaysOfWeekChange}
+                          label="Days of Week"
+                        >
+                          <MenuItem value={0}>Sunday</MenuItem>
+                          <MenuItem value={1}>Monday</MenuItem>
+                          <MenuItem value={2}>Tuesday</MenuItem>
+                          <MenuItem value={3}>Wednesday</MenuItem>
+                          <MenuItem value={4}>Thursday</MenuItem>
+                          <MenuItem value={5}>Friday</MenuItem>
+                          <MenuItem value={6}>Saturday</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
+                  {formData.schedule.type === 'monthly' && (
+                    <Grid item xs={12}>
+                      <FormControl fullWidth>
+                        <InputLabel>Days of Month</InputLabel>
+                        <Select
+                          multiple
+                          value={(formData.schedule as MonthlySchedule).daysOfMonth}
+                          onChange={handleDaysOfMonthChange}
+                          label="Days of Month"
+                        >
+                          {Array.from({ length: 31 }, (_, i) => (
+                            <MenuItem key={i + 1} value={i + 1}>
+                              {i + 1}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )}
+                </Grid>
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog}>Cancel</Button>
+            <Button onClick={handleSubmit} variant="contained" color="primary">
+              {selectedTask ? 'Update Task' : 'Create Task'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Error Dialog */}
+        <Dialog open={errorDialogOpen} onClose={handleCloseErrorDialog} maxWidth="md" fullWidth>
+          <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>
+            Error Logs
+          </DialogTitle>
+          <DialogContent>
+            {selectedTask?.errorLogs?.map((error, index) => (
+              <Typography key={index} sx={{ mb: 1 }}>
+                {error}
+              </Typography>
+            ))}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseErrorDialog}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </Paper>
   );
 };
 

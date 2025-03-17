@@ -7,6 +7,14 @@ import { AutomationService, AutomationAction } from './automation.service';
 import { BrowserProfile } from '../types/browser.types';
 import crypto from 'crypto';
 
+interface PaginatedExecutions {
+  executions: IExecution[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 class ExecutionService {
   private static instance: ExecutionService;
   private executionQueue: IExecution[] = [];
@@ -909,6 +917,80 @@ class ExecutionService {
       const orderB = orderMap.get(b.nodeId) ?? Number.MAX_SAFE_INTEGER;
       return orderA - orderB;
     });
+  }
+
+  public async getPaginatedExecutions(
+    page: number = 1,
+    pageSize: number = 10,
+    filters: {
+      status?: ExecutionStatus;
+      workflowId?: string;
+      startDate?: Date;
+      endDate?: Date;
+    } = {}
+  ): Promise<PaginatedExecutions> {
+    try {
+      const query: any = {};
+      
+      // Apply filters
+      if (filters.status) {
+        query.status = filters.status;
+      }
+      if (filters.workflowId) {
+        query.workflowId = filters.workflowId;
+      }
+      if (filters.startDate || filters.endDate) {
+        query.startTime = {};
+        if (filters.startDate) {
+          query.startTime.$gte = filters.startDate;
+        }
+        if (filters.endDate) {
+          query.startTime.$lte = filters.endDate;
+        }
+      }
+
+      // Calculate skip and limit
+      const skip = (page - 1) * pageSize;
+      
+      // Get total count for pagination
+      const total = await Execution.countDocuments(query);
+      
+      // Get paginated executions
+      const executions = await Execution.find(query)
+        .sort({ startTime: -1 }) // Sort by start time descending
+        .skip(skip)
+        .limit(pageSize)
+        .lean();
+
+      return {
+        executions,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize)
+      };
+    } catch (error) {
+      console.error('Error fetching paginated executions:', error);
+      throw error;
+    }
+  }
+
+  public async getExecutionById(id: string): Promise<IExecution | null> {
+    try {
+      return await Execution.findById(id).lean();
+    } catch (error) {
+      console.error('Error fetching execution by ID:', error);
+      throw error;
+    }
+  }
+
+  public async deleteExecution(id: string): Promise<void> {
+    try {
+      await Execution.findByIdAndDelete(id);
+    } catch (error) {
+      console.error('Error deleting execution:', error);
+      throw error;
+    }
   }
 }
 

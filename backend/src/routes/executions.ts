@@ -9,9 +9,51 @@ const executionService = ExecutionService.getInstance();
 // Get all executions
 router.get('/', async (req, res) => {
   try {
-    const executions = await Execution.find().sort({ createdAt: -1 });
-    res.json(executions);
+    // Parse pagination parameters
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 10;
+    const skip = (page - 1) * pageSize;
+    
+    // Build query filters
+    const filters: any = {};
+    
+    // Add status filter if provided
+    if (req.query.status) {
+      filters.status = req.query.status;
+    }
+    
+    // Add workflow filter if provided
+    if (req.query.workflowId) {
+      filters.workflowId = req.query.workflowId;
+    }
+    
+    // Add date range filters if provided
+    if (req.query.startDate) {
+      filters.startTime = { $gte: new Date(req.query.startDate as string) };
+    }
+    if (req.query.endDate) {
+      filters.endTime = { $lte: new Date(req.query.endDate as string) };
+    }
+
+    // Get total count for pagination with filters
+    const total = await Execution.countDocuments(filters);
+
+    // Get paginated executions with filters
+    const executions = await Execution.find(filters)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
+
+    // Return paginated response
+    res.json({
+      executions,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    });
   } catch (error) {
+    console.error('Error fetching executions:', error);
     res.status(500).json({ message: 'Error fetching executions' });
   }
 });
