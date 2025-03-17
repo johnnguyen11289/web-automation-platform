@@ -15,6 +15,7 @@ import {
   Box,
   Typography,
   Divider,
+  Autocomplete,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -38,6 +39,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
   availableVariables = [],
 }): JSX.Element => {
   const [properties, setProperties] = React.useState<NodeProperties>(node);
+  const [inputValues, setInputValues] = useState<{ [key: string]: string }>({});
 
   const handleBasePropertyChange = (field: keyof NodeProperties, value: any) => {
     setProperties(prev => ({
@@ -53,6 +55,14 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
     }));
   };
 
+  const handleVariableInputChange = (field: string, value: string) => {
+    setInputValues(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    handleNodeSpecificChange(field, value);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdate(properties);
@@ -61,6 +71,59 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
 
   const shouldShowCommonProperties = () => {
     return properties.nodeType !== 'variableManager';
+  };
+
+  const renderVariableInput = (field: string, value: string, placeholder?: string) => {
+    const variableOptions = availableVariables.map(v => `{${v.key}}`);
+    
+    return (
+      <Autocomplete
+        freeSolo
+        options={variableOptions}
+        value={value}
+        inputValue={inputValues[field] || ''}
+        onChange={(_, newValue) => handleNodeSpecificChange(field, newValue || '')}
+        onInputChange={(_, newInputValue) => handleVariableInputChange(field, newInputValue)}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            placeholder={placeholder}
+            fullWidth
+            size="small"
+            sx={{
+              '& .MuiInputBase-input': {
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+                MozUserSelect: 'text',
+                msUserSelect: 'text',
+                '&::selection': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                  color: 'inherit',
+                },
+                '&::-moz-selection': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                  color: 'inherit',
+                },
+              },
+              '& .MuiInputBase-root': {
+                '&:focus-within': {
+                  '& .MuiInputBase-input': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  },
+                },
+              },
+            }}
+          />
+        )}
+        renderOption={(props, option) => (
+          <li {...props}>
+            {option}
+          </li>
+        )}
+        getOptionLabel={(option) => option}
+        isOptionEqualToValue={(option, value) => option === value}
+      />
+    );
   };
 
   const renderCommonProperties = () => {
@@ -105,12 +168,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>OpenURL Properties</h3>
             <div className="form-group">
               <label>URL:</label>
-              <input
-                type="text"
-                value={properties.url}
-                onChange={(e) => handleNodeSpecificChange('url', e.target.value)}
-                placeholder="https://example.com"
-              />
+              {renderVariableInput('url', properties.url || '', 'https://example.com')}
             </div>
             <div className="form-group">
               <label>Open in New Tab:</label>
@@ -141,11 +199,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Click Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
             </div>
             <div className="form-group">
               <label>Button:</label>
@@ -193,19 +247,11 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Type Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
             </div>
             <div className="form-group">
               <label>Value:</label>
-              <input
-                type="text"
-                value={properties.value}
-                onChange={(e) => handleNodeSpecificChange('value', e.target.value)}
-              />
+              {renderVariableInput('value', properties.value || '')}
             </div>
             <div className="form-group">
               <label>Clear First:</label>
@@ -246,19 +292,11 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Select Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
             </div>
             <div className="form-group">
               <label>Value:</label>
-              <input
-                type="text"
-                value={properties.value}
-                onChange={(e) => handleNodeSpecificChange('value', e.target.value)}
-              />
+              {renderVariableInput('value', properties.value || '')}
             </div>
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
@@ -302,28 +340,15 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Extract Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
             </div>
             <div className="form-group">
               <label>Attribute:</label>
-              <input
-                type="text"
-                value={properties.attribute}
-                onChange={(e) => handleNodeSpecificChange('attribute', e.target.value)}
-                placeholder="textContent, href, etc."
-              />
+              {renderVariableInput('attribute', properties.attribute || '', 'textContent, href, etc.')}
             </div>
             <div className="form-group">
               <label>Key:</label>
-              <input
-                type="text"
-                value={properties.key}
-                onChange={(e) => handleNodeSpecificChange('key', e.target.value)}
-              />
+              {renderVariableInput('key', properties.key || '')}
             </div>
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
@@ -622,19 +647,11 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>File Upload Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
             </div>
             <div className="form-group">
               <label>File Path:</label>
-              <input
-                type="text"
-                value={properties.filePath}
-                onChange={(e) => handleNodeSpecificChange('filePath', e.target.value)}
-              />
+              {renderVariableInput('filePath', properties.filePath || '')}
             </div>
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
@@ -650,19 +667,11 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Drag & Drop Properties</h3>
             <div className="form-group">
               <label>Source Selector:</label>
-              <input
-                type="text"
-                value={properties.sourceSelector}
-                onChange={(e) => handleNodeSpecificChange('sourceSelector', e.target.value)}
-              />
+              {renderVariableInput('sourceSelector', properties.sourceSelector || '')}
             </div>
             <div className="form-group">
               <label>Target Selector:</label>
-              <input
-                type="text"
-                value={properties.targetSelector}
-                onChange={(e) => handleNodeSpecificChange('targetSelector', e.target.value)}
-              />
+              {renderVariableInput('targetSelector', properties.targetSelector || '')}
             </div>
           </div>
         );
@@ -1170,13 +1179,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
           <Box className="node-specific-properties" sx={{ p: 2 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Subtitle to Voice Properties</Typography>
             <Stack spacing={2}>
-              <TextField
-                fullWidth
-                label="Subtitle File"
-                value={properties.subtitleFile || ''}
-                onChange={(e) => handleNodeSpecificChange('subtitleFile', e.target.value)}
-                placeholder="Enter subtitle file path"
-              />
+              <div className="form-group">
+                <label>Subtitle File:</label>
+                {renderVariableInput('subtitleFile', properties.subtitleFile || '')}
+              </div>
               <FormControl fullWidth>
                 <InputLabel>Format</InputLabel>
                 <Select
@@ -1191,31 +1197,15 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               </FormControl>
               <div className="form-group">
                 <label>Language:</label>
-                <input
-                  type="text"
-                  value={properties.language}
-                  onChange={(e) => handleNodeSpecificChange('language', e.target.value)}
-                  placeholder="Enter target language"
-                  required
-                />
+                {renderVariableInput('language', properties.language || '', 'Enter target language')}
               </div>
               <div className="form-group">
                 <label>Voice:</label>
-                <input
-                  type="text"
-                  value={properties.voice || ''}
-                  onChange={(e) => handleNodeSpecificChange('voice', e.target.value)}
-                  placeholder="Enter voice model/type"
-                />
+                {renderVariableInput('voice', properties.voice || '', 'Enter voice model/type')}
               </div>
               <div className="form-group">
                 <label>Output Path:</label>
-                <input
-                  type="text"
-                  value={properties.outputPath || ''}
-                  onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
-                  placeholder="Enter output file path"
-                />
+                {renderVariableInput('outputPath', properties.outputPath || '', 'Enter output file path')}
               </div>
               <div className="form-group">
                 <label>Speed:</label>
@@ -1281,22 +1271,15 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <Typography variant="h6" sx={{ mb: 2 }}>Video Editor Properties</Typography>
             
             <Stack spacing={3}>
-              <TextField
-                fullWidth
-                label="Input Path"
-                value={properties.inputPath}
-                onChange={(e) => handleNodeSpecificChange('inputPath', e.target.value)}
-                placeholder="Enter input video path"
-                required
-              />
+              <div className="form-group">
+                <label>Input Path:</label>
+                {renderVariableInput('inputPath', properties.inputPath || '', 'Enter input video path')}
+              </div>
 
-              <TextField
-                fullWidth
-                label="Output Path"
-                value={properties.outputPath || ''}
-                onChange={(e) => handleNodeSpecificChange('outputPath', e.target.value)}
-                placeholder="Enter output video path"
-              />
+              <div className="form-group">
+                <label>Output Path:</label>
+                {renderVariableInput('outputPath', properties.outputPath || '', 'Enter output video path')}
+              </div>
 
               <FormControl fullWidth>
                 <InputLabel id="format-label">Format</InputLabel>
@@ -1331,13 +1314,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 label="Preserve Audio"
               />
 
-              <TextField
-                fullWidth
-                label="Audio Track"
-                value={properties.audioTrack || ''}
-                onChange={(e) => handleNodeSpecificChange('audioTrack', e.target.value)}
-                placeholder="Enter custom audio track path"
-              />
+              <div className="form-group">
+                <label>Audio Track:</label>
+                {renderVariableInput('audioTrack', properties.audioTrack || '', 'Enter custom audio track path')}
+              </div>
 
               <Box>
                 <Typography variant="subtitle1" sx={{ mb: 1 }}>Operations</Typography>
@@ -1445,20 +1425,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
 
                         {op.type === 'overlay' && (
                           <>
-                            <TextField
-                              label="Overlay File"
-                              value={op.params.path || ''}
-                              onChange={(e) => {
-                                const newOps = [...(properties.operations || [])];
-                                newOps[index] = {
-                                  ...op,
-                                  params: { ...op.params, path: e.target.value }
-                                };
-                                handleNodeSpecificChange('operations', newOps);
-                              }}
-                              size="small"
-                              sx={{ flexGrow: 1 }}
-                            />
+                            <div className="form-group" style={{ flexGrow: 1 }}>
+                              <label>Overlay File:</label>
+                              {renderVariableInput(`operations.${index}.params.path`, op.params.path || '')}
+                            </div>
                             <TextField
                               label="X Position"
                               type="number"
@@ -1509,20 +1479,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                         )}
 
                         {op.type === 'filter' && (
-                          <TextField
-                            label="Filter Parameters"
-                            value={op.params.filter || ''}
-                            onChange={(e) => {
-                              const newOps = [...(properties.operations || [])];
-                              newOps[index] = {
-                                ...op,
-                                params: { ...op.params, filter: e.target.value }
-                              };
-                              handleNodeSpecificChange('operations', newOps);
-                            }}
-                            size="small"
-                            sx={{ flexGrow: 1 }}
-                          />
+                          <div className="form-group" style={{ flexGrow: 1 }}>
+                            <label>Filter Parameters:</label>
+                            {renderVariableInput(`operations.${index}.params.filter`, op.params.filter || '')}
+                          </div>
                         )}
 
                         <IconButton
