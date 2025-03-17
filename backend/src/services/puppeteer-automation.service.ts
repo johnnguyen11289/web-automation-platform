@@ -261,38 +261,151 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     }
   }
 
-  public async click(selector: string, options?: { button?: 'left' | 'right' | 'middle', clickCount?: number, delay?: number }): Promise<void> {
+  private async handleWaitConditions(selector: string, waitForSelector?: string, waitForSelectorRemoval?: string, timeout?: number): Promise<void> {
     const page = await this.getPage();
-    await page.click(selector, {
-      button: options?.button || 'left',
-      clickCount: options?.clickCount || 1,
-      delay: options?.delay
-    });
+    
+    // Wait for selector to appear if specified
+    if (waitForSelector) {
+      try {
+        await page.waitForSelector(waitForSelector, {
+          timeout: timeout || 5000,
+          visible: true
+        });
+      } catch (error) {
+        throw new Error(`Timeout waiting for selector to appear: ${waitForSelector}`);
+      }
+    }
+
+    // Wait for selector to be removed if specified
+    if (waitForSelectorRemoval) {
+      try {
+        await page.waitForSelector(waitForSelectorRemoval, {
+          timeout: timeout || 5000,
+          hidden: true
+        });
+      } catch (error) {
+        throw new Error(`Timeout waiting for selector to be removed: ${waitForSelectorRemoval}`);
+      }
+    }
   }
 
-  public async type(selector: string, text: string, options?: { delay?: number }): Promise<void> {
+  public async click(selector: string, options?: { button?: 'left' | 'right' | 'middle', clickCount?: number, delay?: number }): Promise<void> {
     const page = await this.getPage();
-    await page.type(selector, text, { delay: options?.delay });
+    await this.handleWaitConditions(selector, selector);
+    await page.click(selector, options);
+  }
+
+  public async type(selector: string, value: string): Promise<void> {
+    const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
+    await page.type(selector, value);
   }
 
   public async select(selector: string, value: string): Promise<void> {
     const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
     await page.select(selector, value);
+  }
+
+  public async extract(selector: string, attribute: string = 'text'): Promise<string> {
+    const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
+    return await page.$eval(selector, (el, attr) => {
+      if (attr === 'text') return el.textContent || '';
+      return el.getAttribute(attr) || '';
+    }, attribute);
+  }
+
+  public async uploadFile(selector: string, filePath: string): Promise<void> {
+    const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
+    const [fileChooser] = await Promise.all([
+      page.waitForFileChooser(),
+      page.click(selector)
+    ]);
+    await fileChooser.accept([filePath]);
   }
 
   public async focus(selector: string): Promise<void> {
     const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
     await page.focus(selector);
   }
 
   public async hover(selector: string): Promise<void> {
     const page = await this.getPage();
+    await this.handleWaitConditions(selector, selector);
     await page.hover(selector);
+  }
+
+  public async screenshot(options?: { selector?: string, path?: string }): Promise<Buffer> {
+    const page = await this.getPage();
+    
+    if (options?.selector) {
+      // Handle element screenshot
+      await this.handleWaitConditions(options.selector, options.selector);
+      const element = await page.$(options.selector);
+      if (!element) throw new Error(`Element not found: ${options.selector}`);
+      const screenshot = await element.screenshot({ path: options.path });
+      return Buffer.from(screenshot);
+    } else {
+      // Handle full page screenshot
+      const screenshot = await page.screenshot({ path: options?.path });
+      return Buffer.from(screenshot);
+    }
+  }
+
+  public async dragDrop(sourceSelector: string, targetSelector: string): Promise<void> {
+    const page = await this.getPage();
+    await this.handleWaitConditions(sourceSelector, sourceSelector, targetSelector);
+    
+    // Get the source and target elements
+    const sourceElement = await page.$(sourceSelector);
+    const targetElement = await page.$(targetSelector);
+    
+    if (!sourceElement || !targetElement) {
+      throw new Error('Source or target element not found');
+    }
+
+    // Get the bounding boxes
+    const sourceBox = await sourceElement.boundingBox();
+    const targetBox = await targetElement.boundingBox();
+    
+    if (!sourceBox || !targetBox) {
+      throw new Error('Could not get element positions');
+    }
+
+    // Move to source element
+    await page.mouse.move(
+      sourceBox.x + sourceBox.width / 2,
+      sourceBox.y + sourceBox.height / 2
+    );
+
+    // Press mouse button
+    await page.mouse.down();
+
+    // Move to target element
+    await page.mouse.move(
+      targetBox.x + targetBox.width / 2,
+      targetBox.y + targetBox.height / 2
+    );
+
+    // Release mouse button
+    await page.mouse.up();
   }
 
   public async waitForSelector(selector: string, options?: { timeout?: number }): Promise<void> {
     const page = await this.getPage();
-    await page.waitForSelector(selector, { timeout: options?.timeout });
+    await page.waitForSelector(selector, options);
+  }
+
+  public async waitForSelectorRemoval(selector: string, options?: { timeout?: number }): Promise<void> {
+    const page = await this.getPage();
+    await page.waitForFunction(
+      (sel) => !document.querySelector(sel),
+      { timeout: options?.timeout || 30000 },
+      selector
+    );
   }
 
   public async waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void> {
@@ -316,13 +429,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public async evaluate(script: string): Promise<any> {
     const page = await this.getPage();
-    return page.evaluate(script);
-  }
-
-  public async screenshot(options?: { path?: string }): Promise<Buffer> {
-    const page = await this.getPage();
-    const screenshot = await page.screenshot(options);
-    return Buffer.from(screenshot);
+    return await page.evaluate(script);
   }
 
   public async pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<{ paths: string | string[], variableKey?: string }> {
@@ -544,165 +651,130 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   }
 
   public async performWebAutomation(actions: AutomationAction[]): Promise<AutomationResult> {
-    const page = await this.getPage();
     const results: AutomationStepResult[] = [];
-    let success = true;
-    let extractedData: Record<string, any> = {};
+    const extractedData: Record<string, any> = {};
 
     try {
-      for (const [index, action] of actions.entries()) {
+      for (const action of actions) {
         try {
-          this.logger(`Executing action ${index + 1}/${actions.length}: ${action.type}`);
+          const page = await this.getPage();
+          
           switch (action.type) {
             case 'openUrl':
-              if (action.value) {
-                this.logger(`Opening URL: ${action.value}`);
-                await this.goto(action.value, { 
-                  waitUntil: action.waitUntil || 'networkidle0',
-                  timeout: action.timeout || 30000 
-                });
-                await this.humanBehaviorService.randomDelay(page as any, 1000, 2000);
-              }
+              if (!action.url) throw new Error('URL is required for openUrl action');
+              await this.openUrl(action.url, action.waitUntil as 'load' | 'domcontentloaded' | 'networkidle');
               break;
-            case 'click':
-              if (action.selector) {
-                this.logger(`Clicking element: ${action.selector}`);
-                await this.humanBehaviorService.humanMove(page as any, action.selector);
-                if (!action.delay) {
-                  await this.humanBehaviorService.randomDelay(page as any, 200, 500);
-                }
-                await this.click(action.selector, {
-                  button: action.button || 'left',
-                  clickCount: action.clickCount || 1,
-                  delay: action.delay
-                });
-              }
-              break;
-            case 'type':
-              if (action.selector && action.value) {
-                this.logger(`Typing into element: ${action.selector}`);
-                await this.humanBehaviorService.humanMove(page as any, action.selector);
-                if (!action.delay) {
-                  await this.humanBehaviorService.randomDelay(page as any, 200, 500);
-                }
-                if (action.clearFirst) {
-                  await page.click(action.selector, { clickCount: 3 });
-                  await page.keyboard.press('Backspace');
-                }
-                await this.type(action.selector, action.value, { delay: action.delay });
-              }
-              break;
-            case 'screenshot':
-              const screenshotPath = action.value || `screenshot-${Date.now()}.png`;
-              this.logger(`Taking screenshot: ${screenshotPath}`);
-              await this.screenshot({ path: screenshotPath });
-              break;
-            case 'wait':
-              if (action.condition === 'networkIdle') {
-                this.logger('Waiting for network idle');
-                await this.waitForLoadState('networkidle');
-              } else if (action.condition === 'delay' && action.delay) {
-                this.logger(`Waiting for ${action.delay}ms`);
-                await this.waitForTimeout(action.delay);
-              } else if (action.selector) {
-                this.logger(`Waiting for selector: ${action.selector}`);
-                await this.waitForSelector(action.selector, { timeout: action.timeout });
-              }
-              break;
-            case 'extract':
-              if (!action.selector) {
-                throw new Error('Selector is required for extract action');
-              }
-              this.logger(`Extracting data from: ${action.selector}`);
-              let extractedValue: string | null = null;
-              if (action.attribute === 'text') {
-                extractedValue = await page.$eval(action.selector, el => el.textContent);
-              } else if (action.attribute) {
-                extractedValue = await page.$eval(action.selector, (el, attr) => el.getAttribute(attr), action.attribute);
-              } else {
-                extractedValue = await page.$eval(action.selector, el => el.textContent);
-              }
-              if (action.key) {
-                extractedData[action.key] = extractedValue;
-                this.logger(`Extracted value stored in key: ${action.key}`);
-              }
-              break;
-            case 'evaluate':
-              if (!action.script) {
-                throw new Error('Script is required for evaluate action');
-              }
-              const result = await this.evaluate(action.script);
-              if (action.key) {
-                extractedData[action.key] = result;
-              }
-              break;
-            case 'keyboard':
-              if (!action.key) {
-                throw new Error('Key is required for keyboard action');
-              }
-              await page.keyboard.press(action.key as KeyInput);
-              break;
-            case 'select':
-              if (!action.selector || !action.value) {
-                throw new Error('Selector and value are required for select action');
-              }
-              await this.select(action.selector, action.value);
-              break;
-            case 'focus':
-              if (!action.selector) {
-                throw new Error('Selector is required for focus action');
-              }
-              await this.focus(action.selector);
-              break;
-            case 'hover':
-              if (!action.selector) {
-                throw new Error('Selector is required for hover action');
-              }
-              await this.hover(action.selector);
-              break;
-            case 'filePicker':
-              const pickResult = await this.pickFile(
-                action.filePath || '',
-                {
-                  fileName: action.fileName,
-                  multiple: action.multiple,
-                  directory: action.directory,
-                  accept: action.accept
-                }
-              );
-              
-              // Store the result in variables if specified
-              const variableKey = pickResult.variableKey || action.variableKey;
-              if (variableKey) {
-                extractedData[variableKey] = pickResult.paths;
-                // Also store in _variables for backward compatibility
-                extractedData._variables = extractedData._variables || {};
-                extractedData._variables[variableKey] = pickResult.paths;
-              }
-              break;
-          }
-          results.push({ action, success: true });
-          this.logger(`Action completed successfully: ${action.type}`);
-        } catch (error) {
-          this.logger(`Action failed: ${action.type} - ${error instanceof Error ? error.message : String(error)}`);
-          results.push({
-            action,
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-          if (action.stopOnError) {
-            success = false;
-            break;
-          }
-        }
-        await this.humanBehaviorService.randomDelay(page as any, 500, 1500);
-      }
-    } catch (error) {
-      success = false;
-      this.logger(`Automation failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
 
-    return { success, results, extractedData };
+            case 'click':
+              if (!action.selector) throw new Error('Selector is required for click action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              await page.click(action.selector, {
+                button: action.button || 'left',
+                clickCount: action.clickCount || 1,
+                delay: action.delay
+              });
+              break;
+
+            case 'type':
+              if (!action.selector || !action.value) throw new Error('Selector and value are required for type action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              if (action.clearFirst) await page.$eval(action.selector, (el: any) => el.value = '');
+              await page.type(action.selector, action.value, { delay: action.delay });
+              break;
+
+            case 'select':
+              if (!action.selector || !action.value) throw new Error('Selector and value are required for select action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              await page.select(action.selector, action.value);
+              break;
+
+            case 'extract':
+              if (!action.selector) throw new Error('Selector is required for extract action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              const value = await page.$eval(action.selector, (el: any, attr: string) => {
+                if (attr === 'text') return el.textContent || '';
+                return el.getAttribute(attr) || '';
+              }, action.attribute || 'text');
+              if (action.variableKey) extractedData[action.variableKey] = value;
+              break;
+
+            case 'fileUpload':
+              if (!action.selector || !action.filePath) throw new Error('Selector and filePath are required for fileUpload action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              const [fileChooser] = await Promise.all([
+                page.waitForFileChooser(),
+                page.click(action.selector)
+              ]);
+              await fileChooser.accept([action.filePath]);
+              break;
+
+            case 'wait':
+              if (action.condition === 'delay') {
+                await this.waitForTimeout(action.delay || 1000);
+              } else if (action.condition === 'selectorPresent' && action.waitForSelector) {
+                await this.waitForSelector(action.waitForSelector, { timeout: action.timeout });
+              } else if (action.condition === 'selectorRemoved' && action.waitForSelectorRemoval) {
+                await this.waitForSelectorRemoval(action.waitForSelectorRemoval, { timeout: action.timeout });
+              }
+              break;
+
+            case 'focus':
+              if (!action.selector) throw new Error('Selector is required for focus action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              await page.focus(action.selector);
+              break;
+
+            case 'hover':
+              if (!action.selector) throw new Error('Selector is required for hover action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              await page.hover(action.selector);
+              break;
+
+            case 'screenshot':
+              if (!action.selector || !action.path) throw new Error('Selector and path are required for screenshot action');
+              await this.handleWaitConditions(action.selector, action.waitForSelector, action.waitForSelectorRemoval);
+              const element = await page.$(action.selector);
+              if (!element) throw new Error(`Element not found: ${action.selector}`);
+              await element.screenshot({ path: action.path });
+              break;
+
+            case 'dragDrop':
+              if (!action.sourceSelector || !action.targetSelector) throw new Error('sourceSelector and targetSelector are required for dragDrop action');
+              await this.handleWaitConditions(action.sourceSelector, action.sourceSelector, action.targetSelector);
+              const sourceElement = await page.$(action.sourceSelector);
+              const targetElement = await page.$(action.targetSelector);
+              if (!sourceElement || !targetElement) throw new Error('Source or target element not found');
+              const sourceBox = await sourceElement.boundingBox();
+              const targetBox = await targetElement.boundingBox();
+              if (!sourceBox || !targetBox) throw new Error('Could not get element positions');
+              await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+              await page.mouse.down();
+              await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
+              await page.mouse.up();
+              break;
+
+            case 'keyboard':
+              if (!action.key) throw new Error('Key is required for keyboard action');
+              await this.keyboard(action.key as KeyInput);
+              break;
+
+            case 'evaluate':
+              if (!action.script) throw new Error('Script is required for evaluate action');
+              await this.evaluate(action.script);
+              break;
+          }
+
+          results.push({ action, success: true });
+        } catch (error) {
+          results.push({ action, success: false, error: error instanceof Error ? error.message : String(error) });
+          if (action.stopOnError) throw error;
+        }
+      }
+
+      return { success: true, results, extractedData };
+    } catch (error) {
+      return { success: false, results, extractedData };
+    }
   }
 
   private async rotateFingerprint(page: Page): Promise<void> {
@@ -717,24 +789,8 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     await page.goto(url, { waitUntil: waitUntilOption as 'load' | 'domcontentloaded' | 'networkidle0' });
   }
 
-  public async uploadFile(selector: string, filePath: string): Promise<void> {
+  public async keyboard(key: KeyInput): Promise<void> {
     const page = await this.getPage();
-    const elementHandle = await page.$(selector);
-    if (!elementHandle) {
-      throw new Error(`File input element not found: ${selector}`);
-    }
-    const input = elementHandle as unknown as ElementHandle<HTMLInputElement>;
-    await input.uploadFile(filePath);
-  }
-
-  public async extract(selector: string, attribute?: string): Promise<string> {
-    const page = await this.getPage();
-    if (attribute === 'text' || !attribute) {
-      const text = await page.$eval(selector, (el: Element) => el.textContent || '');
-      return text.trim();
-    } else {
-      const value = await page.$eval(selector, (el: Element, attr: string) => el.getAttribute(attr) || '', attribute);
-      return value;
-    }
+    await page.keyboard.press(key);
   }
 } 

@@ -42,6 +42,8 @@ export const createNode = (
   const baseData = {
     type,
     label: label || type.charAt(0).toUpperCase() + type.slice(1),
+    waitForSelector: '',
+    waitForSelectorRemoval: '',
   };
 
   switch (type) {

@@ -114,6 +114,15 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
     await page.waitForSelector(selector, options);
   }
 
+  public async waitForSelectorRemoval(selector: string, options?: { timeout?: number }): Promise<void> {
+    const page = await this.getPage();
+    await page.waitForFunction(
+      (sel: string) => !document.querySelector(sel),
+      selector,
+      { timeout: options?.timeout || 30000 }
+    );
+  }
+
   public async waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void> {
     const page = await this.getPage();
     await page.waitForLoadState(state);

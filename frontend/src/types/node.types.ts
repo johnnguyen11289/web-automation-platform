@@ -16,6 +16,8 @@ export interface OpenUrlNodeProperties extends BaseNodeProperties {
   waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
   timeout?: number;
   openInNewTab?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface ClickNodeProperties extends BaseNodeProperties {
@@ -24,7 +26,8 @@ export interface ClickNodeProperties extends BaseNodeProperties {
   button?: 'left' | 'right' | 'middle';
   clickCount?: number;
   delay?: number;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
   waitForNavigation?: boolean;
 }
 
@@ -34,7 +37,8 @@ export interface TypeNodeProperties extends BaseNodeProperties {
   value: string;
   delay?: number;
   clearFirst?: boolean;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
   pressEnter?: boolean;
   variableOperations?: VariableOperation[];
 }
@@ -43,24 +47,29 @@ export interface SelectNodeProperties extends BaseNodeProperties {
   nodeType: 'select';
   selector: string;
   value: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
   variableOperations?: VariableOperation[];
 }
 
 export interface WaitNodeProperties extends BaseNodeProperties {
   nodeType: 'wait';
-  condition?: 'networkIdle' | 'delay';
+  condition?: 'networkIdle' | 'delay' | 'selectorPresent' | 'selectorRemoved';
   delay?: number;
   selector?: string;
   timeout?: number;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface ExtractNodeProperties extends BaseNodeProperties {
   nodeType: 'extract';
   selector: string;
   attribute?: string;
+  customAttribute?: string;
   key?: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
   variableOperations?: VariableOperation[];
 }
 
@@ -73,25 +82,29 @@ export interface EvaluateNodeProperties extends BaseNodeProperties {
 export interface KeyboardNodeProperties extends BaseNodeProperties {
   nodeType: 'keyboard';
   key: string;
+  customKey?: string;
 }
 
 export interface FocusNodeProperties extends BaseNodeProperties {
   nodeType: 'focus';
   selector: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface HoverNodeProperties extends BaseNodeProperties {
   nodeType: 'hover';
   selector: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface ScreenshotNodeProperties extends BaseNodeProperties {
   nodeType: 'screenshot';
   path?: string;
   selector?: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface ConditionNodeProperties extends BaseNodeProperties {
@@ -101,6 +114,8 @@ export interface ConditionNodeProperties extends BaseNodeProperties {
   selector?: string;
   truePath: string;
   falsePath: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface LoopNodeProperties extends BaseNodeProperties {
@@ -108,6 +123,8 @@ export interface LoopNodeProperties extends BaseNodeProperties {
   loopType: 'fixed' | 'list';
   maxIterations: number;
   breakCondition?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface ScrollNodeProperties extends BaseNodeProperties {
@@ -116,18 +133,24 @@ export interface ScrollNodeProperties extends BaseNodeProperties {
   direction?: 'up' | 'down' | 'intoView';
   amount?: number;
   smooth?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface IframeNodeProperties extends BaseNodeProperties {
   nodeType: 'iframe';
   selector: string;
   action: 'switch' | 'switchBack';
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface AlertNodeProperties extends BaseNodeProperties {
   nodeType: 'alert';
   action: 'accept' | 'dismiss' | 'type';
   text?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface CookieNodeProperties extends BaseNodeProperties {
@@ -136,6 +159,8 @@ export interface CookieNodeProperties extends BaseNodeProperties {
   name?: string;
   value?: string;
   key?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface StorageNodeProperties extends BaseNodeProperties {
@@ -145,13 +170,16 @@ export interface StorageNodeProperties extends BaseNodeProperties {
   key?: string;
   value?: string;
   resultKey?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface FileUploadNodeProperties extends BaseNodeProperties {
   nodeType: 'fileUpload';
   selector: string;
   filePath: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
   variableOperations?: VariableOperation[];
 }
 
@@ -159,7 +187,8 @@ export interface DragDropNodeProperties extends BaseNodeProperties {
   nodeType: 'dragDrop';
   sourceSelector: string;
   targetSelector: string;
-  waitForSelector?: boolean;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface NetworkNodeProperties extends BaseNodeProperties {
@@ -168,6 +197,8 @@ export interface NetworkNodeProperties extends BaseNodeProperties {
   urlPattern?: string;
   method?: string;
   response?: any;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletConnectNodeProperties extends BaseNodeProperties {
@@ -175,6 +206,8 @@ export interface WalletConnectNodeProperties extends BaseNodeProperties {
   action: 'connect' | 'disconnect';
   walletType: 'metamask' | 'phantom' | 'solflare' | 'walletconnect';
   network?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletSignNodeProperties extends BaseNodeProperties {
@@ -183,6 +216,8 @@ export interface WalletSignNodeProperties extends BaseNodeProperties {
   message?: string;
   transaction?: any;
   key?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletSendNodeProperties extends BaseNodeProperties {
@@ -193,6 +228,8 @@ export interface WalletSendNodeProperties extends BaseNodeProperties {
   token?: string;
   network?: string;
   key?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletBalanceNodeProperties extends BaseNodeProperties {
@@ -201,6 +238,8 @@ export interface WalletBalanceNodeProperties extends BaseNodeProperties {
   token?: string;
   network?: string;
   key?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletApproveNodeProperties extends BaseNodeProperties {
@@ -211,6 +250,8 @@ export interface WalletApproveNodeProperties extends BaseNodeProperties {
   amount: string;
   network?: string;
   key?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface WalletSwitchNodeProperties extends BaseNodeProperties {
@@ -218,6 +259,8 @@ export interface WalletSwitchNodeProperties extends BaseNodeProperties {
   action: 'switchNetwork';
   network: string;
   chainId?: number;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface VariableOperation {
@@ -239,10 +282,11 @@ export interface VariableManagerNodeProperties extends BaseNodeProperties {
 
 export interface SubtitleToVoiceNodeProperties extends BaseNodeProperties {
   nodeType: 'subtitleToVoice';
-  subtitleFile?: string;
-  subtitleFormat?: 'srt' | 'vtt' | 'ass';
+  subtitleFile: string;
+  outputFile: string;
   language: string;
-  voice?: string;
+  voice: string;
+  subtitleFormat?: 'srt' | 'vtt' | 'ass';
   outputPath?: string;
   speed?: number;
   pitch?: number;
@@ -250,12 +294,18 @@ export interface SubtitleToVoiceNodeProperties extends BaseNodeProperties {
   splitByLine?: boolean;
   preserveTimings?: boolean;
   variableOperations?: VariableOperation[];
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface EditVideoNodeProperties extends BaseNodeProperties {
   nodeType: 'editVideo';
   inputPath: string;
-  outputPath?: string;
+  outputPath: string;
+  format?: 'mp4' | 'mov' | 'avi' | 'webm';
+  quality?: number;
+  preserveAudio?: boolean;
+  audioTrack?: string;
   operations: Array<{
     type: 'trim' | 'crop' | 'resize' | 'overlay' | 'merge' | 'addAudio' | 'speed' | 'filter';
     params: {
@@ -263,29 +313,29 @@ export interface EditVideoNodeProperties extends BaseNodeProperties {
       end?: number;
       width?: number;
       height?: number;
+      path?: string;
       x?: number;
       y?: number;
-      path?: string;
       speed?: number;
       filter?: string;
-      [key: string]: any;
     };
   }>;
-  format?: string;
-  quality?: number;
-  preserveAudio?: boolean;
-  audioTrack?: string;
   variableOperations?: VariableOperation[];
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export interface FilePickerNodeProperties extends BaseNodeProperties {
   nodeType: 'filePicker';
-  multiple: boolean;
-  accept: string;
-  directory: boolean;
-  fileName: string;  // If empty, takes first file. If specified, looks for this file
-  filePath: string | string[];  // Selected file path(s) - string for single file, string[] for multiple files
+  filePath: string;
+  fileName?: string;
+  multiple?: boolean;
+  directory?: boolean;
+  accept?: string;
+  variableKey?: string;
   variableOperations?: VariableOperation[];
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 }
 
 export type NodeProperties = 

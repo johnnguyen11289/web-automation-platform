@@ -161,7 +161,10 @@ export class AutomationService {
 
           case 'openUrl':
             this.logger(`Opening URL: ${action.value}`);
-            await this.automation.openUrl(action.value || '', action.waitUntil);
+            const waitUntil = action.waitUntil === 'networkidle0' || action.waitUntil === 'networkidle2' 
+              ? 'networkidle' 
+              : action.waitUntil;
+            await this.automation.openUrl(action.value || '', waitUntil);
             break;
 
           case 'click':

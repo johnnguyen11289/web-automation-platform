@@ -20,6 +20,7 @@ export interface IBrowserAutomation {
   
   // Waiting
   waitForSelector(selector: string, options?: { timeout?: number }): Promise<void>;
+  waitForSelectorRemoval(selector: string, options?: { timeout?: number }): Promise<void>;
   waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle'): Promise<void>;
   waitForTimeout(ms: number): Promise<void>;
   

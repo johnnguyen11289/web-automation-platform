@@ -168,10 +168,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
       case 'openUrl':
         return (
           <div className="node-specific-properties">
-            <h3>OpenURL Properties</h3>
+            <h3>Open URL Properties</h3>
             <div className="form-group">
               <label>URL:</label>
-              {renderVariableInput('url', properties.url || '', 'https://example.com')}
+              {renderVariableInput('url', properties.url || '')}
             </div>
             <div className="form-group">
               <label>Open in New Tab:</label>
@@ -192,6 +192,14 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 <option value="networkidle">Network Idle</option>
                 <option value="networkidle0">Network Idle (Strict)</option>
               </select>
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
             </div>
           </div>
         );
@@ -219,7 +227,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Click Count:</label>
               <input
                 type="number"
-                value={properties.clickCount}
+                value={properties.clickCount || 1}
                 onChange={(e) => handleNodeSpecificChange('clickCount', parseInt(e.target.value))}
                 min="1"
               />
@@ -228,16 +236,24 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Delay (ms):</label>
               <input
                 type="number"
-                value={properties.delay}
+                value={properties.delay || 0}
                 onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
                 min="0"
               />
             </div>
             <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
+            </div>
+            <div className="form-group">
               <label>Wait for Navigation:</label>
               <input
                 type="checkbox"
-                checked={properties.waitForNavigation}
+                checked={properties.waitForNavigation || false}
                 onChange={(e) => handleNodeSpecificChange('waitForNavigation', e.target.checked)}
               />
             </div>
@@ -260,7 +276,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Clear First:</label>
               <input
                 type="checkbox"
-                checked={properties.clearFirst}
+                checked={properties.clearFirst || false}
                 onChange={(e) => handleNodeSpecificChange('clearFirst', e.target.checked)}
               />
             </div>
@@ -268,7 +284,7 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Delay (ms):</label>
               <input
                 type="number"
-                value={properties.delay}
+                value={properties.delay || 0}
                 onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
                 min="0"
               />
@@ -277,15 +293,18 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Press Enter:</label>
               <input
                 type="checkbox"
-                checked={properties.pressEnter}
+                checked={properties.pressEnter || false}
                 onChange={(e) => handleNodeSpecificChange('pressEnter', e.target.checked)}
               />
             </div>
-            <VariableOperationsEditor
-              operations={properties.variableOperations || []}
-              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
-              availableVariables={availableVariables}
-            />
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
+            </div>
           </div>
         );
 
@@ -301,11 +320,14 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>Value:</label>
               {renderVariableInput('value', properties.value || '')}
             </div>
-            <VariableOperationsEditor
-              operations={properties.variableOperations || []}
-              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
-              availableVariables={availableVariables}
-            />
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
+            </div>
           </div>
         );
 
@@ -319,19 +341,25 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                 value={properties.condition}
                 onChange={(e) => handleNodeSpecificChange('condition', e.target.value)}
               >
+                <option value="delay">Delay</option>
                 <option value="networkIdle">Network Idle</option>
-                <option value="delay">Fixed Delay</option>
+                <option value="selectorPresent">Wait for Selector</option>
+                <option value="selectorRemoved">Wait for Selector Removal</option>
               </select>
             </div>
-            {properties.condition === 'delay' && (
+            {(properties.condition === 'delay' || properties.condition === 'selectorPresent' || properties.condition === 'selectorRemoved') && (
               <div className="form-group">
-                <label>Delay (ms):</label>
-                <input
-                  type="number"
-                  value={properties.delay}
-                  onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
-                  min="0"
-                />
+                <label>{properties.condition === 'delay' ? 'Delay (ms):' : 'Selector:'}</label>
+                {properties.condition === 'delay' ? (
+                  <input
+                    type="number"
+                    value={properties.delay || 0}
+                    onChange={(e) => handleNodeSpecificChange('delay', parseInt(e.target.value))}
+                    min="0"
+                  />
+                ) : (
+                  renderVariableInput('selector', properties.selector || '')
+                )}
               </div>
             )}
           </div>
@@ -347,17 +375,38 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             </div>
             <div className="form-group">
               <label>Attribute:</label>
-              {renderVariableInput('attribute', properties.attribute || '', 'textContent, href, etc.')}
+              <select
+                value={properties.attribute || 'text'}
+                onChange={(e) => handleNodeSpecificChange('attribute', e.target.value)}
+              >
+                <option value="text">Text</option>
+                <option value="value">Value</option>
+                <option value="href">Href</option>
+                <option value="src">Src</option>
+                <option value="alt">Alt</option>
+                <option value="title">Title</option>
+                <option value="placeholder">Placeholder</option>
+                <option value="custom">Custom</option>
+              </select>
             </div>
+            {properties.attribute === 'custom' && (
+              <div className="form-group">
+                <label>Custom Attribute:</label>
+                {renderVariableInput('customAttribute', properties.customAttribute || '')}
+              </div>
+            )}
             <div className="form-group">
               <label>Key:</label>
               {renderVariableInput('key', properties.key || '')}
             </div>
-            <VariableOperationsEditor
-              operations={properties.variableOperations || []}
-              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
-              availableVariables={availableVariables}
-            />
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
+            </div>
           </div>
         );
 
@@ -368,11 +417,14 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <div className="form-group">
               <label>Script:</label>
               <textarea
-                value={properties.script}
+                value={properties.script || ''}
                 onChange={(e) => handleNodeSpecificChange('script', e.target.value)}
                 rows={5}
-                placeholder="Enter JavaScript code..."
               />
+            </div>
+            <div className="form-group">
+              <label>Key:</label>
+              {renderVariableInput('key', properties.key || '')}
             </div>
           </div>
         );
@@ -383,13 +435,28 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Keyboard Properties</h3>
             <div className="form-group">
               <label>Key:</label>
-              <input
-                type="text"
+              <select
                 value={properties.key}
                 onChange={(e) => handleNodeSpecificChange('key', e.target.value)}
-                placeholder="Enter, Tab, etc."
-              />
+              >
+                <option value="Enter">Enter</option>
+                <option value="Tab">Tab</option>
+                <option value="Backspace">Backspace</option>
+                <option value="Delete">Delete</option>
+                <option value="ArrowUp">Arrow Up</option>
+                <option value="ArrowDown">Arrow Down</option>
+                <option value="ArrowLeft">Arrow Left</option>
+                <option value="ArrowRight">Arrow Right</option>
+                <option value="Escape">Escape</option>
+                <option value="custom">Custom</option>
+              </select>
             </div>
+            {properties.key === 'custom' && (
+              <div className="form-group">
+                <label>Custom Key:</label>
+                {renderVariableInput('customKey', properties.customKey || '')}
+              </div>
+            )}
           </div>
         );
 
@@ -399,11 +466,15 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Focus Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
             </div>
           </div>
         );
@@ -414,11 +485,15 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             <h3>Hover Properties</h3>
             <div className="form-group">
               <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-              />
+              {renderVariableInput('selector', properties.selector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
             </div>
           </div>
         );
@@ -428,22 +503,20 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
           <div className="node-specific-properties">
             <h3>Screenshot Properties</h3>
             <div className="form-group">
-              <label>Selector:</label>
-              <input
-                type="text"
-                value={properties.selector}
-                onChange={(e) => handleNodeSpecificChange('selector', e.target.value)}
-                placeholder="Leave empty for full page"
-              />
+              <label>Path:</label>
+              {renderVariableInput('path', properties.path || '')}
             </div>
             <div className="form-group">
-              <label>Path:</label>
-              <input
-                type="text"
-                value={properties.path}
-                onChange={(e) => handleNodeSpecificChange('path', e.target.value)}
-                placeholder="screenshots/example.png"
-              />
+              <label>Selector:</label>
+              {renderVariableInput('selector', properties.selector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+            </div>
+            <div className="form-group">
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
             </div>
           </div>
         );
@@ -656,25 +729,13 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
               <label>File Path:</label>
               {renderVariableInput('filePath', properties.filePath || '')}
             </div>
-            <VariableOperationsEditor
-              operations={properties.variableOperations || []}
-              onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}
-              availableVariables={availableVariables}
-            />
-          </div>
-        );
-
-      case 'dragDrop':
-        return (
-          <div className="node-specific-properties">
-            <h3>Drag & Drop Properties</h3>
             <div className="form-group">
-              <label>Source Selector:</label>
-              {renderVariableInput('sourceSelector', properties.sourceSelector || '')}
+              <label>Wait for Selector:</label>
+              {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
             </div>
             <div className="form-group">
-              <label>Target Selector:</label>
-              {renderVariableInput('targetSelector', properties.targetSelector || '')}
+              <label>Wait for Selector Removal:</label>
+              {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
             </div>
           </div>
         );
@@ -1345,7 +1406,10 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                             label="Operation"
                             onChange={(e) => {
                               const newOps = [...(properties.operations || [])];
-                              newOps[index] = { type: e.target.value as VideoOperationType, params: {} };
+                              newOps[index] = { 
+                                type: e.target.value as VideoOperationType, 
+                                params: {} 
+                              };
                               handleNodeSpecificChange('operations', newOps);
                             }}
                           >
@@ -1518,7 +1582,18 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
                   </Button>
                 </Stack>
               </Box>
+
+              <div className="form-group">
+                <label>Wait for Selector:</label>
+                {renderVariableInput('waitForSelector', properties.waitForSelector || '')}
+              </div>
+
+              <div className="form-group">
+                <label>Wait for Selector Removal:</label>
+                {renderVariableInput('waitForSelectorRemoval', properties.waitForSelectorRemoval || '')}
+              </div>
             </Stack>
+
             <VariableOperationsEditor
               operations={properties.variableOperations || []}
               onChange={(ops) => handleNodeSpecificChange('variableOperations', ops)}

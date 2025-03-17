@@ -15,6 +15,8 @@ export type NodeDataBase = {
   outputs?: Record<string, NodeOutput>;
   // Allow any field to reference a variable
   variableReferences?: Record<string, VariableReference>;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
 };
 
 export interface ClickNodeData extends NodeDataBase {

@@ -323,20 +323,15 @@ class ExecutionService {
 
       case 'click':
         if (props.selector || hasVariablePattern(props.selector)) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: getValueOrPattern(props.selector),
-              timeout: props.timeout || 5000
-            });
-          }
-
           actions.push({
             type: 'click',
             selector: getValueOrPattern(props.selector),
             button: props.button || 'left',
             clickCount: props.clickCount || 1,
-            delay: props.delay,
+            delay: getValueOrPattern(props.delay),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
 
@@ -351,19 +346,14 @@ class ExecutionService {
 
       case 'type':
         if (props.selector || hasAnyVariablePattern([props.selector, props.value])) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: getValueOrPattern(props.selector),
-              timeout: props.timeout || 5000
-            });
-          }
-
           actions.push({
             type: 'type',
             selector: getValueOrPattern(props.selector),
             value: getValueOrPattern(props.value),
             delay: props.delay,
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
         }
@@ -372,18 +362,13 @@ class ExecutionService {
       case 'select':
         if ((props.selector && props.value) || 
             hasAnyVariablePattern([props.selector, props.value])) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: getValueOrPattern(props.selector),
-              timeout: props.timeout || 5000
-            });
-          }
-
           actions.push({
             type: 'select',
             selector: getValueOrPattern(props.selector),
             value: getValueOrPattern(props.value),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
         }
@@ -391,19 +376,14 @@ class ExecutionService {
 
       case 'extract':
         if (props.selector || hasVariablePattern(props.selector)) {
-          if (props.waitForSelector) {
-            actions.push({
-              type: 'wait',
-              selector: getValueOrPattern(props.selector),
-              timeout: props.timeout || 5000
-            });
-          }
-
           actions.push({
             type: 'extract',
             selector: getValueOrPattern(props.selector),
             attribute: props.attribute || 'text',
             key: getValueOrPattern(props.key || props.name || props.selector),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
         }
@@ -412,23 +392,15 @@ class ExecutionService {
       case 'fileUpload':
         if (props.selector || props.filePath || 
             hasAnyVariablePattern([props.selector, props.filePath])) {
-          console.log('Creating fileUpload action:', {
-            selector: props.selector,
-            filePath: props.filePath,
-            hasPattern: {
-              selector: hasVariablePattern(props.selector),
-              filePath: hasVariablePattern(props.filePath)
-            }
-          });
-          
-          const action: AutomationAction = {
+          actions.push({
             type: 'fileUpload',
             selector: getValueOrPattern(props.selector),
             filePath: getValueOrPattern(props.filePath),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
-          };
-          console.log('Created fileUpload action:', action);
-          actions.push(action);
+          });
         }
         break;
 
@@ -460,6 +432,83 @@ class ExecutionService {
             outputPath: getValueOrPattern(props.outputPath),
             operations: resolvedOperations,
             options: props.options || {},
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'wait':
+        if (props.condition === 'selectorPresent' || props.condition === 'selectorRemoved') {
+          actions.push({
+            type: 'wait',
+            condition: props.condition,
+            selector: props.selector,
+            timeout: props.timeout
+          });
+        } else if (props.condition === 'delay' && props.delay) {
+          actions.push({
+            type: 'wait',
+            condition: 'delay',
+            delay: props.delay
+          });
+        } else if (props.condition === 'networkIdle') {
+          actions.push({
+            type: 'wait',
+            condition: 'networkIdle'
+          });
+        }
+        break;
+
+      case 'focus':
+        if (props.selector || hasVariablePattern(props.selector)) {
+          actions.push({
+            type: 'focus',
+            selector: getValueOrPattern(props.selector),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'hover':
+        if (props.selector || hasVariablePattern(props.selector)) {
+          actions.push({
+            type: 'hover',
+            selector: getValueOrPattern(props.selector),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'screenshot':
+        if (props.selector || hasVariablePattern(props.selector)) {
+          actions.push({
+            type: 'screenshot',
+            selector: getValueOrPattern(props.selector),
+            path: getValueOrPattern(props.path),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
+            stopOnError: props.stopOnError
+          });
+        }
+        break;
+
+      case 'dragDrop':
+        if ((props.sourceSelector && props.targetSelector) || 
+            hasAnyVariablePattern([props.sourceSelector, props.targetSelector])) {
+          actions.push({
+            type: 'dragDrop',
+            sourceSelector: getValueOrPattern(props.sourceSelector),
+            targetSelector: getValueOrPattern(props.targetSelector),
+            waitForSelector: props.waitForSelector ? getValueOrPattern(props.waitForSelector) : undefined,
+            waitForSelectorRemoval: props.waitForSelectorRemoval ? getValueOrPattern(props.waitForSelectorRemoval) : undefined,
+            timeout: props.timeout || 5000,
             stopOnError: props.stopOnError
           });
         }

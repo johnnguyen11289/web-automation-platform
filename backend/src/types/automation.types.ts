@@ -1,44 +1,46 @@
 import { BrowserProfile } from './browser.types';
 
 export interface AutomationAction {
-  type: 'click' | 'type' | 'screenshot' | 'wait' | 'extract' | 'evaluate' | 'keyboard' | 'select' | 'focus' | 'hover' | 'openUrl' | 'variableOperation' | 'fileUpload' | 'subtitleToVoice' | 'editVideo' | 'filePicker';
+  type: 'click' | 'type' | 'select' | 'extract' | 'fileUpload' | 'wait' | 'focus' | 'hover' | 'screenshot' | 'dragDrop' | 'openUrl' | 'subtitleToVoice' | 'editVideo' | 'variableOperation' | 'filePicker' | 'evaluate' | 'keyboard';
   selector?: string;
+  waitForSelector?: string;
+  waitForSelectorRemoval?: string;
+  timeout?: number;
   value?: string;
-  key?: string;
-  script?: string;
   button?: 'left' | 'right' | 'middle';
   clickCount?: number;
   delay?: number;
-  timeout?: number;
-  condition?: 'networkIdle' | 'delay';
-  attribute?: string;
   clearFirst?: boolean;
-  stopOnError?: boolean;
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
-  // Common properties for actions that store results
-  variableKey?: string;
-  // Variable operation properties
-  operationType?: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
-  variableValue?: any;
-  variableType?: 'string' | 'number' | 'boolean' | 'object' | 'array';
-  sourceVariableKey?: string;
-  // File upload properties
+  waitForNavigation?: boolean;
+  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle' | 'networkidle0' | 'networkidle2';
+  attribute?: string;
+  key?: string;
   filePath?: string;
-  // File picker properties
   fileName?: string;
   multiple?: boolean;
   directory?: boolean;
   accept?: string;
-  // Subtitle to voice properties
+  variableKey?: string;
+  stopOnError?: boolean;
+  condition?: 'delay' | 'selectorPresent' | 'selectorRemoved' | 'networkIdle';
+  sourceSelector?: string;
+  targetSelector?: string;
+  path?: string;
   inputPath?: string;
   outputPath?: string;
   language?: string;
   options?: Record<string, any>;
-  // Video editing properties
   operations?: Array<{
     type: string;
-    value: string | number;
+    value?: any;
+    [key: string]: any;
   }>;
+  operationType?: 'set' | 'update' | 'delete' | 'increment' | 'decrement' | 'concat' | 'clear';
+  variableValue?: any;
+  variableType?: 'string' | 'number' | 'boolean' | 'json' | 'array';
+  sourceVariableKey?: string;
+  script?: string;
+  url?: string;
 }
 
 export interface AutomationStepResult {
