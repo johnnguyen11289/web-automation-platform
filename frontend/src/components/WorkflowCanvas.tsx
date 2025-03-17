@@ -12,6 +12,9 @@ interface WorkflowNode {
   position: { x: number; y: number };
   properties: NodeProperties;
   connections: string[]; // Array of node IDs this node connects to
+  isStartNode?: boolean; // Flag to identify start node
+  isEndNode?: boolean; // Flag to identify end node
+  order?: number; // Order in the workflow sequence
 }
 
 interface WorkflowVariable {
@@ -51,20 +54,27 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const [showVariableManagerError, setShowVariableManagerError] = useState(false);
   const [workflowVariables, setWorkflowVariables] = useState<WorkflowVariable[]>([]);
 
-  // Load initial workflow data when it changes
+  // Load initial workflow data
   useEffect(() => {
     if (initialWorkflow) {
-      console.log('Loading initial workflow:', initialWorkflow);
-      // Ensure nodes have proper position format
-      const initializedNodes = initialWorkflow.nodes.map(node => ({
+      console.log('Canvas: Loading initial workflow:', initialWorkflow);
+      // Ensure each node has a connections array and proper position format
+      let nodesWithConnections = initialWorkflow.nodes.map(node => ({
         ...node,
+        connections: node.connections || [],
         position: {
           x: typeof node.position.x === 'number' ? node.position.x : 0,
           y: typeof node.position.y === 'number' ? node.position.y : 0
         }
       }));
+
+      // Identify start and end nodes
+      nodesWithConnections = identifyStartAndEndNodes(nodesWithConnections);
       
-      setNodes(initializedNodes);
+      // Order nodes by connections
+      nodesWithConnections = orderNodesByConnections(nodesWithConnections);
+      
+      setNodes(nodesWithConnections);
       setWorkflowName(initialWorkflow.name);
       setWorkflowDescription(initialWorkflow.description || '');
       
@@ -273,10 +283,17 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     e.stopPropagation();
     e.preventDefault();
 
+    console.log('Canvas: Handling node mouse up:', {
+      connectingNode: connectingNode?.id,
+      targetNode: targetNode.id,
+      existingConnections: connectingNode?.connections
+    });
+
     // Handle connection creation
     if (connectingNode && connectingNode.id !== targetNode.id) {
       // Prevent connections to/from VariableManager nodes
       if (connectingNode.type === 'variableManager' || targetNode.type === 'variableManager') {
+        console.log('Canvas: Skipping connection - VariableManager node involved');
         setConnectingNode(null);
         setTempConnection(null);
         return;
@@ -286,15 +303,29 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       const connectionExists = connectingNode.connections.includes(targetNode.id);
       
       if (!connectionExists) {
-        setNodes(prev => prev.map(node => {
-          if (node.id === connectingNode.id) {
-            return {
-              ...node,
-              connections: [...node.connections, targetNode.id]
-            };
-          }
-          return node;
-        }));
+        console.log('Canvas: Creating new connection');
+        // Create new connection
+        setNodes(prev => {
+          const newNodes = prev.map(node => {
+            if (node.id === connectingNode.id) {
+              const updatedNode = {
+                ...node,
+                connections: [...node.connections, targetNode.id]
+              };
+              console.log('Canvas: Updated node with new connection:', updatedNode);
+              return updatedNode;
+            }
+            return node;
+          });
+          
+          // Reorder nodes after connection changes
+          const nodesWithStartEnd = identifyStartAndEndNodes(newNodes);
+          const orderedNodes = orderNodesByConnections(nodesWithStartEnd);
+          console.log('Canvas: New nodes state:', orderedNodes);
+          return orderedNodes;
+        });
+      } else {
+        console.log('Canvas: Connection already exists');
       }
     }
 
@@ -319,7 +350,23 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   const handleNodeDelete = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation(); // Prevent node click event
     e.preventDefault(); // Prevent drag start
-    setNodes(prev => prev.filter(node => node.id !== nodeId));
+    
+    console.log('Canvas: Deleting node:', nodeId);
+    
+    setNodes(prev => {
+      // First, remove the node
+      const nodesWithoutDeleted = prev.filter(node => node.id !== nodeId);
+      
+      // Then, clean up any connections to the deleted node
+      const cleanedNodes = nodesWithoutDeleted.map(node => ({
+        ...node,
+        connections: node.connections.filter(connectionId => connectionId !== nodeId)
+      }));
+      
+      console.log('Canvas: Updated nodes after deletion:', cleanedNodes);
+      return cleanedNodes;
+    });
+    
     if (selectedNode?.id === nodeId) {
       setSelectedNode(null);
       setIsEditing(false);
@@ -570,12 +617,29 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
   };
 
   const handleNodeUpdate = (updatedNode: NodeProperties) => {
+    console.log('Canvas: Updating node:', {
+      nodeId: selectedNode?.id,
+      oldType: selectedNode?.type,
+      newType: updatedNode.nodeType,
+      connections: selectedNode?.connections
+    });
+
     setNodes(prevNodes => {
-      const newNodes = prevNodes.map(node =>
-        node.id === selectedNode?.id
-          ? { ...node, properties: updatedNode }
-          : node
-      );
+      const newNodes = prevNodes.map(node => {
+        if (node.id === selectedNode?.id) {
+          // Create a new node with updated type and properties
+          const updatedNodeData: WorkflowNode = {
+            ...node,
+            type: updatedNode.nodeType,
+            properties: updatedNode,
+            connections: node.connections // Preserve existing connections
+          };
+          console.log('Canvas: Updated node data:', updatedNodeData);
+          return updatedNodeData;
+        }
+        return node;
+      });
+      console.log('Canvas: New nodes state:', newNodes);
       return newNodes;
     });
     setSelectedNode(null);
@@ -614,24 +678,43 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
       type: nodeType,
       position,
       properties: createDefaultProperties(nodeType),
-      connections: [],
+      connections: [], // Ensure connections array is initialized
     };
 
+    console.log('Canvas: Adding new node:', newNode);
     setNodes(prev => [...prev, newNode]);
     setSelectedNode(newNode);
     setIsEditing(true);
   };
 
   const handleRemoveConnection = (sourceId: string, targetId: string) => {
-    setNodes(prev => prev.map(node => {
-      if (node.id === sourceId) {
-        return {
-          ...node,
-          connections: node.connections.filter(id => id !== targetId)
-        };
-      }
-      return node;
-    }));
+    console.log('Canvas: Removing connection:', { sourceId, targetId });
+    
+    setNodes(prev => {
+      const newNodes = prev.map(node => {
+        if (node.id === sourceId) {
+          // Remove the targetId from the connections array
+          const updatedConnections = node.connections.filter(id => id !== targetId);
+          console.log('Canvas: Updated connections for node:', {
+            nodeId: node.id,
+            oldConnections: node.connections,
+            newConnections: updatedConnections
+          });
+          
+          return {
+            ...node,
+            connections: updatedConnections
+          };
+        }
+        return node;
+      });
+      
+      // Reorder nodes after connection removal
+      const nodesWithStartEnd = identifyStartAndEndNodes(newNodes);
+      const orderedNodes = orderNodesByConnections(nodesWithStartEnd);
+      console.log('Canvas: Updated nodes after connection removal:', orderedNodes);
+      return orderedNodes;
+    });
   };
 
   const drawConnections = () => {
@@ -776,16 +859,24 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     console.log('Canvas: Starting save process');
     try {
       if (onSave) {
-        console.log('Canvas: Calling onSave with data:', {
-          nodes,
+        // First identify start and end nodes
+        const nodesWithStartEnd = identifyStartAndEndNodes(nodes);
+        
+        // Then order the nodes based on connections
+        const orderedNodes = orderNodesByConnections(nodesWithStartEnd);
+        
+        console.log('Canvas: Calling onSave with ordered data:', {
+          nodes: orderedNodes,
           name: workflowName,
           description: workflowDescription,
         });
+        
         const success = await onSave({
-          nodes,
+          nodes: orderedNodes,
           name: workflowName,
           description: workflowDescription,
         });
+        
         console.log('Canvas: Save result:', success);
         if (success) {
           setShowSaveSuccess(true);
@@ -807,6 +898,64 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
     if (connectingNode) {
       e.preventDefault();
     }
+  };
+
+  // Add these new functions after the existing functions
+  const identifyStartAndEndNodes = (nodes: WorkflowNode[]): WorkflowNode[] => {
+    // Create a map of nodes for easier lookup
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    
+    // Find nodes that are not targets of any connections (start nodes)
+    const startNodes = nodes.filter(node => {
+      return !nodes.some(n => n.connections.includes(node.id));
+    });
+    
+    // Find nodes that don't connect to any other nodes (end nodes)
+    const endNodes = nodes.filter(node => {
+      return node.connections.length === 0;
+    });
+    
+    // Update nodes with start/end flags
+    return nodes.map(node => ({
+      ...node,
+      isStartNode: startNodes.some(n => n.id === node.id),
+      isEndNode: endNodes.some(n => n.id === node.id)
+    }));
+  };
+
+  const orderNodesByConnections = (nodes: WorkflowNode[]): WorkflowNode[] => {
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    const visited = new Set<string>();
+    const orderMap = new Map<string, number>();
+    let currentOrder = 0;
+
+    // Helper function to visit a node and its connections
+    const visitNode = (nodeId: string) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+      
+      const node = nodeMap.get(nodeId);
+      if (!node) return;
+      
+      // Set order for current node
+      orderMap.set(nodeId, currentOrder++);
+      
+      // Visit all connected nodes
+      node.connections.forEach(connectedId => {
+        visitNode(connectedId);
+      });
+    };
+
+    // Start with all start nodes
+    nodes.filter(node => node.isStartNode).forEach(startNode => {
+      visitNode(startNode.id);
+    });
+
+    // Update nodes with their order
+    return nodes.map(node => ({
+      ...node,
+      order: orderMap.get(node.id) ?? -1
+    }));
   };
 
   return (
@@ -915,9 +1064,10 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
         {nodes.map(node => (
           <div
             key={node.id}
-            className={`workflow-node ${draggedNode?.id === node.id ? 'dragging' : ''} ${connectingNode?.id === node.id ? 'connecting' : ''}`}
+            className={`workflow-node ${draggedNode?.id === node.id ? 'dragging' : ''} ${connectingNode?.id === node.id ? 'connecting' : ''} ${node.isStartNode ? 'start-node' : ''} ${node.isEndNode ? 'end-node' : ''}`}
             data-type={node.type}
             data-name={node.properties.nodeName}
+            data-order={node.order}
             style={{
               left: node.position.x,
               top: node.position.y,
@@ -937,7 +1087,11 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ workflow, onSave, initi
               </button>
             </div>
             <div className="node-content">
-              <div className="node-type">{node.type}</div>
+              <div className="node-type">
+                {node.type}
+                {node.isStartNode && <span className="node-indicator start">Start</span>}
+                {node.isEndNode && <span className="node-indicator end">End</span>}
+              </div>
               {getNodeSelector(node.properties) && (
                 <div className="node-selector">{getNodeSelector(node.properties)}</div>
               )}

@@ -10,6 +10,7 @@ export interface IExecutionStep {
   endTime?: Date;
   error?: string;
   context?: Record<string, any>;
+  order?: number;
 }
 
 export interface IExecution extends Document {
@@ -35,7 +36,8 @@ const ExecutionStepSchema = new Schema<IExecutionStep>({
   startTime: { type: Date },
   endTime: { type: Date },
   error: { type: String },
-  context: { type: Schema.Types.Mixed }
+  context: { type: Schema.Types.Mixed },
+  order: { type: Number }
 });
 
 const ExecutionSchema = new Schema<IExecution>({

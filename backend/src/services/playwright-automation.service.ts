@@ -227,18 +227,22 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
             case 'click':
               if (action.selector) {
                 await this.humanBehaviorService.humanMove(page, action.selector);
-                await this.humanBehaviorService.randomDelay(page, 200, 500);
+                if (!action.delay) {
+                  await this.humanBehaviorService.randomDelay(page, 200, 500);
+                }
                 await this.click(action.selector, {
                   button: action.button || 'left',
                   clickCount: action.clickCount || 1,
-                  delay: action.delay || Math.floor(Math.random() * 100) + 50
+                  delay: action.delay
                 });
               }
               break;
             case 'type':
               if (action.selector && action.value) {
                 await this.humanBehaviorService.humanMove(page, action.selector);
-                await this.humanBehaviorService.randomDelay(page, 200, 500);
+                if (!action.delay) {
+                  await this.humanBehaviorService.randomDelay(page, 200, 500);
+                }
                 if (action.clearFirst) {
                   await page.click(action.selector, { clickCount: 3 });
                   await page.keyboard.press('Backspace');

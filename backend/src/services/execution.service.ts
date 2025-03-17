@@ -684,9 +684,17 @@ class ExecutionService {
         await this.processVariableManagerNode(variableManagerNode, execution, workflow, profileWithId);
       }
 
-      // Process all other nodes
+      // Reorder nodes by start/end nodes and connections
+      const orderedSteps = this.orderExecutionSteps(execution.steps, workflow.nodes);
+      console.log('Execution steps reordered:', orderedSteps.map(step => ({
+        nodeId: step.nodeId,
+        nodeType: step.nodeType,
+        order: step.order
+      })));
+
+      // Process all other nodes in order
       const allActions: AutomationAction[] = [];
-      for (const step of execution.steps) {
+      for (const step of orderedSteps) {
         if (step.nodeId === variableManagerNode?.id) continue;
         if (execution.status !== 'running') break;
 
@@ -807,6 +815,51 @@ class ExecutionService {
 
   public onExecutionComplete(callback: (execution: IExecution) => void): void {
     this.eventEmitter.on('executionComplete', callback);
+  }
+
+  private orderExecutionSteps(steps: IExecutionStep[], nodes: DbWorkflowNode[]): IExecutionStep[] {
+    // Create a map of nodes for easier lookup
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    
+    // Find start nodes (nodes with no incoming connections)
+    const startNodes = nodes.filter(node => {
+      return !nodes.some(n => n.connections?.includes(node.id));
+    });
+    
+    // Find end nodes (nodes with no outgoing connections)
+    const endNodes = nodes.filter(node => {
+      return !node.connections || node.connections.length === 0;
+    });
+
+    // Create a map to track node order
+    const orderMap = new Map<string, number>();
+    let currentOrder = 0;
+
+    // Helper function to visit a node and its connections
+    const visitNode = (nodeId: string) => {
+      if (orderMap.has(nodeId)) return;
+      orderMap.set(nodeId, currentOrder++);
+      
+      const node = nodeMap.get(nodeId);
+      if (!node?.connections) return;
+      
+      // Visit all connected nodes
+      node.connections.forEach(connectedId => {
+        visitNode(connectedId);
+      });
+    };
+
+    // Start with all start nodes
+    startNodes.forEach(startNode => {
+      visitNode(startNode.id);
+    });
+
+    // Sort steps based on the order map
+    return [...steps].sort((a, b) => {
+      const orderA = orderMap.get(a.nodeId) ?? Number.MAX_SAFE_INTEGER;
+      const orderB = orderMap.get(b.nodeId) ?? Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
   }
 }
 

@@ -115,11 +115,14 @@ const NodePropertiesEditor: React.FC<NodePropertiesEditorProps> = ({
             }}
           />
         )}
-        renderOption={(props, option) => (
-          <li {...props}>
-            {option}
-          </li>
-        )}
+        renderOption={(props, option) => {
+          const { key, ...otherProps } = props;
+          return (
+            <li key={key} {...otherProps}>
+              {option}
+            </li>
+          );
+        }}
         getOptionLabel={(option) => option}
         isOptionEqualToValue={(option, value) => option === value}
       />

@@ -246,23 +246,42 @@ function App() {
   const handleWorkflowSave = async (workflow: { nodes: any[]; name: string; description?: string }) => {
     console.log('App: Saving workflow:', workflow);
     try {
+      // Validate and process nodes before saving
+      const processedNodes = workflow.nodes.map(node => {
+        console.log('App: Processing node:', {
+          id: node.id,
+          type: node.type,
+          connections: node.connections
+        });
+        
+        return {
+          id: node.id,
+          type: node.type,
+          position: node.position || { x: 0, y: 0 },
+          properties: {
+            ...node.properties,
+            nodeType: node.type // Ensure nodeType matches the node type
+          },
+          connections: node.connections || []
+        };
+      });
+
+      const workflowData = {
+        name: workflow.name,
+        description: workflow.description || '',
+        status: 'active' as const,
+        nodes: processedNodes
+      };
+
+      console.log('App: Processed workflow data:', workflowData);
+
       let newWorkflow;
       if (editingWorkflow) {
         // Update existing workflow
-        newWorkflow = await api.updateWorkflow(editingWorkflow._id, {
-          name: workflow.name,
-          description: workflow.description || '',
-          status: 'active',
-          nodes: workflow.nodes,
-        });
+        newWorkflow = await api.updateWorkflow(editingWorkflow._id, workflowData);
       } else {
         // Create new workflow
-        newWorkflow = await api.createWorkflow({
-          name: workflow.name,
-          description: workflow.description || '',
-          status: 'active',
-          nodes: workflow.nodes,
-        });
+        newWorkflow = await api.createWorkflow(workflowData);
       }
       
       console.log('App: Workflow saved successfully:', newWorkflow);

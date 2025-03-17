@@ -266,7 +266,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     await page.click(selector, {
       button: options?.button || 'left',
       clickCount: options?.clickCount || 1,
-      delay: options?.delay || Math.floor(Math.random() * 100) + 50
+      delay: options?.delay
     });
   }
 
@@ -568,11 +568,13 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               if (action.selector) {
                 this.logger(`Clicking element: ${action.selector}`);
                 await this.humanBehaviorService.humanMove(page as any, action.selector);
-                await this.humanBehaviorService.randomDelay(page as any, 200, 500);
+                if (!action.delay) {
+                  await this.humanBehaviorService.randomDelay(page as any, 200, 500);
+                }
                 await this.click(action.selector, {
                   button: action.button || 'left',
                   clickCount: action.clickCount || 1,
-                  delay: action.delay || Math.floor(Math.random() * 100) + 50
+                  delay: action.delay
                 });
               }
               break;
@@ -580,12 +582,14 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               if (action.selector && action.value) {
                 this.logger(`Typing into element: ${action.selector}`);
                 await this.humanBehaviorService.humanMove(page as any, action.selector);
-                await this.humanBehaviorService.randomDelay(page as any, 200, 500);
+                if (!action.delay) {
+                  await this.humanBehaviorService.randomDelay(page as any, 200, 500);
+                }
                 if (action.clearFirst) {
                   await page.click(action.selector, { clickCount: 3 });
                   await page.keyboard.press('Backspace');
                 }
-                await this.humanBehaviorService.humanType(page as any, action.selector, action.value);
+                await this.type(action.selector, action.value, { delay: action.delay });
               }
               break;
             case 'screenshot':

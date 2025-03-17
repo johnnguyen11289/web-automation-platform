@@ -328,4 +328,33 @@
   opacity: 0.9;
   transform: scale(1.05);
   box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+}
+
+.workflow-node.start-node {
+  border: 2px solid #4caf50;
+}
+
+.workflow-node.end-node {
+  border: 2px solid #f44336;
+}
+
+.node-indicator {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.node-indicator.start {
+  background-color: #4caf50;
+  color: white;
+}
+
+.node-indicator.end {
+  background-color: #f44336;
+  color: white;
 } 
