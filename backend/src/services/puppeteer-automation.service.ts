@@ -97,6 +97,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       const userDataDir = path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data');
       const profilePath = this.currentProfile?.name ? path.join(userDataDir, this.currentProfile.name) : undefined;
 
+      // Get viewport settings from profile or use defaults
+      const viewportWidth = this.currentProfile?.viewport?.width || 1920;
+      const viewportHeight = this.currentProfile?.viewport?.height || 1080;
+      console.log('Viewport width:', viewportWidth);
+      console.log('Viewport height:', viewportHeight);
       const options: LaunchOptions = {
         headless: this.currentProfile?.isHeadless || false,
         executablePath: this.getChromePath(),
@@ -128,10 +133,18 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           // Force Windows to use system DPI settings
           '--enable-use-zoom-for-dsf=false',
           '--disable-gpu-vsync',
+          `--window-size=${viewportWidth},${viewportHeight}`,
           // Force Windows scaling
           process.platform === 'win32' ? '--force-windows-scaling' : ''
         ].filter(Boolean),
-        defaultViewport: null,
+        defaultViewport: {
+          width: viewportWidth,
+          height: viewportHeight,
+          deviceScaleFactor: 1,
+          isMobile: false,
+          hasTouch: false,
+          isLandscape: true
+        },
         ignoreDefaultArgs: ['--enable-automation'],
         protocolTimeout: 30000,
         pipe: true
@@ -147,8 +160,8 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       // Set up CDP session for DPI handling
       const client = await this.currentPage.target().createCDPSession();
       await client.send('Emulation.setDeviceMetricsOverride', {
-        width: 1920,
-        height: 1080,
+        width: viewportWidth,
+        height: viewportHeight,
         deviceScaleFactor: 1,
         mobile: false
       });
