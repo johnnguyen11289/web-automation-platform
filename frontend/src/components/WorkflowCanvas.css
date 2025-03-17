@@ -143,15 +143,21 @@
   margin-bottom: 4px;
 }
 
+.node-selector-wrapper {
+  width: 100%;
+  overflow: hidden;
+}
+
 .node-selector {
   color: #888;
   font-size: 0.8em;
-  word-break: break-all;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
+  max-height: 32px;        /* Set a max height for vertical overflow */
+  width: 100%;
+  overflow-y: hidden;      /* Hide vertical overflow */
+  text-overflow: ellipsis; /* Show ellipsis for overflow */
+  display: -webkit-box;   /* Show maximum 2 lines */
   -webkit-box-orient: vertical;
+  word-break: break-word;  /* Break words to prevent horizontal overflow */
 }
 
 .delete-node-button {
