@@ -126,10 +126,10 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           '--enable-features=NetworkService,NetworkServiceInProcess',
           '--force-color-profile=srgb',
           '--metrics-recording-only',
-          '--remote-debugging-port=9222',
+          // '--remote-debugging-port=9222',
           // Add these flags for DPI handling
           '--high-dpi-support=1',
-          '--force-device-scale-factor=1',
+          // '--force-device-scale-factor=1',
           // Force Windows to use system DPI settings
           '--enable-use-zoom-for-dsf=false',
           '--disable-gpu-vsync',
@@ -384,24 +384,39 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     
     // Apply additional anti-detection measures
     await page.evaluateOnNewDocument(() => {
-      // Add random mouse movements
-      const originalMouseMove = window.MouseEvent.prototype.movementX;
+      // Add random mouse movements with smaller variations
       Object.defineProperty(window.MouseEvent.prototype, 'movementX', {
-        get: () => Math.floor(Math.random() * 10) - 5
+        get: () => Math.floor(Math.random() * 3) - 1  // -1, 0, or 1
       });
       Object.defineProperty(window.MouseEvent.prototype, 'movementY', {
-        get: () => Math.floor(Math.random() * 10) - 5
+        get: () => Math.floor(Math.random() * 3) - 1  // -1, 0, or 1
       });
-
-      // Add random screen properties
-      const screenProps = {
-        width: Math.floor(Math.random() * 100) + 1920,
-        height: Math.floor(Math.random() * 100) + 1080,
-        colorDepth: 24,
-        pixelDepth: 24
-      };
-      Object.defineProperties(window.screen, screenProps);
     });
+
+    // Get viewport dimensions from profile or use defaults
+    const screenWidth = profile.viewport?.width || 1920;
+    const screenHeight = profile.viewport?.height || 1080;
+
+    // Set realistic screen properties based on the viewport
+    await page.evaluateOnNewDocument(({ width, height }) => {
+      const screenProps = {
+        width: { value: width },
+        height: { value: height },
+        availWidth: { value: width },
+        availHeight: { value: height - 40 }, // Account for taskbar
+        colorDepth: { value: 24 },
+        pixelDepth: { value: 24 },
+        availLeft: { value: 0 },
+        availTop: { value: 0 }
+      };
+      
+      try {
+        Object.defineProperties(window.screen, screenProps);
+      } catch (e) {
+        // Fallback in case of error
+        console.warn('Failed to set screen properties:', e);
+      }
+    }, { width: screenWidth, height: screenHeight });
 
     // Set viewport to auto-resize mode
     await page.setViewport({
@@ -430,7 +445,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
     // Navigate to appropriate login page based on profile name
     const lowerProfileName = profile.name.toLowerCase();
-    let loginUrl = 'https://example.com';
+    let loginUrl = 'https://google.com';
     if (lowerProfileName.includes('google')) {
       loginUrl = 'https://accounts.google.com';
     } else if (lowerProfileName.includes('facebook')) {
