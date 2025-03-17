@@ -107,7 +107,6 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
           '--start-maximized',
-          '--force-device-scale-factor=1',
           '--disable-features=IsolateOrigins,site-per-process',
           '--disable-infobars',
           '--window-position=0,0',
@@ -122,8 +121,16 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
           '--enable-features=NetworkService,NetworkServiceInProcess',
           '--force-color-profile=srgb',
           '--metrics-recording-only',
-          '--remote-debugging-port=9222'
-        ],
+          '--remote-debugging-port=9222',
+          // Add these flags for DPI handling
+          '--high-dpi-support=1',
+          '--force-device-scale-factor=1',
+          // Force Windows to use system DPI settings
+          '--enable-use-zoom-for-dsf=false',
+          '--disable-gpu-vsync',
+          // Force Windows scaling
+          process.platform === 'win32' ? '--force-windows-scaling' : ''
+        ].filter(Boolean),
         defaultViewport: null,
         ignoreDefaultArgs: ['--enable-automation'],
         protocolTimeout: 30000,
@@ -136,6 +143,15 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       const pages = await this.browser.pages();
       // Use existing page if available, otherwise create new one
       this.currentPage = pages.length > 0 ? pages[0] : await this.browser.newPage();
+
+      // Set up CDP session for DPI handling
+      const client = await this.currentPage.target().createCDPSession();
+      await client.send('Emulation.setDeviceMetricsOverride', {
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1,
+        mobile: false
+      });
 
       // Apply anti-detection measures using CDP
       await this.currentPage.evaluateOnNewDocument(() => {
