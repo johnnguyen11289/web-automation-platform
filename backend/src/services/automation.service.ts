@@ -26,16 +26,27 @@ export class AutomationService {
       this.automation.close().catch(console.error);
     }
 
+    let automationInstance: IBrowserAutomation;
     const library = profile.automationLibrary?.toLowerCase();
+    
     switch (library) {
       case 'playwright':
-        return PlaywrightAutomationService.getInstance();
+        automationInstance = PlaywrightAutomationService.getInstance();
+        break;
       case 'puppeteer':
-        return PuppeteerAutomationService.getInstance();
+        automationInstance = PuppeteerAutomationService.getInstance();
+        break;
       default:
         // Default to Puppeteer if no library specified
-        return PuppeteerAutomationService.getInstance();
+        automationInstance = PuppeteerAutomationService.getInstance();
     }
+
+    // Set the profile on the automation instance
+    if ('setProfile' in automationInstance) {
+      (automationInstance as any).setProfile(profile);
+    }
+
+    return automationInstance;
   }
 
   public async applyProfile(profile: BrowserProfile): Promise<void> {

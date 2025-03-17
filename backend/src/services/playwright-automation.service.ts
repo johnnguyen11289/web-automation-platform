@@ -373,4 +373,8 @@ export class PlaywrightAutomationService implements IBrowserAutomation {
       return value;
     }
   }
+
+  public setProfile(profile: BrowserProfile): void {
+    this.currentProfile = profile;
+  }
 } 

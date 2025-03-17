@@ -1,5 +1,6 @@
 import { AutomationAction, AutomationResult } from '../types/automation.types';
 import { BrowserProfile } from '../types/browser.types';
+import { Permission } from 'puppeteer';
 
 export interface IBrowserAutomation {
   // Browser lifecycle
@@ -42,4 +43,5 @@ export interface IBrowserAutomation {
   uploadFile(selector: string, filePath: string): Promise<void>;
   extract(selector: string, attribute?: string): Promise<string>;
   pickFile(filePath: string, options?: { fileName?: string, multiple?: boolean, directory?: boolean, accept?: string }): Promise<{ paths: string | string[], variableKey?: string }>;
+  setProfile(profile: BrowserProfile): void;
 } 

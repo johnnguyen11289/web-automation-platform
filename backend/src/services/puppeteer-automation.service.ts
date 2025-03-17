@@ -35,6 +35,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     process.on('exit', () => this.cleanup());
   }
 
+  public setProfile(profile: BrowserProfile): void {
+    this.currentProfile = profile;
+    console.log('Profile set in PuppeteerAutomationService:', this.currentProfile);
+  }
+
   private async cleanup() {
     await this.close();
     PuppeteerAutomationService.instance = null;
@@ -88,10 +93,16 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
+      console.log('Initializing browser with profile:', this.currentProfile);
+      const userDataDir = path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data');
+      const profilePath = this.currentProfile?.name ? path.join(userDataDir, this.currentProfile.name) : undefined;
+
       const options: LaunchOptions = {
         headless: this.currentProfile?.isHeadless || false,
         executablePath: this.getChromePath(),
+        userDataDir: userDataDir,
         args: [
+          `--profile-directory=${this.currentProfile?.name || 'Default'}`,
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
