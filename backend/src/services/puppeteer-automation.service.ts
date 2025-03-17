@@ -17,6 +17,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
   private fingerprintService: BrowserFingerprintService;
   private humanBehaviorService: HumanBehaviorService;
   private websiteEvasionsService: WebsiteEvasionsService;
+  private logger: (message: string) => void;
 
   public static getInstance(): PuppeteerAutomationService {
     if (!PuppeteerAutomationService.instance) {
@@ -29,6 +30,10 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     this.fingerprintService = BrowserFingerprintService.getInstance();
     this.humanBehaviorService = HumanBehaviorService.getInstance();
     this.websiteEvasionsService = WebsiteEvasionsService.getInstance();
+    this.logger = (message: string) => {
+      const timestamp = new Date().toISOString();
+      process.stdout.write(`[${timestamp}] [PuppeteerAutomation] ${message}\n`);
+    };
     
     process.on('SIGTERM', () => this.cleanup());
     process.on('SIGINT', () => this.cleanup());
@@ -37,7 +42,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public setProfile(profile: BrowserProfile): void {
     this.currentProfile = profile;
-    console.log('Profile set in PuppeteerAutomationService:', this.currentProfile);
+    this.logger('Profile set successfully');
   }
 
   private async cleanup() {
@@ -93,15 +98,14 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   public async initialize(): Promise<void> {
     if (!this.browser) {
-      console.log('Initializing browser with profile:', this.currentProfile);
+      this.logger('Initializing browser');
       const userDataDir = path.join(os.homedir(), 'AppData', 'Local', 'Google', 'Chrome', 'User Data');
       const profilePath = this.currentProfile?.name ? path.join(userDataDir, this.currentProfile.name) : undefined;
 
       // Get viewport settings from profile or use defaults
       const viewportWidth = this.currentProfile?.viewport?.width || 1920;
       const viewportHeight = this.currentProfile?.viewport?.height || 1080;
-      console.log('Viewport width:', viewportWidth);
-      console.log('Viewport height:', viewportHeight);
+      this.logger(`Setting viewport: ${viewportWidth}x${viewportHeight}`);
       const options: LaunchOptions = {
         headless: this.currentProfile?.isHeadless || false,
         executablePath: this.getChromePath(),
@@ -511,7 +515,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     await this.websiteEvasionsService.applyEvasions(page as any);
     
     if (this.fingerprintService.shouldRotateFingerprint()) {
-      console.log('Rotating browser fingerprint...');
+      this.logger('Rotating browser fingerprint');
       await this.rotateFingerprint(page);
     }
 
@@ -548,9 +552,11 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
     try {
       for (const [index, action] of actions.entries()) {
         try {
+          this.logger(`Executing action ${index + 1}/${actions.length}: ${action.type}`);
           switch (action.type) {
             case 'openUrl':
               if (action.value) {
+                this.logger(`Opening URL: ${action.value}`);
                 await this.goto(action.value, { 
                   waitUntil: action.waitUntil || 'networkidle0',
                   timeout: action.timeout || 30000 
@@ -560,6 +566,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               break;
             case 'click':
               if (action.selector) {
+                this.logger(`Clicking element: ${action.selector}`);
                 await this.humanBehaviorService.humanMove(page as any, action.selector);
                 await this.humanBehaviorService.randomDelay(page as any, 200, 500);
                 await this.click(action.selector, {
@@ -571,6 +578,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               break;
             case 'type':
               if (action.selector && action.value) {
+                this.logger(`Typing into element: ${action.selector}`);
                 await this.humanBehaviorService.humanMove(page as any, action.selector);
                 await this.humanBehaviorService.randomDelay(page as any, 200, 500);
                 if (action.clearFirst) {
@@ -582,14 +590,18 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               break;
             case 'screenshot':
               const screenshotPath = action.value || `screenshot-${Date.now()}.png`;
+              this.logger(`Taking screenshot: ${screenshotPath}`);
               await this.screenshot({ path: screenshotPath });
               break;
             case 'wait':
               if (action.condition === 'networkIdle') {
+                this.logger('Waiting for network idle');
                 await this.waitForLoadState('networkidle');
               } else if (action.condition === 'delay' && action.delay) {
+                this.logger(`Waiting for ${action.delay}ms`);
                 await this.waitForTimeout(action.delay);
               } else if (action.selector) {
+                this.logger(`Waiting for selector: ${action.selector}`);
                 await this.waitForSelector(action.selector, { timeout: action.timeout });
               }
               break;
@@ -597,6 +609,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               if (!action.selector) {
                 throw new Error('Selector is required for extract action');
               }
+              this.logger(`Extracting data from: ${action.selector}`);
               let extractedValue: string | null = null;
               if (action.attribute === 'text') {
                 extractedValue = await page.$eval(action.selector, el => el.textContent);
@@ -607,6 +620,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               }
               if (action.key) {
                 extractedData[action.key] = extractedValue;
+                this.logger(`Extracted value stored in key: ${action.key}`);
               }
               break;
             case 'evaluate':
@@ -664,7 +678,9 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
               break;
           }
           results.push({ action, success: true });
+          this.logger(`Action completed successfully: ${action.type}`);
         } catch (error) {
+          this.logger(`Action failed: ${action.type} - ${error instanceof Error ? error.message : String(error)}`);
           results.push({
             action,
             success: false,
@@ -679,6 +695,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
       }
     } catch (error) {
       success = false;
+      this.logger(`Automation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     return { success, results, extractedData };
@@ -686,6 +703,7 @@ export class PuppeteerAutomationService implements IBrowserAutomation {
 
   private async rotateFingerprint(page: Page): Promise<void> {
     const newFingerprint = this.fingerprintService.getRandomFingerprint();
+    this.logger('Rotating browser fingerprint');
     await this.injectAntiDetection();
   }
 

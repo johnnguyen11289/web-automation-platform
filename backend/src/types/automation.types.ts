@@ -45,6 +45,7 @@ export interface AutomationStepResult {
   action: AutomationAction;
   success: boolean;
   error?: string;
+  selectedFiles?: string[];
 }
 
 export interface AutomationResult {

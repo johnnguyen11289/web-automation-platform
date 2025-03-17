@@ -81,7 +81,6 @@ class ExecutionService {
           if (typeof resolvedValue === 'object') return JSON.stringify(resolvedValue);
           return String(resolvedValue);
         } catch (error) {
-          console.warn(`Error resolving simple variable ${variableName}:`, error);
           return match;
         }
       });
@@ -128,7 +127,6 @@ class ExecutionService {
           if (typeof resolvedValue === 'object') return JSON.stringify(resolvedValue);
           return String(resolvedValue);
         } catch (error) {
-          console.warn(`Error resolving value for path ${path}:`, error);
           return match;
         }
       });
@@ -145,6 +143,10 @@ class ExecutionService {
   private resolveNodeProperties(props: any, context: Record<string, any>): any {
     if (!props || typeof props !== 'object') return props;
     
+    // Helper function to check for variable patterns
+    const hasVariablePattern = (value: string | undefined) => 
+      typeof value === 'string' && (value.includes('{{') || value.includes('{'));
+    
     const resolved: any = Array.isArray(props) ? [] : {};
     
     for (const [key, value] of Object.entries(props)) {
@@ -152,7 +154,11 @@ class ExecutionService {
         resolved[key] = value.map(item => this.resolveNodeProperties(item, context));
       } else if (typeof value === 'object' && value !== null) {
         resolved[key] = this.resolveNodeProperties(value, context);
+      } else if (typeof value === 'string' && hasVariablePattern(value)) {
+        // If it's a string with variable pattern, keep it as is
+        resolved[key] = value;
       } else {
+        // Only resolve values that don't contain variable patterns
         resolved[key] = this.resolveValue(value, context);
       }
     }
@@ -227,6 +233,11 @@ class ExecutionService {
 
   private convertNodeToActions(node: DbWorkflowNode, context: Record<string, any> = {}): AutomationAction[] {
     const actions: AutomationAction[] = [];
+    console.log('Converting node to actions:', {
+      nodeType: node.type,
+      properties: node.properties
+    });
+    
     const props = this.resolveNodeProperties(node.properties || {}, {
       ...context,
       data: context.data || {},
@@ -236,6 +247,26 @@ class ExecutionService {
       random: Math.random(),
       uuid: () => crypto.randomUUID()
     });
+    console.log('Resolved properties:', props);
+
+    // Helper function to check for variable patterns
+    const hasVariablePattern = (value: string | undefined) => 
+      typeof value === 'string' && (value.includes('{{') || value.includes('{'));
+
+    // Helper function to check if any of the given properties have variable patterns
+    const hasAnyVariablePattern = (properties: (string | undefined)[]) => 
+      properties.some(prop => hasVariablePattern(prop));
+
+    // Helper function to get value or keep pattern
+    const getValueOrPattern = (value: any) => {
+      if (typeof value === 'string' && hasVariablePattern(value)) {
+        console.log('Keeping pattern:', value);
+        return value; // Keep the pattern
+      }
+      const resolved = this.resolveValue(value, context);
+      console.log('Resolved value:', { original: value, resolved });
+      return resolved;
+    };
 
     // Handle variable operations first if they exist
     if (props.variableOperations?.length > 0) {
@@ -244,7 +275,7 @@ class ExecutionService {
           type: 'variableOperation',
           operationType: operation.type,
           variableKey: operation.key,
-          variableValue: operation.value,
+          variableValue: getValueOrPattern(operation.value),
           variableType: operation.valueType,
           sourceVariableKey: operation.sourceKey,
           stopOnError: props.stopOnError
@@ -258,28 +289,21 @@ class ExecutionService {
           props.operations.forEach((operation: any) => {
             if (!context.data) context.data = {};
             if (!context.data._variables) context.data._variables = {};
-            context.data._variables[operation.key] = operation.value;
+            context.data._variables[operation.key] = getValueOrPattern(operation.value);
           });
         }
         break;
 
       case 'filePicker':
         if (props.filePath) {
-          // Resolve variable patterns in filePath and fileName
-          const resolvedFilePath = this.resolveValue(props.filePath, context);
-          const resolvedFileName = props.fileName ? this.resolveValue(props.fileName, context) : undefined;
-
-          // Normalize paths
-          const normalizedFilePath = this.normalizePath(resolvedFilePath);
-          const normalizedFileName = resolvedFileName ? this.normalizePath(resolvedFileName) : undefined;
           actions.push({
             type: 'filePicker',
-            filePath: normalizedFilePath,
-            fileName: normalizedFileName,
+            filePath: getValueOrPattern(props.filePath),
+            fileName: props.fileName ? getValueOrPattern(props.fileName) : undefined,
             multiple: props.multiple,
             directory: props.directory,
             accept: props.accept,
-            variableKey: props.variableOperations[0].key,
+            variableKey: props.variableOperations?.[0]?.key,
             stopOnError: props.stopOnError
           });
         }
@@ -289,7 +313,7 @@ class ExecutionService {
         if (props.url) {
           actions.push({
             type: 'openUrl',
-            value: props.url,
+            value: getValueOrPattern(props.url),
             waitUntil: props.waitUntil || 'networkidle0',
             timeout: props.timeout || 30000,
             stopOnError: props.stopOnError
@@ -298,18 +322,18 @@ class ExecutionService {
         break;
 
       case 'click':
-        if (props.selector) {
+        if (props.selector || hasVariablePattern(props.selector)) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: props.selector,
+              selector: getValueOrPattern(props.selector),
               timeout: props.timeout || 5000
             });
           }
 
           actions.push({
             type: 'click',
-            selector: props.selector,
+            selector: getValueOrPattern(props.selector),
             button: props.button || 'left',
             clickCount: props.clickCount || 1,
             delay: props.delay,
@@ -326,20 +350,19 @@ class ExecutionService {
         break;
 
       case 'type':
-        if (props.selector) {
+        if (props.selector || hasAnyVariablePattern([props.selector, props.value])) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: this.resolveValue(props.selector, context),
+              selector: getValueOrPattern(props.selector),
               timeout: props.timeout || 5000
             });
           }
 
-          const resolvedValue = this.resolveValue(props.value, context);
           actions.push({
             type: 'type',
-            selector: this.resolveValue(props.selector, context),
-            value: resolvedValue || '',
+            selector: getValueOrPattern(props.selector),
+            value: getValueOrPattern(props.value),
             delay: props.delay,
             stopOnError: props.stopOnError
           });
@@ -347,68 +370,76 @@ class ExecutionService {
         break;
 
       case 'select':
-        if (props.selector) {
+        if ((props.selector && props.value) || 
+            hasAnyVariablePattern([props.selector, props.value])) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: this.resolveValue(props.selector, context),
+              selector: getValueOrPattern(props.selector),
               timeout: props.timeout || 5000
             });
           }
 
-          const resolvedSelectValue = this.resolveValue(props.value, context);
           actions.push({
             type: 'select',
-            selector: this.resolveValue(props.selector, context),
-            value: resolvedSelectValue,
+            selector: getValueOrPattern(props.selector),
+            value: getValueOrPattern(props.value),
             stopOnError: props.stopOnError
           });
         }
         break;
 
       case 'extract':
-        if (props.selector) {
+        if (props.selector || hasVariablePattern(props.selector)) {
           if (props.waitForSelector) {
             actions.push({
               type: 'wait',
-              selector: props.selector,
+              selector: getValueOrPattern(props.selector),
               timeout: props.timeout || 5000
             });
           }
 
           actions.push({
             type: 'extract',
-            selector: props.selector,
+            selector: getValueOrPattern(props.selector),
             attribute: props.attribute || 'text',
-            key: props.key || props.name || props.selector,
+            key: getValueOrPattern(props.key || props.name || props.selector),
             stopOnError: props.stopOnError
           });
         }
         break;
 
       case 'fileUpload':
-        if (props.inputSelector && props.filePath) {
-          const resolvedFilePath = this.resolveValue(props.filePath, context);
-          actions.push({
-            type: 'fileUpload',
-            selector: this.resolveValue(props.inputSelector, context),
-            filePath: resolvedFilePath,
-            stopOnError: props.stopOnError
+        if (props.selector || props.filePath || 
+            hasAnyVariablePattern([props.selector, props.filePath])) {
+          console.log('Creating fileUpload action:', {
+            selector: props.selector,
+            filePath: props.filePath,
+            hasPattern: {
+              selector: hasVariablePattern(props.selector),
+              filePath: hasVariablePattern(props.filePath)
+            }
           });
+          
+          const action: AutomationAction = {
+            type: 'fileUpload',
+            selector: getValueOrPattern(props.selector),
+            filePath: getValueOrPattern(props.filePath),
+            stopOnError: props.stopOnError
+          };
+          console.log('Created fileUpload action:', action);
+          actions.push(action);
         }
         break;
 
       case 'subtitleToVoice':
-        if (props.inputPath && props.outputPath) {
-          const resolvedInputPath = this.resolveValue(props.inputPath, context);
-          const resolvedOutputPath = this.resolveValue(props.outputPath, context);
-          const resolvedLanguage = this.resolveValue(props.language, context);
-
+        if ((props.inputPath && props.outputPath) || 
+            hasAnyVariablePattern([props.inputPath, props.outputPath])) {
           actions.push({
             type: 'subtitleToVoice',
-            inputPath: resolvedInputPath,
-            outputPath: resolvedOutputPath,
-            language: resolvedLanguage || 'en',
+            inputPath: getValueOrPattern(props.inputPath),
+            outputPath: getValueOrPattern(props.outputPath),
+            language: getValueOrPattern(props.language) || 'en',
             options: props.options || {},
             stopOnError: props.stopOnError
           });
@@ -416,18 +447,17 @@ class ExecutionService {
         break;
 
       case 'editVideo':
-        if (props.inputPath && props.outputPath && props.operations) {
-          const resolvedInputPath = this.resolveValue(props.inputPath, context);
-          const resolvedOutputPath = this.resolveValue(props.outputPath, context);
-          const resolvedOperations = props.operations.map((op: any) => ({
+        if ((props.inputPath && props.outputPath && props.operations) || 
+            hasAnyVariablePattern([props.inputPath, props.outputPath])) {
+          const resolvedOperations = props.operations?.map((op: any) => ({
             ...op,
-            value: this.resolveValue(op.value, context)
-          }));
+            value: getValueOrPattern(op.value)
+          })) || [];
 
           actions.push({
             type: 'editVideo',
-            inputPath: resolvedInputPath,
-            outputPath: resolvedOutputPath,
+            inputPath: getValueOrPattern(props.inputPath),
+            outputPath: getValueOrPattern(props.outputPath),
             operations: resolvedOperations,
             options: props.options || {},
             stopOnError: props.stopOnError
@@ -532,33 +562,88 @@ class ExecutionService {
   ): Promise<void> {
     if (execution.status !== 'running' || actions.length === 0) return;
 
-    const result = await this.automationService.performWebAutomation(actions);
+    // Helper function to check for variable patterns
+    const hasVariablePattern = (value: string | undefined) => 
+      typeof value === 'string' && (value.includes('{{') || value.includes('{'));
 
-    if (result.extractedData && Object.keys(result.extractedData).length > 0) {
-      execution.data = execution.data || {};
-      const existingVariables = execution.data._variables || {};
-      const newVariables = result.extractedData._variables || {};
+    // Create context with current variables
+    const context = {
+      data: {
+        ...execution.data || {},
+        _variables: execution.data?._variables || {}
+      }
+    };
+    console.log('Initial execution context:', context);
 
-      execution.data = {
-        ...execution.data,
-        ...result.extractedData,
-        _variables: {
-          ...existingVariables,
-          ...newVariables
+    // Process actions sequentially to handle dependencies
+    for (const action of actions) {
+      console.log('Processing action:', action);
+      
+      // Resolve variable patterns for the current action
+      const resolvedAction = { ...action };
+
+      if (typeof resolvedAction.selector === 'string' && hasVariablePattern(resolvedAction.selector)) {
+        console.log('Resolving selector pattern:', resolvedAction.selector);
+        resolvedAction.selector = this.resolveValue(resolvedAction.selector, context);
+      }
+      if (typeof resolvedAction.value === 'string' && hasVariablePattern(resolvedAction.value)) {
+        console.log('Resolving value pattern:', resolvedAction.value);
+        resolvedAction.value = this.resolveValue(resolvedAction.value, context);
+      }
+      if (typeof resolvedAction.filePath === 'string' && hasVariablePattern(resolvedAction.filePath)) {
+        console.log('Resolving filePath pattern:', resolvedAction.filePath);
+        resolvedAction.filePath = this.resolveValue(resolvedAction.filePath, context);
+        console.log('Resolved filePath:', resolvedAction.filePath);
+      }
+
+      // ... other property resolutions ...
+
+      console.log('Executing resolved action:', resolvedAction);
+      const result = await this.automationService.performWebAutomation([resolvedAction]);
+
+      if (!result.success) {
+        const error = result.results[0]?.error || 'Action failed';
+        console.error('[ExecutionService] Action failed:', {
+          action: resolvedAction,
+          error: error
+        });
+        throw new Error(error);
+      }
+
+      // Update context with any extracted data or file picker results
+      if (result.extractedData && Object.keys(result.extractedData).length > 0) {
+        context.data = {
+          ...context.data,
+          ...result.extractedData,
+          _variables: {
+            ...context.data._variables,
+            ...result.extractedData._variables
+          }
+        };
+      }
+
+      // Special handling for filePicker results
+      if (resolvedAction.type === 'filePicker' && result.results[0]?.selectedFiles) {
+        const selectedFile = result.results[0].selectedFiles[0];
+        if (selectedFile && resolvedAction.variableKey) {
+          context.data._variables[resolvedAction.variableKey] = selectedFile;
+          // Update execution data immediately
+          execution.data = {
+            ...execution.data || {},
+            _variables: {
+              ...execution.data?._variables || {},
+              [resolvedAction.variableKey]: selectedFile
+            }
+          };
+          await execution.save();
         }
-      };
-
-      await execution.save();
+        console.log('Updated context after filePicker:', context);
+      }
     }
 
-    if (!result.success) {
-      const failedAction = result.results.find(r => !r.success);
-      console.error('[ExecutionService] Action failed:', {
-        action: failedAction?.action,
-        error: failedAction?.error
-      });
-      throw new Error(failedAction?.error || 'Automation failed');
-    }
+    // Save final state
+    execution.data = context.data;
+    await execution.save();
   }
 
   public async startExecution(executionId: string): Promise<void> {
@@ -620,7 +705,7 @@ class ExecutionService {
         );
         allActions.push(...actions);
       }
-
+      console.log('allActions', allActions);
       // Execute all collected actions
       await this.executeAutomationActions(allActions, execution);
 

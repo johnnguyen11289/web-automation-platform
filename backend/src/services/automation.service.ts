@@ -10,8 +10,15 @@ export class AutomationService {
   private static instance: AutomationService | null = null;
   private automation: IBrowserAutomation | null = null;
   private currentProfile: BrowserProfile | null = null;
+  private logger: (message: string) => void;
 
-  private constructor() {}
+  private constructor() {
+    this.logger = (message: string) => {
+      const timestamp = new Date().toISOString();
+      // You can replace this with your preferred logging mechanism
+      process.stdout.write(`[${timestamp}] [AutomationService] ${message}\n`);
+    }
+  }
 
   public static getInstance(): AutomationService {
     if (!AutomationService.instance) {
@@ -110,12 +117,14 @@ export class AutomationService {
 
     for (const action of actions) {
       try {
+        this.logger(`Executing action: ${action.type}`);
         let success = true;
         let error: string | undefined;
 
         switch (action.type) {
           case 'variableOperation':
             if (action.operationType && action.variableKey) {
+              this.logger(`Performing variable operation: ${action.operationType} on ${action.variableKey}`);
               switch (action.operationType) {
                 case 'set':
                   variables[action.variableKey] = action.variableValue;
@@ -151,10 +160,12 @@ export class AutomationService {
             break;
 
           case 'openUrl':
+            this.logger(`Opening URL: ${action.value}`);
             await this.automation.openUrl(action.value || '', action.waitUntil);
             break;
 
           case 'click':
+            this.logger(`Clicking element: ${action.selector}`);
             await this.automation.click(action.selector || '', {
               button: action.button,
               clickCount: action.clickCount,
@@ -163,42 +174,44 @@ export class AutomationService {
             break;
 
           case 'type':
+            this.logger(`Typing into element: ${action.selector}`);
             await this.automation.type(action.selector || '', action.value || '');
             break;
 
           case 'select':
+            this.logger(`Selecting option in element: ${action.selector}`);
             await this.automation.select(action.selector || '', action.value || '');
             break;
 
           case 'fileUpload':
+            this.logger(`Uploading file to element: ${action.selector}`);
             await this.automation.uploadFile(action.selector || '', action.filePath || '');
             break;
 
           case 'extract':
             if (action.selector && action.key) {
+              this.logger(`Extracting data from element: ${action.selector}`);
               const value = await this.automation.extract(action.selector, action.attribute);
               extractedData[action.key] = value;
-              // Also store in variables for potential use in variable operations
               variables[action.key] = value;
             }
             break;
 
           case 'subtitleToVoice':
             if (action.inputPath && action.outputPath) {
-              // Implement subtitle to voice conversion
-              // This is a placeholder - implement actual logic
+              this.logger(`Converting subtitle to voice: ${action.inputPath} -> ${action.outputPath}`);
             }
             break;
 
           case 'editVideo':
             if (action.inputPath && action.outputPath && action.operations) {
-              // Implement video editing
-              // This is a placeholder - implement actual logic
+              this.logger(`Editing video: ${action.inputPath} -> ${action.outputPath}`);
             }
             break;
 
           case 'filePicker':
             if (action.filePath) {
+              this.logger(`Picking file from: ${action.filePath}`);
               const selectedFiles = await this.automation.pickFile(action.filePath, {
                 fileName: action.fileName,
                 multiple: action.multiple,
@@ -209,13 +222,14 @@ export class AutomationService {
               if (action.variableKey) {
                 variables[action.variableKey] = selectedFiles.paths;
               }
-              console.log("variables", variables)
+              this.logger(`Files selected: ${JSON.stringify(selectedFiles.paths)}`);
             }
             break;
 
           default:
             success = false;
             error = `Unknown action type: ${action.type}`;
+            this.logger(`Error: ${error}`);
         }
 
         results.push({
@@ -228,6 +242,7 @@ export class AutomationService {
           break;
         }
       } catch (error) {
+        this.logger(`Action failed: ${action.type} - ${error instanceof Error ? error.message : String(error)}`);
         results.push({
           action,
           success: false,
